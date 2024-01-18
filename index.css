@@ -1,0 +1,177 @@
+:root {
+  --pct: 100%;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background: linear-gradient(150deg, rgb(80, 180, 240), rgb(255, 255, 255));
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  /*background-blend-mode: overlay;*/
+  /*background-size: cover;*/
+  /*background-image: url("https://defly.io/img/background-grid.png");*/
+}
+body::before {
+  content: '';
+  position: fixed;
+  left: 0; right: 0;
+  top: 0; bottom: 0;
+  background-image: url('images/background-grid.png');
+  background-size: 50px 50px;
+}
+/*body::after {
+  content: '';*/
+.screen-overlay-fade {
+  position: fixed;
+  left: 0; right: 0;
+  top: 0; bottom: 0;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) var(--pct), rgba(255, 255, 255, 1) calc(var(--pct) + 100%));
+  pointer-events: none;
+  /*animation: 1s blanck-out-screen infinite;*/
+}
+
+/*@property --opacity {
+  syntax: '<number>';
+  initial-value: 0;
+  inherits: false;
+}*/
+@property --pct {
+  syntax: '<percentage>';
+  initial-value: 100%;
+  inherits: false;
+}
+
+@keyframes blanck-out-screen {
+  0% {--pct: 100%}
+  100%  {--pct: -100%;}
+}
+
+button {
+  cursor: pointer;
+  font-size: larger;
+}
+
+#main-menu {
+  position: fixed;
+  top: 5%;
+  left: 5%;
+  width: 90%;
+  height: 90%;
+  background-color: rgba(0, 0, 0, .7);
+  border-radius: 5%;
+}
+
+#main-menu-nav {
+  position: absolute;
+  top: 15%;
+  left: 1%;
+  width: 14%;
+  height: 80%;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border: 2px solid red;
+}
+#main-menu-nav > div {
+  border: 2px solid red;
+  border-radius: 6px 0 6px 0;
+  background: rgba(100,100,100,.5);
+  font-weight: 700;
+  font-size: 2em;
+}
+
+#main-menu-content > div {
+  position: absolute;
+  top: 10%;
+  left: 15%;
+  width: 85%;
+  height: 90%;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  flex-direction: column;
+  border: 2px solid red;
+  transition-property: opacity;
+  transition-duration: .5s;
+}
+
+.menu-heading {
+  position: absolute;
+  top: 2%;
+  width: 100%;
+  font-size: 3em;
+  font-weight: 100;
+  text-align: center;
+}
+
+#main-menu-page1-content > div {
+  border: 2px solid red;
+  width: 80%;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+#main-menu-page1-content > div > button {
+  background-color: blue;
+  border-radius: 4px;
+  height: 50px;
+}
+#main-menu-page1-content > div > div {
+  background-color: rgba(100, 200, 100, 0.5);
+  border: 2px solid black;
+  width: 50%;
+}
+
+#DME-menu {
+  position: fixed;
+  width: 296px;
+  height: auto;
+  left: 30px;
+  top: 30px;
+  background-color: rgba(10, 10, 10, 0.5);
+  border-radius: 10px;
+  z-index: 10;
+}
+
+#DME-hotkey-menu {
+  position: fixed;
+  z-index: 11;
+}
+
+#DME-display-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  cursor: crosshair;
+}
+
+#DME-selected-towers-options {
+  display: none;
+  border: 2px dotted orange;
+}
+
+.visible {
+  display: inline;
+}
+.hidden {
+  display: none !important;
+}
+.clickable {
+  cursor: pointer;
+}
+
+.fatButton {
+  font-size: 20px;
+  width: 280px;
+  margin: 1px 8px;
+  /* background-color: rgba(100, 100, 250, 01); */
+}
+
+/*#empty {
+  position: fixed;
+  top: 30%;
+  width: var(--pct);
+  height: 20px;
+  background-color: red;
+  animation: 1s blanck-out-screen infinite;
+}*/

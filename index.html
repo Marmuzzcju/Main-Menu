@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Menu</title>
+    <link rel="icon" href="images/icon.ico">
+    <link href="index.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="main-menu" class="visible main-page">
+      <div class="menu-heading">Main Menu</div>
+      <div id="main-menu-nav">
+        <div id="main-menu-nav-select1" class="clickable" onclick="toggleMainMenuContentPage(1);">Defly</div>
+        <div id="main-menu-nav-select2" class="clickable" onclick="toggleMainMenuContentPage(2);">Select 2</div>
+        <div id="main-menu-nav-select3" class="clickable" onclick="toggleMainMenuContentPage(3);">Select 3</div>
+        <div id="main-menu-nav-select4" class="clickable" onclick="toggleMainMenuContentPage(4);">Select 4</div>
+      </div>
+      <div id="main-menu-content">
+        <div id="main-menu-page1-content" class="main-menu-content-page">
+          <div>
+            <div>
+              The enhanced defly map editor, created by Marmuzzcju.
+              Build, edit and overview your own defly maps with these new tools.
+            </div>
+            <button onclick="console.log('click');switchSite('map-editor');">
+              Map Editor >
+            </button>
+          </div>
+          <div>
+            <div>
+              Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
+              nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam
+              erat, sed diam voluptua. At vero eos et accusam et
+            </div>
+            <button onclick="console.log('click: nothing');">Do nothing</button>
+          </div>
+          <div>
+            <div>
+              Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
+              nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam
+              erat, sed diam voluptua. At vero eos et accusam et justo
+            </div>
+            <button onclick="console.log('click: nothing');">Do nothing</button>
+          </div>
+          <div>
+            <div>
+              Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
+              nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam
+              erat, sed diam voluptua. At vero eos et accusam et justo
+            </div>
+            <button onclick="console.log('click: nothing');">Do nothing</button>
+          </div>
+          <div>
+            <div>
+              Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
+              nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam
+              erat, sed diam voluptua. At vero eos et accusam et justo
+            </div>
+            <button onclick="console.log('click: nothing');">Do nothing</button>
+          </div>
+        </div>
+        <div id="main-menu-page2-content" class="main-menu-content-page">
+            <p>PAGE 2!!!</p>
+            <p>IMOPRTANT STUFF HERE IDK</p>
+            <p>IMOPRTANT STUFF HERE IDK</p>
+            <p>IMOPRTANT STUFF HERE IDK</p>
+            <p>IMOPRTANT STUFF HERE IDK</p>
+        </div>
+        <div id="main-menu-page3-content" class="main-menu-content-page">
+            <p>PAGE 3!!!</p>
+            <p>WOOOOOOOOOOOOOOOOOO</p>
+            <p>WOOOOOOOOOOOOOOOOOO</p>
+            <p>WOOOOOOOOOOOOOOOOOO</p>
+            <p>WOOOOOOOOOOOOOOOOOO</p>
+        </div>
+        <div id="main-menu-page4-content" class="main-menu-content-page">
+            <p>PAGE 4!!!</p>
+            <p>4th Page LEETS GOOO</p>
+            <p>4th Page LEETS GOOO</p>
+            <p>4th Page LEETS GOOO</p>
+            <p>4th Page LEETS GOOO</p>
+        </div>
+      </div>
+    </div>
+    <div id="map-editor" class="hidden main-page">
+      THIS IS DA MAP EDITOR
+      <canvas id="DME-display-canvas" class="hidden"></canvas>
+      <div id="DME-selected-towers-options">
+
+      </div>
+      <button id="DME-show-menu" style="font-size:15px; width:120px; position:fixed; top:6%; left:3%; z-index:100;display:none;" onclick="document.querySelector('#DME-menu').style.display = 'inline';this.style.display = 'none';">Show Menu</button>
+	  	<div id="DME-menu">
+			  <span style="margin-left:86px; font-size:22px; color:rgb(7, 7, 60);">Options Menu</span></br>
+			  <button id="hideMenu" class="fatButton" onclick="document.querySelector('#DME-menu').style.display = 'none';document.querySelector('#DME-show-menu').style.display = 'inline';">Hide Menu</button></br>
+			  <!-- <button id="showHelp" class="fatButton" onclick="document.getElementById('instructions').style.display = 'inline';mapStuff.classList.add('blurred');openMenu=true;">Help/Instructions</button> </br> -->
+			  <!-- <button class="fatButton" onclick="CopyFile()">Copy Map File (ctrl + c)</button> </br> -->
+			  <!-- <button class="fatButton" onclick="showMapOverview();">Map Overview & Options</button> </br> -->
+			  <!-- <input type="file" id="uploadMapFileButton" accept=".txt" onchange="getFile(this)"> -->
+    		<!-- <button class="fatButton" onclick="confirmAction('Are you sure you want to delete your current map?\nDeleting map will also erase your undo/redo history', 'Confirm', 'Cancel', 1, 0);openMenu=true;">Clear Map</button> </br> -->
+			  <span style="padding: 0px 3px 0px 10px;font-size: 17px;">Snap to grid range:</span><input type="number" value="2" min="1" max="1000" id="DME-input-snap-range" onfocus="this.select();DME.openMenu=true;" onblur="DME.openMenu=false;" style="width:32.8px;"onchange="DME.snapRange = this.value*defly.UNIT_WIDTH;"><span style="padding-right: 3px;font-size: 17px;"> Enabled:</span><input type="checkbox" id="DME-toggle-snapping-checkbox" class="clickable" onchange="DME.snapping = this.checked;"> </br>
+			  <span style="padding: 0px 3px 0px 10px;font-size: 17px;">Map Width:</span><input type="number" value="210" min="1" max="10000" id="DME-input-map-width" onfocus="this.select();DME.openMenu=true;" onblur="DME.openMenu=false;" style="width:37.8px;"onchange="DME.mapData.width=this.value*defly.UNIT_WIDTH;"><span style="padding-right: 3px;font-size: 17px;"> Map Height:</span><input type="number" value="120" min="1" max="10000" id="DME-input-map-height" onfocus="this.select();DME.openMenu=true;" onblur="DME.openMenu=false;" style="width: 37.8px;"onchange="DME.mapData.height=this.value*defly.UNIT_WIDTH;"> </br>
+			  <span style="padding: 0px 3px 0px 10px;font-size: 17px;">Tower color: </span><input type="number" value="1" min="1" max="14" id="DME-input-tower-color" onfocus="this.select();DME.openMenu=true;" onblur="DME.openMenu=false;" style="width:32.8px;"onchange="DME.changeSelectedTowerColor(this.value)"><span style="padding-right: 3px;font-size: 17px;">&nbsp; / &nbsp;</span><select id="DME-select-color-dropdown" class="clickable" style="font-size: 17px;border-radius: 3px;" onchange="DME.changeSelectedTowerColor(this.value)"><option value="1" style="color: rgb(77,77,77);">Grey</option><option value="2" style="color: rgb(61,93,255);">Blue</option><option value="3" style="color: rgb(253,53,53);">Red</option><option value="4" style="color: rgb(0,128,55);">Dark Green</option><option value="5" style="color: rgb(255,128,42);">Orange</option><option value="6" style="color: rgb(146,75,255);">Purple</option><option value="7" style="color: rgb(85,213,255);">Sky Blue</option><option value="8" style="color: rgb(24,226,31);">Light Green</option><option value="9" style="color: rgb(246,89,255);">Pink</option><option value="10" style="color: rgb(247,255,42);">Yellow</option><option value="11" style="color: rgb(255,95,174);">Rose</option><option value="12" style="color: rgb(147,254,0);">Lime</option><option value="13" style="color: rgb(0,255,188);">Cyan</option><option value="14" style="color: rgb(0,0,0);">Black</option></select> </br>
+			  <button class="fatButton" onclick="document.querySelector('#DME-hotkey-menu').style.display='flex';DME.openMenu=true;">Hotkeys</button> </br>
+			  <!-- <button class="fatButton" onclick="document.getElementById('distance-overview-table').style.display = 'inline';mapStuff.classList.add('blurred');openMenu=true;">View Distance Table</button> </br> -->
+			  <!-- <button class="fatButton" onclick="testMap();">Test Map</button><a href="https://marmuzzcju.github.io/Defuse-Clone/" target="_blank" id="linkToMapTest" style="display: none;"></a> </br> -->
+		  </div>
+      <div id="DME-hotkey-menu" style="display: none;">
+        <h1>Under Construction</h1>
+        <button onclick="document.querySelector('#DME-hotkey-menu').style.display='none';DME.openMenu=false;">Close</button>
+      </div>
+    </div>
+    <div class="screen-overlay-fade"></div>
+    <script src="index.js" defer></script>
+  </body>
+</html>
