@@ -265,6 +265,10 @@ const DME = {
     CONTROL: false,
     SHIFT: false,
     ENTER: false,
+    MoveUp: false,
+    MoveDown: false,
+    MoveLeft: false,
+    MoveRight: false,
   },
 
   mouseCoords: {
@@ -280,6 +284,16 @@ const DME = {
       x: 0,
       y: 0,
     },
+  },
+
+  scrollingSpeed: 10,
+  focusPoint : {
+    x : 500,
+    y : 500,
+  },
+  focusOffset : {
+    x : window.innerWidth/2,
+    y : window.innerHeight/2,
   },
 
   snapRange: 2 * defly.UNIT_WIDTH,
@@ -345,17 +359,20 @@ const DME = {
 
   placeArea: function () {
     let mc = this.mouseCoords.snapped;
+
     //check if pointer is inside an area
     let insideAreas = false;
     this.mapData.areas.forEach((area, index) => {
       insideAreas = this.isPointInsideArea([mc.x,mc.y], area.nodes) ? index : insideAreas;
       console.log(`Inside Areas: ${insideAreas} -- type: ${typeof(insideAreas)}`);
     });
+    //if so - delete that area and return
     if(typeof(insideAreas) == "number"){
       this.mapData.areas.splice(insideAreas, 1);
       return;
     }
-    //
+    //if not - try to create an area
+    //get closest wall as area origin point
     let closestWall = {
       index: 0,
       distance: Infinity,
@@ -375,15 +392,19 @@ const DME = {
         closestWall.distance = dist;
       }
     });
-    if (closestWall.distance === Infinity) return;
+
     //only keep going if close walls exist
+    if (closestWall.distance === Infinity) return;
     let cl = this.mapData.walls[closestWall.index];
+
+    //check if cursor is on the "wrong" side of the wall & set wall angle correction based on that
     let a = this.calculateAngle(
       [cl.from.x, cl.from.y],
       [cl.to.x, cl.to.y],
       [mc.x, mc.y]
     );
     let wallAngleCorrection = a > 180 ? 1 : -1;
+
     let startingTowerId = this.mapData.walls[closestWall.index].from.id;
     let finishTowerId = this.mapData.walls[closestWall.index].to.id;
     let availableTowers = {};
@@ -392,7 +413,8 @@ const DME = {
     let currentNodeArray = [finishTowerId, startingTowerId];
     let areaHasBeenFound = false;
     let backupCounter = 0;
-    while (!areaHasBeenFound && backupCounter < 100) {
+    //loop until a) area has been found or b) there can´t be an area or c) it´s taking too long & exceeding backup counter (stuck in infite loop)
+    while (!areaHasBeenFound && backupCounter < 1000) {
       let deadEnd = true;
       let nextTower = 0;
       let neighbourTowers = this.getNeighbourTowers(currentNodeArray.at(-1));
@@ -400,7 +422,7 @@ const DME = {
         neighbourTowers.includes(finishTowerId) &&
         currentNodeArray.length > 2
       ) {
-        //if can connect back to start tower & >2 nodes in area so it won´t connect back if no new tower has joined (min triangle)
+        //if can connect back to start tower & >2 nodes in area (so it doesn't connect back if no new tower has joined) (min triangle)
         areaHasBeenFound = true;
         break;
       } else {
@@ -408,11 +430,13 @@ const DME = {
         if (neighbourTowers.length > 1) {
           let availableNeighbours = [];
           neighbourTowers.forEach((tower) => {
+            //only neighbours who aren´t and weren´t inside a possible area can be added
             if (availableTowers?.[tower] == undefined) {
               availableNeighbours.push(tower);
             }
           });
           if (availableNeighbours.length > 0) {
+            //give smallest angle priotity as next wall/node
             let offset = {
               angle: Infinity,
               idx: 0,
@@ -460,7 +484,9 @@ const DME = {
         ? `Area has been found!!! [${currentNodeArray}]`
         : "No area found :("
     );
-    if (areaHasBeenFound) this.createArea(currentNodeArray);
+    if (areaHasBeenFound) {
+      if (this.isPointInsideNodes([mc.x,mc.y],currentNodeArray)) this.createArea(currentNodeArray);
+    }
   },
 
   createArea: function (ids) {
@@ -619,7 +645,7 @@ const DME = {
   },
 
   getDistance: function (x1, y1, x2, y2) {
-    return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
+    return ((x1 - x2)**2 + (y1 - y2)**2)**.5;
   },
 
   getDistanceToLine: function (wall1x, wall1y, wall2x, wall2y, pointX, pointY) {
@@ -679,6 +705,16 @@ const DME = {
     }
   },
 
+  isPointInsideNodes: function(point, nodes){
+    let areaFromNodes = [];
+    nodes.forEach(node => {
+      let idx = this.getIndexFromId(node);
+      let nodeTower = this.mapData.towers[idx];
+      areaFromNodes.push(nodeTower);
+    });
+    return this.isPointInsideArea(point, areaFromNodes);
+  },
+
   isPointInsideArea: function(point, area){
     let intersectionCounter = 0;
     let anl = area.length;
@@ -732,13 +768,34 @@ const DME = {
   updateMouseCoords: function (x, y) {
     let mc = this.mouseCoords;
     mc.real = { x: x, y: y };
-    mc.relative = mc.real;
+    mc.relative = {
+      x : this.relToFsPt.x(mc.real.x),
+      y : this.relToFsPt.y(mc.real.y)
+    };
     if (this.snapping) {
       let xOffset = mc.relative.x + 0.5 * this.snapRange;
       let yOffset = mc.relative.y + 0.5 * this.snapRange;
       mc.snapped.x = xOffset - (xOffset % this.snapRange);
       mc.snapped.y = yOffset - (yOffset % this.snapRange);
     } else mc.snapped = mc.relative;
+  },
+
+  updateMap: function(){
+    let kc = this.isKeyPressed;
+    let mX = kc.MoveLeft ? -1 : 0;
+    mX += kc.MoveRight ? 1 : 0;
+    let mY = kc.MoveUp ? -1 : 0;
+    mY += kc.MoveDown ? 1 : 0;
+    let speedModif = mX != 0 || mY != 0 ? 1/(mX**2+mY**2)**.5*this.scrollingSpeed : 0;
+    mX *= speedModif;
+    mY *= speedModif;
+    this.focusPoint.x += mX;
+    this.focusPoint.y += mY;
+  },
+
+  relToFsPt: {
+    x : (ogX) => ogX + DME.focusOffset.x - DME.focusPoint.x,
+    y : (ogY) => ogY + DME.focusOffset.y - DME.focusPoint.y,
   },
 
   draw: function () {
@@ -749,9 +806,9 @@ const DME = {
     DME.mapData.areas.forEach((area) => {
       ctx.fillStyle = defly.colors.faded[area.color];
       ctx.beginPath();
-      ctx.moveTo(area.nodes[0].x, area.nodes[0].y);
+      ctx.moveTo(this.relToFsPt.x(area.nodes[0].x), this.relToFsPt.y(area.nodes[0].y));
       area.nodes.forEach((node) => {
-        ctx.lineTo(node.x, node.y);
+        ctx.lineTo(this.relToFsPt.x(node.x), this.relToFsPt.y(node.y));
       });
       ctx.fill();
     });
@@ -761,15 +818,15 @@ const DME = {
       ctx.lineWidth = defly.WALL_WIDTH;
       ctx.strokeStyle = defly.colors.darkened[wall.color];
       ctx.beginPath();
-      ctx.moveTo(wall.from.x, wall.from.y);
-      ctx.lineTo(wall.to.x, wall.to.y);
+      ctx.moveTo(this.relToFsPt.x(wall.from.x), this.relToFsPt.y(wall.from.y));
+      ctx.lineTo(this.relToFsPt.x(wall.to.x), this.relToFsPt.y(wall.to.y));
       ctx.stroke();
       //draw wall twice, once bit darker to create the darkened edge of the wall
       ctx.strokeStyle = defly.colors.standard[wall.color];
       ctx.lineWidth = defly.WALL_WIDTH - 4;
       ctx.beginPath();
-      ctx.moveTo(wall.from.x, wall.from.y);
-      ctx.lineTo(wall.to.x, wall.to.y);
+      ctx.moveTo(this.relToFsPt.x(wall.from.x), this.relToFsPt.y(wall.from.y));
+      ctx.lineTo(this.relToFsPt.x(wall.to.x), this.relToFsPt.y(wall.to.y));
       ctx.stroke();
     });
     //draw wall previews
@@ -783,12 +840,12 @@ const DME = {
         ctx.strokeStyle = defly.colors.standard[tower.color];
         ctx.lineWidth = defly.WALL_WIDTH - 4;
         ctx.beginPath();
-        ctx.moveTo(tower.x, tower.y);
+        ctx.moveTo(this.relToFsPt.x(tower.x), this.relToFsPt.y(tower.y));
         ctx.lineTo(mc.x, mc.y);
         ctx.stroke();
         let borderLines = calculateParallelLines(
           [mc.x, mc.y],
-          [tower.x, tower.y],
+          [this.relToFsPt.x(tower.x), this.relToFsPt.y(tower.y)],
           defly.WALL_WIDTH / 2 - 1
         );
         ctx.strokeStyle = defly.colors.darkened[tower.color];
@@ -806,20 +863,24 @@ const DME = {
     //draw towers
     ctx.lineWidth = 13;
     DME.mapData.towers.forEach((tower, index) => {
+      let t = {
+        x : this.relToFsPt.x(tower.x),
+        y : this.relToFsPt.y(tower.y),
+      }
       if (this.selectedTowers.includes(index)) {
         ctx.strokeStyle = "rgba(230, 50, 50, 0.6)";
         ctx.beginPath();
-        ctx.arc(tower.x, tower.y, defly.TOWER_WIDTH + 3, 2 * Math.PI, false);
+        ctx.arc(t.x, t.y, defly.TOWER_WIDTH + 3, 2 * Math.PI, false);
         ctx.stroke();
       }
       ctx.fillStyle = defly.colors.darkened[tower.color];
       ctx.beginPath();
-      ctx.arc(tower.x, tower.y, defly.TOWER_WIDTH, 2 * Math.PI, false);
+      ctx.arc(t.x, t.y, defly.TOWER_WIDTH, 2 * Math.PI, false);
       ctx.fill();
       //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
       ctx.fillStyle = defly.colors.standard[tower.color];
       ctx.beginPath();
-      ctx.arc(tower.x, tower.y, defly.TOWER_WIDTH - 2, 2 * Math.PI, false);
+      ctx.arc(t.x, t.y, defly.TOWER_WIDTH - 2, 2 * Math.PI, false);
       ctx.fill();
     });
     //draw tower preview
@@ -847,8 +908,8 @@ const DME = {
       let s = this.selectingChunk.origin;
       let w = this.mouseCoords.relative.x - s.x;
       let h = this.mouseCoords.relative.y - s.y;
-      ctx.fillRect(s.x, s.y, w, h);
-      ctx.strokeRect(s.x, s.y, w, h);
+      ctx.fillRect(this.relToFsPt.x(s.x), this.relToFsPt.y(s.y), w, h);
+      ctx.strokeRect(this.relToFsPt.x(s.x), this.relToFsPt.y(s.y), w, h);
     }
   },
 
@@ -898,7 +959,7 @@ const DME = {
           break;
         }
         case 1: {
-          this.selectChunk(e.clientX, e.clientY, 0);
+          this.selectChunk(DME.mouseCoords.snapped.x, DME.mouseCoords.snapped.y, 0);
           break;
         }
         case 2: {
@@ -927,6 +988,8 @@ const DME = {
     });
     document.addEventListener("keydown", (e) => {
       console.log(e.key.toLocaleUpperCase());
+      //ignore hotkeys if a menu is open
+      if(this.openMenu) return;
       switch (e.key.toLocaleUpperCase()) {
         case this.hotkeys.Control: {
           this.isKeyPressed.CONTROL = true;
@@ -958,6 +1021,22 @@ const DME = {
           this.placeArea();
           break;
         }
+        case this.hotkeys.ArrowUp: {
+          this.isKeyPressed.MoveUp = true;
+          break;
+        }
+        case this.hotkeys.ArrowDown: {
+          this.isKeyPressed.MoveDown = true;
+          break;
+        }
+        case this.hotkeys.ArrowLeft: {
+          this.isKeyPressed.MoveLeft = true;
+          break;
+        }
+        case this.hotkeys.ArrowRight: {
+          this.isKeyPressed.MoveRight = true;
+          break;
+        }
       }
     });
     document.addEventListener("keyup", (e) => {
@@ -977,6 +1056,22 @@ const DME = {
         case this.hotkeys.g: {
           break;
         }
+        case this.hotkeys.ArrowUp: {
+          this.isKeyPressed.MoveUp = false;
+          break;
+        }
+        case this.hotkeys.ArrowDown: {
+          this.isKeyPressed.MoveDown = false;
+          break;
+        }
+        case this.hotkeys.ArrowLeft: {
+          this.isKeyPressed.MoveLeft = false;
+          break;
+        }
+        case this.hotkeys.ArrowRight: {
+          this.isKeyPressed.MoveRight = false;
+          break;
+        }
       }
     });
     this.updateCanvas();
@@ -985,6 +1080,7 @@ const DME = {
   updateCanvas: function () {
     if ((currentSite = "DME")) {
       //stop requesting new animation frames if site changed from map editor
+      DME.updateMap();
       DME.draw();
       window.requestAnimationFrame(DME.updateCanvas);
     }
