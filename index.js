@@ -537,7 +537,9 @@ const DME = {
     });
   },
 
-  selectTower: function (x, y) {
+  selectTower: function () {
+    let mc = this.mouseCoords.relative;
+    let [x,y] = [mc.x,mc.y];
     if (this.isKeyPressed.SHIFT) {
       this.selectedTowers = [];
       this.mapData.towers.forEach((t, index) => {
@@ -559,7 +561,9 @@ const DME = {
     }
   },
 
-  selectChunk: function (x, y, state) {
+  selectChunk: function (state) {
+    let mc = this.mouseCoords.relative;
+    let [x,y] = [mc.x,mc.y];
     switch (state) {
       case 0: {
         this.selectingChunk.isSelecting = true;
@@ -767,10 +771,11 @@ const DME = {
 
   updateMouseCoords: function (x, y) {
     let mc = this.mouseCoords;
-    mc.real = { x: x, y: y };
+    //if update is called without x,y coords - only update realtive coords without crashing
+    mc.real = x && y ? { x: x, y: y } : mc.real;
     mc.relative = {
-      x : this.relToFsPt.x(mc.real.x),
-      y : this.relToFsPt.y(mc.real.y)
+      x : mc.real.x + this.focusPoint.x - this.focusOffset.x,
+      y : mc.real.y + this.focusPoint.y - this.focusOffset.y,
     };
     if (this.snapping) {
       let xOffset = mc.relative.x + 0.5 * this.snapRange;
@@ -791,6 +796,7 @@ const DME = {
     mY *= speedModif;
     this.focusPoint.x += mX;
     this.focusPoint.y += mY;
+    if(speedModif) this.updateMouseCoords();
   },
 
   relToFsPt: {
@@ -801,6 +807,9 @@ const DME = {
   draw: function () {
     //clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    let mc = this.mouseCoords.snapped;
+    let [mcX, mcY] = [this.relToFsPt.x(mc.x), this.relToFsPt.y(mc.y)]
 
     //draw areas
     DME.mapData.areas.forEach((area) => {
@@ -836,15 +845,14 @@ const DME = {
       let t = this.mapData.towers;
       this.selectedTowers.forEach((index) => {
         let tower = t[index];
-        let mc = this.mouseCoords.snapped;
         ctx.strokeStyle = defly.colors.standard[tower.color];
         ctx.lineWidth = defly.WALL_WIDTH - 4;
         ctx.beginPath();
         ctx.moveTo(this.relToFsPt.x(tower.x), this.relToFsPt.y(tower.y));
-        ctx.lineTo(mc.x, mc.y);
+        ctx.lineTo(mcX, mcY);
         ctx.stroke();
         let borderLines = calculateParallelLines(
-          [mc.x, mc.y],
+          [mcX, mcY],
           [this.relToFsPt.x(tower.x), this.relToFsPt.y(tower.y)],
           defly.WALL_WIDTH / 2 - 1
         );
@@ -887,16 +895,15 @@ const DME = {
     if (!this.selectingChunk.isSelecting) {
       let gA = ctx.globalAlpha;
       ctx.globalAlpha = 0.5;
-      let mc = this.mouseCoords.snapped;
       ctx.fillStyle = defly.colors.standard[this.selectedColor];
       ctx.beginPath();
-      ctx.arc(mc.x, mc.y, defly.TOWER_WIDTH, 2 * Math.PI, false);
+      ctx.arc(mcX, mcY, defly.TOWER_WIDTH, 2 * Math.PI, false);
       ctx.fill();
       //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
       ctx.lineWidth = 2;
       ctx.strokeStyle = defly.colors.standard[this.selectedColor];
       ctx.beginPath();
-      ctx.arc(mc.x, mc.y, defly.TOWER_WIDTH - 1, 2 * Math.PI, false);
+      ctx.arc(mcX, mcY, defly.TOWER_WIDTH - 1, 2 * Math.PI, false);
       ctx.stroke();
       ctx.globalAlpha = gA;
     }
@@ -955,11 +962,11 @@ const DME = {
       console.log(e.button);
       switch (e.button) {
         case 0: {
-          this.selectTower(e.clientX, e.clientY);
+          this.selectTower();
           break;
         }
         case 1: {
-          this.selectChunk(DME.mouseCoords.snapped.x, DME.mouseCoords.snapped.y, 0);
+          this.selectChunk(0);
           break;
         }
         case 2: {
@@ -975,7 +982,7 @@ const DME = {
           break;
         }
         case 1: {
-          this.selectChunk(e.clientX, e.clientY, 1);
+          this.selectChunk(1);
           break;
         }
         case 2: {
