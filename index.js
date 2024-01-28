@@ -287,15 +287,15 @@ const DME = {
   },
 
   scrollingSpeed: 10,
-  focusPoint : {
-    x : 500,
-    y : 500,
+  focusPoint: {
+    x: 500,
+    y: 500,
   },
-  focusOffset : {
-    x : window.innerWidth/2,
-    y : window.innerHeight/2,
+  focusOffset: {
+    x: window.innerWidth / 2,
+    y: window.innerHeight / 2,
   },
-  mapZoom : 1,
+  mapZoom: 1,
 
   snapRange: 2 * defly.UNIT_WIDTH,
   snapping: false,
@@ -333,10 +333,10 @@ const DME = {
     }
     //store all tower ids from existing walls to that tower
     let existingWalls = [];
-    this.mapData.walls.forEach(wall => {
-      if(wall.from.id == towerId){
+    this.mapData.walls.forEach((wall) => {
+      if (wall.from.id == towerId) {
         existingWalls.push(wall.to.id);
-      } else if (wall.to.id == towerId){
+      } else if (wall.to.id == towerId) {
         existingWalls.push(wall.from.id);
       }
     });
@@ -344,7 +344,8 @@ const DME = {
       let id = this.mapData.towers[towerIndex].id;
       //create a wall from each selected tower to new one
       //only if such wall didn´t exist yet
-      if (id != towerId && !existingWalls.includes(id)) this.createWall(id, towerId);
+      if (id != towerId && !existingWalls.includes(id))
+        this.createWall(id, towerId);
     });
     this.selectedTowers = [this.getIndexFromId(towerId)];
   },
@@ -375,11 +376,15 @@ const DME = {
     //check if pointer is inside an area
     let insideAreas = false;
     this.mapData.areas.forEach((area, index) => {
-      insideAreas = this.isPointInsideArea([mc.x,mc.y], area.nodes) ? index : insideAreas;
-      console.log(`Inside Areas: ${insideAreas} -- type: ${typeof(insideAreas)}`);
+      insideAreas = this.isPointInsideArea([mc.x, mc.y], area.nodes)
+        ? index
+        : insideAreas;
+      console.log(
+        `Inside Areas: ${insideAreas} -- type: ${typeof insideAreas}`
+      );
     });
     //if so - delete that area and return
-    if(typeof(insideAreas) == "number"){
+    if (typeof insideAreas == "number") {
       this.mapData.areas.splice(insideAreas, 1);
       return;
     }
@@ -497,7 +502,8 @@ const DME = {
         : "No area found :("
     );
     if (areaHasBeenFound) {
-      if (this.isPointInsideNodes([mc.x,mc.y],currentNodeArray)) this.createArea(currentNodeArray);
+      if (this.isPointInsideNodes([mc.x, mc.y], currentNodeArray))
+        this.createArea(currentNodeArray);
     }
   },
 
@@ -551,7 +557,7 @@ const DME = {
 
   selectTower: function () {
     let mc = this.mouseCoords.relative;
-    let [x,y] = [mc.x,mc.y];
+    let [x, y] = [mc.x, mc.y];
     if (this.isKeyPressed.SHIFT) {
       this.selectedTowers = [];
       this.mapData.towers.forEach((t, index) => {
@@ -575,7 +581,7 @@ const DME = {
 
   selectChunk: function (state) {
     let mc = this.mouseCoords.relative;
-    let [x,y] = [mc.x,mc.y];
+    let [x, y] = [mc.x, mc.y];
     switch (state) {
       case 0: {
         this.selectingChunk.isSelecting = true;
@@ -661,7 +667,7 @@ const DME = {
   },
 
   getDistance: function (x1, y1, x2, y2) {
-    return ((x1 - x2)**2 + (y1 - y2)**2)**.5;
+    return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5;
   },
 
   getDistanceToLine: function (wall1x, wall1y, wall2x, wall2y, pointX, pointY) {
@@ -704,7 +710,7 @@ const DME = {
       angle += 4 * Math.PI;
       angle %= 2 * Math.PI;
     }
-    if(angle < 0) console.log('WTF ;-;');
+    if (angle < 0) console.log("WTF ;-;");
 
     return angle * (180 / Math.PI);
   },
@@ -721,9 +727,9 @@ const DME = {
     }
   },
 
-  isPointInsideNodes: function(point, nodes){
+  isPointInsideNodes: function (point, nodes) {
     let areaFromNodes = [];
-    nodes.forEach(node => {
+    nodes.forEach((node) => {
       let idx = this.getIndexFromId(node);
       let nodeTower = this.mapData.towers[idx];
       areaFromNodes.push(nodeTower);
@@ -731,18 +737,27 @@ const DME = {
     return this.isPointInsideArea(point, areaFromNodes);
   },
 
-  isPointInsideArea: function(point, area){
+  isPointInsideArea: function (point, area) {
     let intersectionCounter = 0;
     let anl = area.length;
     area.forEach((node, idx) => {
-      let intersecting = this.isIntersecting(node.x, node.y, area[(idx+1)%anl].x, area[(idx+1)%anl].y, point[0], point[1], -1E9, -1E9)
+      let intersecting = this.isIntersecting(
+        node.x,
+        node.y,
+        area[(idx + 1) % anl].x,
+        area[(idx + 1) % anl].y,
+        point[0],
+        point[1],
+        -1e9,
+        -1e9
+      );
       console.log(intersecting);
-      if(intersecting) intersectionCounter++;
+      if (intersecting) intersectionCounter++;
     });
     //if the total count of interesctions between a line going from one point outside the area and one point unknown
     //with each line between two neighbour nodes of a poligon is odd, the point to determine is inside the poligon
     console.log(`Intersections: ${intersectionCounter}`);
-    return intersectionCounter%2 == 1 ? true : false;
+    return intersectionCounter % 2 == 1 ? true : false;
   },
 
   getClosestTower: function (x, y) {
@@ -786,10 +801,8 @@ const DME = {
     //if update is called without x,y coords - only update realtive coords without crashing
     mc.real = x && y ? { x: x, y: y } : mc.real;
     mc.relative = {
-      x : this.focusPoint.x + (mc.real.x - this.focusOffset.x) * this.mapZoom,
-      y : this.focusPoint.y + (mc.real.y - this.focusOffset.y) * this.mapZoom,
-      /*x : mc.real.x + this.focusPoint.x - this.focusOffset.x,
-      y : mc.real.y + this.focusPoint.y - this.focusOffset.y,*/
+      x: this.focusPoint.x + (mc.real.x - this.focusOffset.x) * this.mapZoom,
+      y: this.focusPoint.y + (mc.real.y - this.focusOffset.y) * this.mapZoom,
     };
     if (this.snapping) {
       let xOffset = mc.relative.x + 0.5 * this.snapRange;
@@ -799,23 +812,26 @@ const DME = {
     } else mc.snapped = mc.relative;
   },
 
-  updateMap: function(){
+  scrollFocusPoint: function () {
     let kc = this.isKeyPressed;
     let mX = kc.MoveLeft ? -1 : 0;
     mX += kc.MoveRight ? 1 : 0;
     let mY = kc.MoveUp ? -1 : 0;
     mY += kc.MoveDown ? 1 : 0;
-    let speedModif = mX != 0 || mY != 0 ? 1/(mX**2+mY**2)**.5*this.scrollingSpeed*this.mapZoom : 0;
+    let speedModif =
+      mX != 0 || mY != 0
+        ? (1 / (mX ** 2 + mY ** 2) ** 0.5) * this.scrollingSpeed * this.mapZoom
+        : 0;
     mX *= speedModif;
     mY *= speedModif;
     this.focusPoint.x += mX;
     this.focusPoint.y += mY;
-    if(speedModif) this.updateMouseCoords();
+    if (speedModif) this.updateMouseCoords();
   },
 
   relToFsPt: {
-    x : (ogX) => (ogX - DME.focusPoint.x) / DME.mapZoom + DME.focusOffset.x,
-    y : (ogY) => (ogY - DME.focusPoint.y) / DME.mapZoom + DME.focusOffset.y,
+    x: (ogX) => (ogX - DME.focusPoint.x) / DME.mapZoom + DME.focusOffset.x,
+    y: (ogY) => (ogY - DME.focusPoint.y) / DME.mapZoom + DME.focusOffset.y,
     /*x : (ogX) => ogX + DME.focusOffset.x * DME.mapZoom - DME.focusPoint.x,
     y : (ogY) => ogY + DME.focusOffset.y * DME.mapZoom - DME.focusPoint.y,*/
   },
@@ -825,7 +841,7 @@ const DME = {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     let mc = this.mouseCoords.snapped;
-    let [mcX, mcY] = [this.relToFsPt.x(mc.x), this.relToFsPt.y(mc.y)]
+    let [mcX, mcY] = [this.relToFsPt.x(mc.x), this.relToFsPt.y(mc.y)];
 
     let wallWidth = defly.WALL_WIDTH / this.mapZoom;
     let towerWidth = defly.TOWER_WIDTH / this.mapZoom;
@@ -834,7 +850,10 @@ const DME = {
     DME.mapData.areas.forEach((area) => {
       ctx.fillStyle = defly.colors.faded[area.color];
       ctx.beginPath();
-      ctx.moveTo(this.relToFsPt.x(area.nodes[0].x), this.relToFsPt.y(area.nodes[0].y));
+      ctx.moveTo(
+        this.relToFsPt.x(area.nodes[0].x),
+        this.relToFsPt.y(area.nodes[0].y)
+      );
       area.nodes.forEach((node) => {
         ctx.lineTo(this.relToFsPt.x(node.x), this.relToFsPt.y(node.y));
       });
@@ -865,7 +884,7 @@ const DME = {
       this.selectedTowers.forEach((index) => {
         let tower = t[index];
         ctx.strokeStyle = defly.colors.standard[tower.color];
-        ctx.lineWidth = wallWidth - 4 / this.mapZoom;;
+        ctx.lineWidth = wallWidth - 4 / this.mapZoom;
         ctx.beginPath();
         ctx.moveTo(this.relToFsPt.x(tower.x), this.relToFsPt.y(tower.y));
         ctx.lineTo(mcX, mcY);
@@ -890,9 +909,9 @@ const DME = {
     //draw towers
     DME.mapData.towers.forEach((tower, index) => {
       let t = {
-        x : this.relToFsPt.x(tower.x),
-        y : this.relToFsPt.y(tower.y),
-      }
+        x: this.relToFsPt.x(tower.x),
+        y: this.relToFsPt.y(tower.y),
+      };
       if (this.selectedTowers.includes(index)) {
         ctx.fillStyle = "rgba(230, 50, 50, 0.6)";
         ctx.beginPath();
@@ -1008,12 +1027,19 @@ const DME = {
         }
       }
     });
-    canvas.addEventListener('wheel', (e)=>{
-      //change to realtive value to mouse sensitivity
-      let v = e.deltaY;
-      DME.mapZoom *= v > 1 ? 1.1 : 1/1.1;
-      console.log(`Zoom level: ${DME.mapZoom}`);
-      DME.updateMouseCoords();
+    canvas.addEventListener("wheel", (e) => {
+      //zoom value realtive to mouse sensitivity
+      let v = e.deltaY / 1250;
+      DME.mapZoom *= v > 0 ? 1.02 + v : 1 / (1.02 - v);
+
+      //update focus point relative to mouse coords
+      let fpDelta = {
+        x: this.mouseCoords.relative.x - (this.focusPoint.x + (this.mouseCoords.real.x - this.focusOffset.x) * this.mapZoom),
+        y: this.mouseCoords.relative.y - (this.focusPoint.y + (this.mouseCoords.real.y - this.focusOffset.y) * this.mapZoom),
+      };
+      this.focusPoint.x += fpDelta.x;
+      this.focusPoint.y += fpDelta.y;
+
     });
     canvas.addEventListener("mousemove", (e) => {
       this.updateMouseCoords(e.clientX, e.clientY);
@@ -1021,7 +1047,7 @@ const DME = {
     document.addEventListener("keydown", (e) => {
       console.log(e.key.toLocaleUpperCase());
       //ignore hotkeys if a menu is open
-      if(this.openMenu) return;
+      if (this.openMenu) return;
       switch (e.key.toLocaleUpperCase()) {
         case this.hotkeys.Control: {
           this.isKeyPressed.CONTROL = true;
@@ -1112,7 +1138,7 @@ const DME = {
   updateCanvas: function () {
     if ((currentSite = "DME")) {
       //stop requesting new animation frames if site changed from map editor
-      DME.updateMap();
+      DME.scrollFocusPoint();
       DME.draw();
       window.requestAnimationFrame(DME.updateCanvas);
     }
