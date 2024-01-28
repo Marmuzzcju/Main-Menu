@@ -827,7 +827,7 @@ const DME = {
       mc.snapped.y = yOffset - (yOffset % this.snapRange);
     } else mc.snapped = structuredClone(mc.relative);
     mc.snapped.x = mc.snapped.x < 0 ? 0 : mc.snapped.x > this.mapData.width ? this.mapData.width : mc.snapped.x;
-    mc.snapped.y = mc.snapped.y < 0 ? 0 : mc.snapped.y > this.mapData.height ? this.mapData.width : mc.snapped.y;
+    mc.snapped.y = mc.snapped.y < 0 ? 0 : mc.snapped.y > this.mapData.height ? this.mapData.height : mc.snapped.y;
   },
 
   updateFocusPoint: function () {
