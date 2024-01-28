@@ -148,6 +148,22 @@ function calculateParallelLines(A, B, offset) {
   return { line1: [C1, D1], line2: [C2, D2] };
 }
 
+function updateFOV(){
+  switch(currentSite){
+    case 'DME':{
+      let w = window.innerWidth;
+      let h = window.innerHeight;
+      DME.focusOffset = {
+        x: w / 2,
+        y: h / 2,
+      };
+      canvas.width = w;
+      canvas.height = h;
+      break;
+    }
+  }
+}
+
 /*
 defly related functions & variables/constants
 */
@@ -1173,3 +1189,7 @@ const DME = {
 window.oncontextmenu = (e) => {
   e.preventDefault();
 };
+
+window.addEventListener("resize", (event) => {
+  updateFOV();
+});
