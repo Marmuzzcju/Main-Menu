@@ -303,7 +303,7 @@ const DME = {
   openMenu: false,
 
   mapData: {
-    with: 210 * defly.UNIT_WIDTH,
+    width: 210 * defly.UNIT_WIDTH,
     height: 120 * defly.UNIT_WIDTH,
     towers: [], //{x : xPosition, y : yPosition, color : color, id : uniqueTowerId}
     walls: [], //{from : {x : xPosition, y : yPosition, id : towerId}, to : {x : xPosition, y : yPosition, id : towerId}, color : wallColor}
@@ -809,10 +809,12 @@ const DME = {
       let yOffset = mc.relative.y + 0.5 * this.snapRange;
       mc.snapped.x = xOffset - (xOffset % this.snapRange);
       mc.snapped.y = yOffset - (yOffset % this.snapRange);
-    } else mc.snapped = mc.relative;
+    } else mc.snapped = structuredClone(mc.relative);
+    mc.snapped.x = mc.snapped.x < 0 ? 0 : mc.snapped.x > this.mapData.width ? this.mapData.width : mc.snapped.x;
+    mc.snapped.y = mc.snapped.y < 0 ? 0 : mc.snapped.y > this.mapData.height ? this.mapData.width : mc.snapped.y;
   },
 
-  scrollFocusPoint: function () {
+  updateFocusPoint: function () {
     let kc = this.isKeyPressed;
     let mX = kc.MoveLeft ? -1 : 0;
     mX += kc.MoveRight ? 1 : 0;
@@ -838,7 +840,30 @@ const DME = {
 
   draw: function () {
     //clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    //ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#D0D0D0';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    //draw map background
+    ctx.fillStyle = '#EEEEEE';
+    ctx.fillRect(this.relToFsPt.x(0), this.relToFsPt.y(0), this.mapData.width / this.mapZoom, this.mapData.height / this.mapZoom);
+    ctx.strokeStyle = '#999';
+    ctx.beginPath();
+    ctx.lineWidth = 1/this.mapZoom;
+    let w = this.mapData.width;
+    let h = this.mapData.height;
+    for(c=defly.GRID_WIDTH;c<w;c+=defly.GRID_WIDTH){
+      ctx.moveTo(this.relToFsPt.x(c), this.relToFsPt.y(0));
+      ctx.lineTo(this.relToFsPt.x(c), this.relToFsPt.y(h));
+    }
+    for(c=defly.GRID_WIDTH;c<h;c+=defly.GRID_WIDTH){
+      ctx.moveTo(this.relToFsPt.x(0), this.relToFsPt.y(c));
+      ctx.lineTo(this.relToFsPt.x(w), this.relToFsPt.y(c));
+    }
+    ctx.stroke();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1 + 1/this.mapZoom;
+    ctx.strokeRect(this.relToFsPt.x(0), this.relToFsPt.y(0), this.mapData.width / this.mapZoom, this.mapData.height / this.mapZoom);
 
     let mc = this.mouseCoords.snapped;
     let [mcX, mcY] = [this.relToFsPt.x(mc.x), this.relToFsPt.y(mc.y)];
@@ -1138,7 +1163,7 @@ const DME = {
   updateCanvas: function () {
     if ((currentSite = "DME")) {
       //stop requesting new animation frames if site changed from map editor
-      DME.scrollFocusPoint();
+      DME.updateFocusPoint();
       DME.draw();
       window.requestAnimationFrame(DME.updateCanvas);
     }
