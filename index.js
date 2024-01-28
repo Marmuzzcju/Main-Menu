@@ -295,6 +295,7 @@ const DME = {
     x : window.innerWidth/2,
     y : window.innerHeight/2,
   },
+  mapZoom : 1,
 
   snapRange: 2 * defly.UNIT_WIDTH,
   snapping: false,
@@ -330,9 +331,20 @@ const DME = {
     } else {
       this.createTower(mc.x, mc.y, this.selectedColor, towerId);
     }
+    //store all tower ids from existing walls to that tower
+    let existingWalls = [];
+    this.mapData.walls.forEach(wall => {
+      if(wall.from.id == towerId){
+        existingWalls.push(wall.to.id);
+      } else if (wall.to.id == towerId){
+        existingWalls.push(wall.from.id);
+      }
+    });
     this.selectedTowers.forEach((towerIndex) => {
       let id = this.mapData.towers[towerIndex].id;
-      if (id != towerId) this.createWall(id, towerId);
+      //create a wall from each selected tower to new one
+      //only if such wall didn´t exist yet
+      if (id != towerId && !existingWalls.includes(id)) this.createWall(id, towerId);
     });
     this.selectedTowers = [this.getIndexFromId(towerId)];
   },
@@ -774,8 +786,10 @@ const DME = {
     //if update is called without x,y coords - only update realtive coords without crashing
     mc.real = x && y ? { x: x, y: y } : mc.real;
     mc.relative = {
-      x : mc.real.x + this.focusPoint.x - this.focusOffset.x,
-      y : mc.real.y + this.focusPoint.y - this.focusOffset.y,
+      x : this.focusPoint.x + (mc.real.x - this.focusOffset.x) * this.mapZoom,
+      y : this.focusPoint.y + (mc.real.y - this.focusOffset.y) * this.mapZoom,
+      /*x : mc.real.x + this.focusPoint.x - this.focusOffset.x,
+      y : mc.real.y + this.focusPoint.y - this.focusOffset.y,*/
     };
     if (this.snapping) {
       let xOffset = mc.relative.x + 0.5 * this.snapRange;
@@ -791,7 +805,7 @@ const DME = {
     mX += kc.MoveRight ? 1 : 0;
     let mY = kc.MoveUp ? -1 : 0;
     mY += kc.MoveDown ? 1 : 0;
-    let speedModif = mX != 0 || mY != 0 ? 1/(mX**2+mY**2)**.5*this.scrollingSpeed : 0;
+    let speedModif = mX != 0 || mY != 0 ? 1/(mX**2+mY**2)**.5*this.scrollingSpeed*this.mapZoom : 0;
     mX *= speedModif;
     mY *= speedModif;
     this.focusPoint.x += mX;
@@ -800,8 +814,10 @@ const DME = {
   },
 
   relToFsPt: {
-    x : (ogX) => ogX + DME.focusOffset.x - DME.focusPoint.x,
-    y : (ogY) => ogY + DME.focusOffset.y - DME.focusPoint.y,
+    x : (ogX) => (ogX - DME.focusPoint.x) / DME.mapZoom + DME.focusOffset.x,
+    y : (ogY) => (ogY - DME.focusPoint.y) / DME.mapZoom + DME.focusOffset.y,
+    /*x : (ogX) => ogX + DME.focusOffset.x * DME.mapZoom - DME.focusPoint.x,
+    y : (ogY) => ogY + DME.focusOffset.y * DME.mapZoom - DME.focusPoint.y,*/
   },
 
   draw: function () {
@@ -810,6 +826,9 @@ const DME = {
 
     let mc = this.mouseCoords.snapped;
     let [mcX, mcY] = [this.relToFsPt.x(mc.x), this.relToFsPt.y(mc.y)]
+
+    let wallWidth = defly.WALL_WIDTH / this.mapZoom;
+    let towerWidth = defly.TOWER_WIDTH / this.mapZoom;
 
     //draw areas
     DME.mapData.areas.forEach((area) => {
@@ -824,7 +843,7 @@ const DME = {
 
     //draw walls
     DME.mapData.walls.forEach((wall) => {
-      ctx.lineWidth = defly.WALL_WIDTH;
+      ctx.lineWidth = wallWidth;
       ctx.strokeStyle = defly.colors.darkened[wall.color];
       ctx.beginPath();
       ctx.moveTo(this.relToFsPt.x(wall.from.x), this.relToFsPt.y(wall.from.y));
@@ -832,7 +851,7 @@ const DME = {
       ctx.stroke();
       //draw wall twice, once bit darker to create the darkened edge of the wall
       ctx.strokeStyle = defly.colors.standard[wall.color];
-      ctx.lineWidth = defly.WALL_WIDTH - 4;
+      ctx.lineWidth = wallWidth - 4 / this.mapZoom;
       ctx.beginPath();
       ctx.moveTo(this.relToFsPt.x(wall.from.x), this.relToFsPt.y(wall.from.y));
       ctx.lineTo(this.relToFsPt.x(wall.to.x), this.relToFsPt.y(wall.to.y));
@@ -846,7 +865,7 @@ const DME = {
       this.selectedTowers.forEach((index) => {
         let tower = t[index];
         ctx.strokeStyle = defly.colors.standard[tower.color];
-        ctx.lineWidth = defly.WALL_WIDTH - 4;
+        ctx.lineWidth = wallWidth - 4 / this.mapZoom;;
         ctx.beginPath();
         ctx.moveTo(this.relToFsPt.x(tower.x), this.relToFsPt.y(tower.y));
         ctx.lineTo(mcX, mcY);
@@ -854,10 +873,10 @@ const DME = {
         let borderLines = calculateParallelLines(
           [mcX, mcY],
           [this.relToFsPt.x(tower.x), this.relToFsPt.y(tower.y)],
-          defly.WALL_WIDTH / 2 - 1
+          wallWidth / 2 - 1 / this.mapZoom
         );
         ctx.strokeStyle = defly.colors.darkened[tower.color];
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2 / this.mapZoom;
         ctx.beginPath();
         ctx.moveTo(borderLines.line1[0][0], borderLines.line1[0][1]);
         ctx.lineTo(borderLines.line1[1][0], borderLines.line1[1][1]);
@@ -869,26 +888,25 @@ const DME = {
     }
 
     //draw towers
-    ctx.lineWidth = 13;
     DME.mapData.towers.forEach((tower, index) => {
       let t = {
         x : this.relToFsPt.x(tower.x),
         y : this.relToFsPt.y(tower.y),
       }
       if (this.selectedTowers.includes(index)) {
-        ctx.strokeStyle = "rgba(230, 50, 50, 0.6)";
+        ctx.fillStyle = "rgba(230, 50, 50, 0.6)";
         ctx.beginPath();
-        ctx.arc(t.x, t.y, defly.TOWER_WIDTH + 3, 2 * Math.PI, false);
-        ctx.stroke();
+        ctx.arc(t.x, t.y, towerWidth + 10, 2 * Math.PI, false);
+        ctx.fill();
       }
       ctx.fillStyle = defly.colors.darkened[tower.color];
       ctx.beginPath();
-      ctx.arc(t.x, t.y, defly.TOWER_WIDTH, 2 * Math.PI, false);
+      ctx.arc(t.x, t.y, towerWidth, 2 * Math.PI, false);
       ctx.fill();
       //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
       ctx.fillStyle = defly.colors.standard[tower.color];
       ctx.beginPath();
-      ctx.arc(t.x, t.y, defly.TOWER_WIDTH - 2, 2 * Math.PI, false);
+      ctx.arc(t.x, t.y, towerWidth - 2 / this.mapZoom, 2 * Math.PI, false);
       ctx.fill();
     });
     //draw tower preview
@@ -897,13 +915,13 @@ const DME = {
       ctx.globalAlpha = 0.5;
       ctx.fillStyle = defly.colors.standard[this.selectedColor];
       ctx.beginPath();
-      ctx.arc(mcX, mcY, defly.TOWER_WIDTH, 2 * Math.PI, false);
+      ctx.arc(mcX, mcY, towerWidth, 2 * Math.PI, false);
       ctx.fill();
       //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2 / this.mapZoom;
       ctx.strokeStyle = defly.colors.standard[this.selectedColor];
       ctx.beginPath();
-      ctx.arc(mcX, mcY, defly.TOWER_WIDTH - 1, 2 * Math.PI, false);
+      ctx.arc(mcX, mcY, towerWidth - 1 / this.mapZoom, 2 * Math.PI, false);
       ctx.stroke();
       ctx.globalAlpha = gA;
     }
@@ -913,8 +931,8 @@ const DME = {
       ctx.lineWidth = 5;
       ctx.fillStyle = "rgba(230, 130, 40, 0.4)";
       let s = this.selectingChunk.origin;
-      let w = this.mouseCoords.relative.x - s.x;
-      let h = this.mouseCoords.relative.y - s.y;
+      let w = (this.mouseCoords.relative.x - s.x) / this.mapZoom;
+      let h = (this.mouseCoords.relative.y - s.y) / this.mapZoom;
       ctx.fillRect(this.relToFsPt.x(s.x), this.relToFsPt.y(s.y), w, h);
       ctx.strokeRect(this.relToFsPt.x(s.x), this.relToFsPt.y(s.y), w, h);
     }
@@ -989,6 +1007,13 @@ const DME = {
           break;
         }
       }
+    });
+    canvas.addEventListener('wheel', (e)=>{
+      //change to realtive value to mouse sensitivity
+      let v = e.deltaY;
+      DME.mapZoom *= v > 1 ? 1.1 : 1/1.1;
+      console.log(`Zoom level: ${DME.mapZoom}`);
+      DME.updateMouseCoords();
     });
     canvas.addEventListener("mousemove", (e) => {
       this.updateMouseCoords(e.clientX, e.clientY);
