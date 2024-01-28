@@ -249,10 +249,14 @@ const DME = {
     Shift: "SHIFT",
     Enter: "ENTER",
     Delete: "DELETE",
-    ArrowUp: "ARROWUP",
-    ArrowDown: "ARROWDOWN",
-    ArrowLeft: "ARROWLEFT",
-    ArrowRight: "ARROWRIGHT",
+    MoveUp1: "ARROWUP",
+    MoveUp2: "W",
+    MoveDown1: "ARROWDOWN",
+    MoveDown2: "S",
+    MoveLeft1: "ARROWLEFT",
+    MoveLeft2: "A",
+    MoveRight1: "ARROWRIGHT",
+    MoveRight2: "D",
     g: "G",
     b: "B",
     r: "R",
@@ -1120,19 +1124,23 @@ const DME = {
           this.placeArea();
           break;
         }
-        case this.hotkeys.ArrowUp: {
+        case this.hotkeys.MoveUp1:
+        case this.hotkeys.MoveUp2: {
           this.isKeyPressed.MoveUp = true;
           break;
         }
-        case this.hotkeys.ArrowDown: {
+        case this.hotkeys.MoveDown1:
+        case this.hotkeys.MoveDown2: {
           this.isKeyPressed.MoveDown = true;
           break;
         }
-        case this.hotkeys.ArrowLeft: {
+        case this.hotkeys.MoveLeft1:
+        case this.hotkeys.MoveLeft2: {
           this.isKeyPressed.MoveLeft = true;
           break;
         }
-        case this.hotkeys.ArrowRight: {
+        case this.hotkeys.MoveRight1:
+        case this.hotkeys.MoveRight2: {
           this.isKeyPressed.MoveRight = true;
           break;
         }
@@ -1155,19 +1163,23 @@ const DME = {
         case this.hotkeys.g: {
           break;
         }
-        case this.hotkeys.ArrowUp: {
+        case this.hotkeys.MoveUp1:
+        case this.hotkeys.MoveUp2: {
           this.isKeyPressed.MoveUp = false;
           break;
         }
-        case this.hotkeys.ArrowDown: {
+        case this.hotkeys.MoveDown1:
+        case this.hotkeys.MoveDown2: {
           this.isKeyPressed.MoveDown = false;
           break;
         }
-        case this.hotkeys.ArrowLeft: {
+        case this.hotkeys.MoveLeft1:
+        case this.hotkeys.MoveLeft2: {
           this.isKeyPressed.MoveLeft = false;
           break;
         }
-        case this.hotkeys.ArrowRight: {
+        case this.hotkeys.MoveRight1:
+        case this.hotkeys.MoveRight2: {
           this.isKeyPressed.MoveRight = false;
           break;
         }
