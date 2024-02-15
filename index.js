@@ -148,9 +148,9 @@ function calculateParallelLines(A, B, offset) {
   return { line1: [C1, D1], line2: [C2, D2] };
 }
 
-function updateFOV(){
-  switch(currentSite){
-    case 'DME':{
+function updateFOV() {
+  switch (currentSite) {
+    case "DME": {
       let w = window.innerWidth;
       let h = window.innerHeight;
       DME.focusOffset = {
@@ -339,6 +339,27 @@ const DME = {
       y: 0,
     },
   },
+  chunckOptions: {
+    active: false,
+    hovering: 0,
+    rx: 0,
+    ry: 0,
+    rw: 0,
+    rh: 0,
+    rsr: 0,
+    rsw: 0,
+    vx: 0,
+    vy: 0,
+    vw: 0,
+    vh: 0,
+    vsr: 0,
+    vsw: 0,
+    isChanging: false,
+    co: {
+      x: 0,
+      y: 0,
+    },
+  },
 
   selectedColor: 1,
 
@@ -368,6 +389,7 @@ const DME = {
         this.createWall(id, towerId);
     });
     this.selectedTowers = [this.getIndexFromId(towerId)];
+    this.updateChunkOptions();
   },
 
   createTower: function (x, y, color, id) {
@@ -393,22 +415,6 @@ const DME = {
   placeArea: function () {
     let mc = this.mouseCoords.snapped;
 
-    //check if pointer is inside an area
-    let insideAreas = false;
-    this.mapData.areas.forEach((area, index) => {
-      insideAreas = this.isPointInsideArea([mc.x, mc.y], area.nodes)
-        ? index
-        : insideAreas;
-      console.log(
-        `Inside Areas: ${insideAreas} -- type: ${typeof insideAreas}`
-      );
-    });
-    //if so - delete that area and return
-    if (typeof insideAreas == "number") {
-      this.mapData.areas.splice(insideAreas, 1);
-      return;
-    }
-    //if not - try to create an area
     //get closest wall as area origin point
     let closestWall = {
       index: 0,
@@ -429,9 +435,40 @@ const DME = {
         closestWall.distance = dist;
       }
     });
+    let startingTowerId = this.mapData.walls[closestWall.index].from.id;
+    let finishTowerId = this.mapData.walls[closestWall.index].to.id;
 
     //only keep going if close walls exist
     if (closestWall.distance === Infinity) return;
+
+    //check if pointer is inside an area & closest wall part of that area
+    function handleCursorInsideArea(regardWall = true) {
+      let insideAreas = false;
+      DME.mapData.areas.forEach((area, index) => {
+        let areaVerified = true;
+        if (regardWall) {
+          let t = [false, false];
+          area.nodes.forEach((node) => {
+            t[0] = node.id == startingTowerId ? true : t[0];
+            t[1] = node.id == finishTowerId ? true : t[1];
+          });
+          areaVerified = t[0] && t[1];
+        }
+        if (areaVerified) {
+          insideAreas = DME.isPointInsideArea([mc.x, mc.y], area.nodes)
+            ? index
+            : insideAreas;
+        }
+      });
+      //if so - delete that area and return
+      if (typeof insideAreas == "number") {
+        DME.mapData.areas.splice(insideAreas, 1);
+        return true;
+      } else return false;
+    }
+    if (handleCursorInsideArea()) return;
+
+    //if not - try to create an area
     let cl = this.mapData.walls[closestWall.index];
 
     //check if cursor is on the "wrong" side of the wall & set wall angle correction based on that
@@ -442,8 +479,6 @@ const DME = {
     );
     let wallAngleCorrection = a > 180 ? 1 : -1;
 
-    let startingTowerId = this.mapData.walls[closestWall.index].from.id;
-    let finishTowerId = this.mapData.walls[closestWall.index].to.id;
     let availableTowers = {};
     availableTowers[finishTowerId] = 2; //2 = desteny
     availableTowers[startingTowerId] = 1; //1 = part of area; 0 = bad boy; undefined = happy to join
@@ -516,14 +551,13 @@ const DME = {
         currentNodeArray.push(nextTower);
       }
     }
-    console.log(
-      areaHasBeenFound
-        ? `Area has been found!!! [${currentNodeArray}]`
-        : "No area found :("
-    );
     if (areaHasBeenFound) {
       if (this.isPointInsideNodes([mc.x, mc.y], currentNodeArray))
         this.createArea(currentNodeArray);
+      else {
+        //check if cursor inside an area, not containing starting wall
+        handleCursorInsideArea(false);
+      }
     }
   },
 
@@ -550,7 +584,7 @@ const DME = {
 
   updateWalls: function (ids = false) {
     this.mapData.walls.forEach((wall) => {
-      if (!ids || ids.includes(wall.from.id) || ids.include(wall.to.id)) {
+      if (!ids || ids.includes(wall.from.id) || ids.includes(wall.to.id)) {
         //matching tower ids: wall has to be updated
         let t1 = this.mapData.towers[this.getIndexFromId(wall.from.id)];
         let t2 = this.mapData.towers[this.getIndexFromId(wall.to.id)];
@@ -564,15 +598,194 @@ const DME = {
 
   updateAreas: function (ids = false) {
     this.mapData.areas.forEach((area) => {
-      area.forEach((node) => {
+      area.nodes.forEach((node) => {
         if (!ids || ids.includes(node.id)) {
           //matching tower id/should get updated
           let relativeTower = this.mapData.towers[this.getIndexFromId(node.id)];
           node.x = relativeTower.x;
           node.y = relativeTower.y;
+          console.log(`Updating node (${node.id})`);
         }
       });
     });
+  },
+
+  resizeChunk: function (step) {
+    let o = this.chunckOptions;
+    let mc = this.mouseCoords.relative;
+    switch (step) {
+      case 0: {
+        o.isChanging = true;
+        o.co.x = mc.x;
+        o.co.y = mc.y;
+        break;
+      }
+      case 1: {
+        let xDelta, yDelta, origin;
+        switch (o.hovering) {
+          case 1: {
+            origin = { x: 1, y: 1 };
+            xDelta = o.co.x - mc.x;
+            yDelta = o.co.y - mc.y;
+            break;
+          }
+          case 2: {
+            origin = { x: 0, y: 1 };
+            xDelta = 0;
+            yDelta = o.co.y - mc.y;
+            break;
+          }
+          case 3: {
+            origin = { x: 0, y: 1 };
+            xDelta = mc.x - o.co.x;
+            yDelta = o.co.y - mc.y;
+            break;
+          }
+          case 4: {
+            origin = { x: 1, y: 0 };
+            xDelta = o.co.x - mc.x;
+            yDelta = 0;
+            break;
+          }
+          case 5: {
+            origin = { x: 0, y: 0 };
+            xDelta = mc.x - o.co.x;
+            yDelta = 0;
+            break;
+          }
+          case 6: {
+            origin = { x: 1, y: 0 };
+            xDelta = o.co.x - mc.x;
+            yDelta = mc.y - o.co.y;
+            break;
+          }
+          case 7: {
+            origin = { x: 0, y: 0 };
+            xDelta = 0;
+            yDelta = mc.y - o.co.y;
+            break;
+          }
+          case 8: {
+            origin = { x: 0, y: 0 };
+            xDelta = mc.x - o.co.x;
+            yDelta = mc.y - o.co.y;
+            break;
+          }
+          case 9: {
+            origin = { x: 1, y: 1, z: 1 };
+            xDelta = o.co.x - mc.x;
+            yDelta = o.co.y - mc.y;
+            break;
+          }
+        }
+        let mz = this.mapZoom;
+        if (origin.x) o.vx = this.relToFsPt.x(o.rx) - xDelta / mz;
+        if (!origin?.z) o.vw = o.rw / mz + xDelta / mz;
+        if (origin.y) o.vy = this.relToFsPt.y(o.ry) - yDelta / mz;
+        if (!origin?.z) o.vh = o.rh / mz + yDelta / mz;
+        break;
+      }
+      case 2: {
+        let xDelta = 1;
+        let yDelta = 1;
+        let origin = {
+          x: 0,
+          y: 0,
+        };
+        switch (o.hovering) {
+          case 1: {
+            origin = { x: o.rx + o.rw, y: o.ry + o.rh };
+            xDelta = (o.rw - mc.x + o.co.x) / o.rw;
+            yDelta = (o.rh - mc.y + o.co.y) / o.rh;
+            break;
+          }
+          case 2: {
+            origin = { x: 0, y: o.ry + o.rh };
+            xDelta = 1;
+            yDelta = (o.rh - mc.y + o.co.y) / o.rh;
+            break;
+          }
+          case 3: {
+            origin = { x: o.rx, y: o.ry + o.rh };
+            xDelta = (o.rw - o.co.x + mc.x) / o.rw;
+            yDelta = (o.rh - mc.y + o.co.y) / o.rh;
+            break;
+          }
+          case 4: {
+            origin = { x: o.rx + o.rw, y: 0 };
+            xDelta = (o.rw - mc.x + o.co.x) / o.rw;
+            yDelta = 1;
+            break;
+          }
+          case 5: {
+            origin = { x: o.rx, y: 0 };
+            xDelta = (o.rw - o.co.x + mc.x) / o.rw;
+            yDelta = 1;
+            break;
+          }
+          case 6: {
+            origin = { x: o.rx + o.rw, y: o.ry };
+            xDelta = (o.rw - mc.x + o.co.x) / o.rw;
+            yDelta = (o.rh - o.co.y + mc.y) / o.rh;
+            break;
+          }
+          case 7: {
+            origin = { x: 0, y: o.ry };
+            xDelta = 1;
+            yDelta = (o.rh - o.co.y + mc.y) / o.rh;
+            break;
+          }
+          case 8: {
+            origin = { x: o.rx, y: o.ry };
+            xDelta = (o.rw - o.co.x + mc.x) / o.rw;
+            yDelta = (o.rh - o.co.y + mc.y) / o.rh;
+            break;
+          }
+          case 9: {
+            origin = { x: 1, y: 1, z:1 };
+            xDelta = (o.co.x - mc.x);
+            yDelta = (o.co.y - mc.y);
+            break;
+          }
+        }
+        xDelta =
+          xDelta == 0
+            ? 0.0001
+            : xDelta == Infinity
+            ? 0.5
+            : xDelta == -Infinity
+            ? -0.5
+            : xDelta;
+        yDelta =
+          yDelta == 0
+            ? 0.0001
+            : yDelta == Infinity
+            ? 0.5
+            : yDelta == -Infinity
+            ? -0.5
+            : yDelta;
+        let s = !origin?.z;
+        this.selectedTowers.forEach((towerIndex) => {
+          let t = this.mapData.towers[towerIndex];
+          if(s){
+            t.x = origin.x + (t.x - origin.x) * xDelta;
+            t.y = origin.y + (t.y - origin.y) * yDelta;
+          } else {
+            t.x -= xDelta;
+            t.y -= yDelta;
+          }
+        });
+        let stID = [];
+        this.selectedTowers.forEach((idx) => {
+          stID.push(this.mapData.towers[idx].id);
+        });
+        this.updateWalls(stID);
+        this.updateAreas(stID);
+        o.isChanging = false;
+        this.updateChunkOptions();
+        break;
+      }
+    }
   },
 
   selectTower: function () {
@@ -583,20 +796,21 @@ const DME = {
       this.mapData.towers.forEach((t, index) => {
         this.selectedTowers.push(index);
       });
-      return;
-    }
-    let closestTower = this.getClosestTower(x, y);
-    if (closestTower.distance < defly.TOWER_WIDTH) {
-      if (this.isKeyPressed.CONTROL) {
-        this.selectedTowers.push(closestTower.index);
-        this.selectedTowers = removePairs(this.selectedTowers);
-        //remove pairs; if one tower was already selected -> unselect
-      } else {
-        this.selectedTowers = [closestTower.index];
+    } else {
+      let closestTower = this.getClosestTower(x, y);
+      if (closestTower.distance < defly.TOWER_WIDTH) {
+        if (this.isKeyPressed.CONTROL) {
+          this.selectedTowers.push(closestTower.index);
+          this.selectedTowers = removePairs(this.selectedTowers);
+          //remove pairs; if one tower was already selected -> unselect
+        } else {
+          this.selectedTowers = [closestTower.index];
+        }
+      } else if (!this.isKeyPressed.CONTROL) {
+        this.selectedTowers = [];
       }
-    } else if (!this.isKeyPressed.CONTROL) {
-      this.selectedTowers = [];
     }
+    this.updateChunkOptions();
   },
 
   selectChunk: function (state) {
@@ -635,6 +849,7 @@ const DME = {
             }
           });
           this.selectedTowers = removePairs(this.selectedTowers);
+          this.updateChunkOptions();
         }
         break;
       }
@@ -669,6 +884,7 @@ const DME = {
       });
     });
     this.selectedTowers = [];
+    this.updateChunkOptions();
   },
 
   changeSelectedTowerColor: function (newColor) {
@@ -771,12 +987,10 @@ const DME = {
         -1e9,
         -1e9
       );
-      console.log(intersecting);
       if (intersecting) intersectionCounter++;
     });
     //if the total count of interesctions between a line going from one point outside the area and one point unknown
     //with each line between two neighbour nodes of a poligon is odd, the point to determine is inside the poligon
-    console.log(`Intersections: ${intersectionCounter}`);
     return intersectionCounter % 2 == 1 ? true : false;
   },
 
@@ -816,6 +1030,96 @@ const DME = {
     return targetIndex;
   },
 
+  updateMouse: function (x, y) {
+    this.updateMouseCoords(x, y);
+    let mc = this.mouseCoords.relative;
+    let o = this.chunckOptions;
+    if (!o.active) return;
+    let cP = {
+      distance: 0,
+      index: o.hovering - 1,
+    };
+    if (!o.isChanging) {
+      cP.distance = Infinity;
+      let sp = [];
+      for (let h = 0; h <= 1; h += 0.5) {
+        for (let w = 0; w <= 1; w += 0.5) {
+          sp.push([o.rx + o.rw * w, o.ry + o.rh * h]);
+        }
+      }
+      sp.splice(4, 1);
+      sp.forEach((pos, index) => {
+        let d = this.getDistance(mc.x, mc.y, pos[0], pos[1]);
+        if (d < cP.distance) {
+          cP.distance = d;
+          cP.index = index;
+        }
+      });
+    } else this.resizeChunk(1);
+    let cS = "";
+    switch (cP.index) {
+      case 0:
+      case 7: {
+        //top-left/bottom-right
+        cS = "nwse-resize";
+        break;
+      }
+      case 1:
+      case 6: {
+        //top-middle/bottom-middle
+        cS = "ns-resize";
+        break;
+      }
+      case 2:
+      case 5: {
+        //top-right/bottom-left
+        cS = "nesw-resize";
+        break;
+      }
+      case 3:
+      case 4: {
+        //middle-left/middle-right
+        cS = "ew-resize";
+        break;
+      }
+    }
+    o.hovering = cP.index + 1;
+    if (cP.distance > o.rsr) {
+      //check if cursor is on sides (dragging)
+      let [x, y] = [mc.x, mc.y];
+      let [a, b, c, d] = [
+        this.getDistanceToLine(o.rx, o.ry, o.rx + o.rw, o.ry, x, y),
+        this.getDistanceToLine(o.rx, o.ry, o.rx, o.ry + o.rh, x, y),
+        this.getDistanceToLine(
+          o.rx + o.rw,
+          o.ry + o.rh,
+          o.rx + o.rw,
+          o.ry,
+          x,
+          y
+        ),
+        this.getDistanceToLine(
+          o.rx + o.rw,
+          o.ry + o.rh,
+          o.rx,
+          o.ry + o.rh,
+          x,
+          y
+        ),
+      ];
+      let dist =
+        (a < b ? a : b) < (c < d ? c : d) ? (a < b ? a : b) : c < d ? c : d;
+      if (dist > o.rsw) {
+        cS = "crosshair";
+        o.hovering = 0;
+      } else {
+        cS = "move";
+        o.hovering = 9;
+      }
+    }
+    canvas.style.cursor = cS;
+  },
+
   updateMouseCoords: function (x, y) {
     let mc = this.mouseCoords;
     //if update is called without x,y coords - only update realtive coords without crashing
@@ -830,8 +1134,18 @@ const DME = {
       mc.snapped.x = xOffset - (xOffset % this.snapRange);
       mc.snapped.y = yOffset - (yOffset % this.snapRange);
     } else mc.snapped = structuredClone(mc.relative);
-    mc.snapped.x = mc.snapped.x < 0 ? 0 : mc.snapped.x > this.mapData.width ? this.mapData.width : mc.snapped.x;
-    mc.snapped.y = mc.snapped.y < 0 ? 0 : mc.snapped.y > this.mapData.height ? this.mapData.height : mc.snapped.y;
+    mc.snapped.x =
+      mc.snapped.x < 0
+        ? 0
+        : mc.snapped.x > this.mapData.width
+        ? this.mapData.width
+        : mc.snapped.x;
+    mc.snapped.y =
+      mc.snapped.y < 0
+        ? 0
+        : mc.snapped.y > this.mapData.height
+        ? this.mapData.height
+        : mc.snapped.y;
   },
 
   updateFocusPoint: function () {
@@ -848,7 +1162,48 @@ const DME = {
     mY *= speedModif;
     this.focusPoint.x += mX;
     this.focusPoint.y += mY;
-    if (speedModif) this.updateMouseCoords();
+    if (speedModif) {
+      this.updateMouseCoords();
+      this.updateChunkOptions();
+    }
+  },
+
+  updateChunkOptions: function () {
+    if (this.selectedTowers.length > 1) {
+      let mz = this.mapZoom;
+      let top = Infinity;
+      let left = Infinity;
+      let bottom = 0;
+      let right = 0;
+      this.selectedTowers.forEach((tower) => {
+        let t = this.mapData.towers[tower];
+        left = left > t.x ? t.x : left;
+        top = top > t.y ? t.y : top;
+        right = right < t.x ? t.x : right;
+        bottom = bottom < t.y ? t.y : bottom;
+      });
+      let vx = this.relToFsPt.x(left); // - 10 - 15 / mz;
+      let vy = this.relToFsPt.y(top); // - 10 - 15 / mz;
+      let vw = (right - left) / mz; // + 20 + 30 / mz;
+      let vh = (bottom - top) / mz; // + 20 + 30 / mz;
+
+      //object containing data about chunk options - has to be updated uppon map move/zoom since contains render position data
+      let cO = this.chunckOptions;
+      cO.active = true;
+      cO.hovering = 0;
+      cO.rx = left; //real left x posittion
+      cO.ry = top; //... y posittion
+      cO.rw = right - left; //... width
+      cO.rh = bottom - top; //... height
+      cO.rsr = 20 * mz + 20; //... selective radious around key points
+      cO.rsw = 10 * mz + 10; //... selective width of outline
+      cO.vx = vx; //visual left x position
+      cO.vy = vy; //... y position
+      cO.vw = vw; //... width
+      cO.vh = vh; //... height
+      cO.vsr = 12 + 12 / mz; //... selective radious around key points
+      cO.vsw = 6 + 6 / mz; //... selective width of the outlines
+    } else this.chunckOptions.active = false;
   },
 
   relToFsPt: {
@@ -861,35 +1216,47 @@ const DME = {
   draw: function () {
     //clear canvas
     //ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#D0D0D0';
-    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = "#E0E0E0";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    let mz = this.mapZoom;
 
     //draw map background
-    ctx.fillStyle = '#EEEEEE';
-    ctx.fillRect(this.relToFsPt.x(0), this.relToFsPt.y(0), this.mapData.width / this.mapZoom, this.mapData.height / this.mapZoom);
-    ctx.strokeStyle = '#999';
+    ctx.fillStyle = "#EEEEEE";
+    ctx.fillRect(
+      this.relToFsPt.x(0),
+      this.relToFsPt.y(0),
+      this.mapData.width / mz,
+      this.mapData.height / mz
+    );
+    ctx.strokeStyle = "#999";
     ctx.beginPath();
-    ctx.lineWidth = 1/this.mapZoom;
+    ctx.lineWidth = 1 / mz;
     let w = this.mapData.width;
     let h = this.mapData.height;
-    for(c=defly.GRID_WIDTH;c<w;c+=defly.GRID_WIDTH){
+    for (c = defly.GRID_WIDTH; c < w; c += defly.GRID_WIDTH) {
       ctx.moveTo(this.relToFsPt.x(c), this.relToFsPt.y(0));
       ctx.lineTo(this.relToFsPt.x(c), this.relToFsPt.y(h));
     }
-    for(c=defly.GRID_WIDTH;c<h;c+=defly.GRID_WIDTH){
+    for (c = defly.GRID_WIDTH; c < h; c += defly.GRID_WIDTH) {
       ctx.moveTo(this.relToFsPt.x(0), this.relToFsPt.y(c));
       ctx.lineTo(this.relToFsPt.x(w), this.relToFsPt.y(c));
     }
     ctx.stroke();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1 + 1/this.mapZoom;
-    ctx.strokeRect(this.relToFsPt.x(0), this.relToFsPt.y(0), this.mapData.width / this.mapZoom, this.mapData.height / this.mapZoom);
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 1 + 1 / mz;
+    ctx.strokeRect(
+      this.relToFsPt.x(0),
+      this.relToFsPt.y(0),
+      this.mapData.width / mz,
+      this.mapData.height / mz
+    );
 
     let mc = this.mouseCoords.snapped;
     let [mcX, mcY] = [this.relToFsPt.x(mc.x), this.relToFsPt.y(mc.y)];
 
-    let wallWidth = defly.WALL_WIDTH / this.mapZoom;
-    let towerWidth = defly.TOWER_WIDTH / this.mapZoom;
+    let wallWidth = defly.WALL_WIDTH / mz;
+    let towerWidth = defly.TOWER_WIDTH / mz;
 
     //draw areas
     DME.mapData.areas.forEach((area) => {
@@ -915,7 +1282,7 @@ const DME = {
       ctx.stroke();
       //draw wall twice, once bit darker to create the darkened edge of the wall
       ctx.strokeStyle = defly.colors.standard[wall.color];
-      ctx.lineWidth = wallWidth - 4 / this.mapZoom;
+      ctx.lineWidth = wallWidth - 4 / mz;
       ctx.beginPath();
       ctx.moveTo(this.relToFsPt.x(wall.from.x), this.relToFsPt.y(wall.from.y));
       ctx.lineTo(this.relToFsPt.x(wall.to.x), this.relToFsPt.y(wall.to.y));
@@ -929,7 +1296,7 @@ const DME = {
       this.selectedTowers.forEach((index) => {
         let tower = t[index];
         ctx.strokeStyle = defly.colors.standard[tower.color];
-        ctx.lineWidth = wallWidth - 4 / this.mapZoom;
+        ctx.lineWidth = wallWidth - 4 / mz;
         ctx.beginPath();
         ctx.moveTo(this.relToFsPt.x(tower.x), this.relToFsPt.y(tower.y));
         ctx.lineTo(mcX, mcY);
@@ -937,10 +1304,10 @@ const DME = {
         let borderLines = calculateParallelLines(
           [mcX, mcY],
           [this.relToFsPt.x(tower.x), this.relToFsPt.y(tower.y)],
-          wallWidth / 2 - 1 / this.mapZoom
+          wallWidth / 2 - 1 / mz
         );
         ctx.strokeStyle = defly.colors.darkened[tower.color];
-        ctx.lineWidth = 2 / this.mapZoom;
+        ctx.lineWidth = 2 / mz;
         ctx.beginPath();
         ctx.moveTo(borderLines.line1[0][0], borderLines.line1[0][1]);
         ctx.lineTo(borderLines.line1[1][0], borderLines.line1[1][1]);
@@ -970,7 +1337,7 @@ const DME = {
       //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
       ctx.fillStyle = defly.colors.standard[tower.color];
       ctx.beginPath();
-      ctx.arc(t.x, t.y, towerWidth - 2 / this.mapZoom, 2 * Math.PI, false);
+      ctx.arc(t.x, t.y, towerWidth - 2 / mz, 2 * Math.PI, false);
       ctx.fill();
     });
     //draw tower preview
@@ -982,12 +1349,31 @@ const DME = {
       ctx.arc(mcX, mcY, towerWidth, 2 * Math.PI, false);
       ctx.fill();
       //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
-      ctx.lineWidth = 2 / this.mapZoom;
+      ctx.lineWidth = 2 / mz;
       ctx.strokeStyle = defly.colors.standard[this.selectedColor];
       ctx.beginPath();
-      ctx.arc(mcX, mcY, towerWidth - 1 / this.mapZoom, 2 * Math.PI, false);
+      ctx.arc(mcX, mcY, towerWidth - 1 / mz, 2 * Math.PI, false);
       ctx.stroke();
       ctx.globalAlpha = gA;
+    }
+
+    if (this.chunckOptions.active) {
+      let d = this.chunckOptions;
+
+      ctx.strokeStyle = "rgba(170, 90, 30, 0.8)";
+      ctx.lineWidth = d.vsw;
+      ctx.strokeRect(d.vx, d.vy, d.vw, d.vh);
+
+      ctx.lineWidth = d.vsw/2;
+      let [o, s] = [d.vsr, 2 * d.vsr];
+      ctx.strokeRect(d.vx - o, d.vy - o, s, s);
+      ctx.strokeRect(d.vx - o + d.vw / 2, d.vy - o, s, s);
+      ctx.strokeRect(d.vx - o + d.vw, d.vy - o, s, s);
+      ctx.strokeRect(d.vx - o, d.vy - o + d.vh / 2, s, s);
+      ctx.strokeRect(d.vx - o + d.vw, d.vy - o + d.vh / 2, s, s);
+      ctx.strokeRect(d.vx - o, d.vy - o + d.vh, s, s);
+      ctx.strokeRect(d.vx - o + d.vw / 2, d.vy - o + d.vh, s, s);
+      ctx.strokeRect(d.vx - o + d.vw, d.vy - o + d.vh, s, s);
     }
 
     if (this.selectingChunk.isSelecting) {
@@ -995,8 +1381,8 @@ const DME = {
       ctx.lineWidth = 5;
       ctx.fillStyle = "rgba(230, 130, 40, 0.4)";
       let s = this.selectingChunk.origin;
-      let w = (this.mouseCoords.relative.x - s.x) / this.mapZoom;
-      let h = (this.mouseCoords.relative.y - s.y) / this.mapZoom;
+      let w = (this.mouseCoords.relative.x - s.x) / mz;
+      let h = (this.mouseCoords.relative.y - s.y) / mz;
       ctx.fillRect(this.relToFsPt.x(s.x), this.relToFsPt.y(s.y), w, h);
       ctx.strokeRect(this.relToFsPt.x(s.x), this.relToFsPt.y(s.y), w, h);
     }
@@ -1041,10 +1427,11 @@ const DME = {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     canvas.addEventListener("mousedown", (e) => {
-      console.log(e.button);
       switch (e.button) {
         case 0: {
-          this.selectTower();
+          if (this.chunckOptions.hovering) {
+            this.resizeChunk(0);
+          } else this.selectTower();
           break;
         }
         case 1: {
@@ -1058,9 +1445,11 @@ const DME = {
       }
     });
     canvas.addEventListener("mouseup", (e) => {
-      console.log(e.button);
       switch (e.button) {
         case 0: {
+          if (this.chunckOptions.isChanging) {
+            this.resizeChunk(2);
+          }
           break;
         }
         case 1: {
@@ -1079,18 +1468,24 @@ const DME = {
 
       //update focus point relative to mouse coords
       let fpDelta = {
-        x: this.mouseCoords.relative.x - (this.focusPoint.x + (this.mouseCoords.real.x - this.focusOffset.x) * this.mapZoom),
-        y: this.mouseCoords.relative.y - (this.focusPoint.y + (this.mouseCoords.real.y - this.focusOffset.y) * this.mapZoom),
+        x:
+          this.mouseCoords.relative.x -
+          (this.focusPoint.x +
+            (this.mouseCoords.real.x - this.focusOffset.x) * this.mapZoom),
+        y:
+          this.mouseCoords.relative.y -
+          (this.focusPoint.y +
+            (this.mouseCoords.real.y - this.focusOffset.y) * this.mapZoom),
       };
       this.focusPoint.x += fpDelta.x;
       this.focusPoint.y += fpDelta.y;
-
+      this.updateChunkOptions();
     });
     canvas.addEventListener("mousemove", (e) => {
-      this.updateMouseCoords(e.clientX, e.clientY);
+      this.updateMouse(e.clientX, e.clientY);
     });
     document.addEventListener("keydown", (e) => {
-      console.log(e.key.toLocaleUpperCase());
+      //console.log(e.key.toLocaleUpperCase());
       //ignore hotkeys if a menu is open
       if (this.openMenu) return;
       switch (e.key.toLocaleUpperCase()) {
@@ -1112,7 +1507,6 @@ const DME = {
           ).checked;
           document.querySelector("#DME-toggle-snapping-checkbox").checked = !c;
           this.snapping = !c;
-          console.log("togle snap?" + c);
           break;
         }
         case this.hotkeys.Delete: {
