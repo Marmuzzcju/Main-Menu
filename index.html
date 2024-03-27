@@ -86,6 +86,16 @@
     <div id="map-editor" class="hidden main-page">
       THIS IS DA MAP EDITOR
       <canvas id="DME-display-canvas" class="hidden"></canvas>
+      <div id="DME-resize-values">
+        <div id="DME-resize-values-x">
+        <input type="number" onfocus="this.select();" onchange="DME.resizeChunkByValue(['fraction','x'],this.value/100)">% /
+        <input type="number" onfocus="this.select();" onchange="DME.resizeChunkByValue(['total','x'],this.value)">Units
+        </div>
+        <div id="DME-resize-values-y">
+        <input type="number" onfocus="this.select();" onchange="DME.resizeChunkByValue(['fraction','y'],this.value/100)">% /</br>
+        <input type="number" onfocus="this.select();" onchange="DME.resizeChunkByValue(['total','y'],this.value)">Units
+        </div>
+      </div>
       <!-- <div id="DME-selected-towers-UI">
         <div class="DME-selected-towers-UI-resize" id="DME-STUIR-tl"></div>
         <div class="DME-selected-towers-UI-resize" id="DME-STUIR-tm"></div>
@@ -97,7 +107,19 @@
         <div class="DME-selected-towers-UI-resize" id="DME-STUIR-br"></div>
       </div> -->
       <button id="DME-show-menu" style="font-size:15px; width:120px; position:fixed; top:6%; left:3%; z-index:100;display:none;" onclick="document.querySelector('#DME-menu').style.display = 'inline';this.style.display = 'none';">Show Menu</button>
-	  	<div id="DME-menu">
+	  	<div id="DME-nav-bar" class="hidden">
+        <div class="DME-nav-bar-selected" id="DME-nav-bar-file">File</div>
+        <div id="DME-nav-bar-start">Start</div>
+        <div id="DME-nav-bar-insert">Insert</div>
+        <div id="DME-nav-bar-sketch">Sketch</div>
+      </div>
+      <div id="DME-nav-bar-content" class="hidden">
+        <div class="DME-nav-bar-content-selected" id="DME-nav-bar-content-file">File</div>
+        <div id="DME-nav-bar-content-start">Start</div>
+        <div id="DME-nav-bar-content-insert">Insert</div>
+        <div id="DME-nav-bar-content-sketch">Sketch</div>
+      </div>
+      <div id="DME-menu">
 			  <span style="margin-left:86px; font-size:22px; color:rgb(7, 7, 60);">Options Menu</span></br>
 			  <button id="hideMenu" class="fatButton" onclick="document.querySelector('#DME-menu').style.display = 'none';document.querySelector('#DME-show-menu').style.display = 'inline';">Hide Menu</button></br>
 			  <!-- <button id="showHelp" class="fatButton" onclick="document.getElementById('instructions').style.display = 'inline';mapStuff.classList.add('blurred');openMenu=true;">Help/Instructions</button> </br> -->
@@ -105,16 +127,26 @@
 			  <!-- <button class="fatButton" onclick="showMapOverview();">Map Overview & Options</button> </br> -->
 			  <!-- <input type="file" id="uploadMapFileButton" accept=".txt" onchange="getFile(this)"> -->
     		<!-- <button class="fatButton" onclick="confirmAction('Are you sure you want to delete your current map?\nDeleting map will also erase your undo/redo history', 'Confirm', 'Cancel', 1, 0);openMenu=true;">Clear Map</button> </br> -->
-			  <span style="padding: 0px 3px 0px 10px;font-size: 17px;">Snap to grid range:</span><input type="number" value="2" min="1" max="1000" id="DME-input-snap-range" onfocus="this.select();DME.openMenu=true;" onblur="DME.openMenu=false;" style="width:32.8px;"onchange="DME.snapRange = this.value*defly.UNIT_WIDTH;"><span style="padding-right: 3px;font-size: 17px;"> Enabled:</span><input type="checkbox" id="DME-toggle-snapping-checkbox" class="clickable" onchange="DME.snapping = this.checked;"> </br>
+			  <button class="fatButton" onclick="document.querySelector('#browseMapFile').click();">Import Map</button>
+        <input type="file" id="browseMapFile" accept=".txt" onchange="DME.loadFile(this)" class="hidden">
+			  <button class="fatButton" onclick="DME.exportMap();">Export Map</button>
+        <span style="padding: 0px 3px 0px 10px;font-size: 17px;">Snap to grid range:</span><input type="number" value="2" min="1" max="1000" id="DME-input-snap-range" onfocus="this.select();DME.openMenu=true;" onblur="DME.openMenu=false;" style="width:32.8px;"onchange="DME.snapRange = this.value*defly.UNIT_WIDTH;"><span style="padding-right: 3px;font-size: 17px;"> Enabled:</span><input type="checkbox" id="DME-toggle-snapping-checkbox" class="clickable" onchange="DME.snapping = this.checked;"> </br>
 			  <span style="padding: 0px 3px 0px 10px;font-size: 17px;">Map Width:</span><input type="number" value="210" min="1" max="10000" id="DME-input-map-width" onfocus="this.select();DME.openMenu=true;" onblur="DME.openMenu=false;" style="width:37.8px;"onchange="DME.mapData.width=this.value*defly.UNIT_WIDTH;"><span style="padding-right: 3px;font-size: 17px;"> Map Height:</span><input type="number" value="120" min="1" max="10000" id="DME-input-map-height" onfocus="this.select();DME.openMenu=true;" onblur="DME.openMenu=false;" style="width: 37.8px;"onchange="DME.mapData.height=this.value*defly.UNIT_WIDTH;"> </br>
 			  <span style="padding: 0px 3px 0px 10px;font-size: 17px;">Tower color: </span><input type="number" value="1" min="1" max="14" id="DME-input-tower-color" onfocus="this.select();DME.openMenu=true;" onblur="DME.openMenu=false;" style="width:32.8px;"onchange="DME.changeSelectedTowerColor(this.value)"><span style="padding-right: 3px;font-size: 17px;">&nbsp; / &nbsp;</span><select id="DME-select-color-dropdown" class="clickable" style="font-size: 17px;border-radius: 3px;" onchange="DME.changeSelectedTowerColor(this.value)"><option value="1" style="color: rgb(77,77,77);">Grey</option><option value="2" style="color: rgb(61,93,255);">Blue</option><option value="3" style="color: rgb(253,53,53);">Red</option><option value="4" style="color: rgb(0,128,55);">Dark Green</option><option value="5" style="color: rgb(255,128,42);">Orange</option><option value="6" style="color: rgb(146,75,255);">Purple</option><option value="7" style="color: rgb(85,213,255);">Sky Blue</option><option value="8" style="color: rgb(24,226,31);">Light Green</option><option value="9" style="color: rgb(246,89,255);">Pink</option><option value="10" style="color: rgb(247,255,42);">Yellow</option><option value="11" style="color: rgb(255,95,174);">Rose</option><option value="12" style="color: rgb(147,254,0);">Lime</option><option value="13" style="color: rgb(0,255,188);">Cyan</option><option value="14" style="color: rgb(0,0,0);">Black</option></select> </br>
-			  <button class="fatButton" onclick="document.querySelector('#DME-hotkey-menu').style.display='flex';DME.openMenu=true;">Hotkeys</button> </br>
+			  <button class="fatButton" onclick="let m=document.querySelector('#DME-hotkey-menu');m.style.display=m.style.display=='none'?'flex':'none';DME.openMenu=m.style.display=='flex'?true:false;">Hotkeys</button> </br>
 			  <!-- <button class="fatButton" onclick="document.getElementById('distance-overview-table').style.display = 'inline';mapStuff.classList.add('blurred');openMenu=true;">View Distance Table</button> </br> -->
 			  <!-- <button class="fatButton" onclick="testMap();">Test Map</button><a href="https://marmuzzcju.github.io/Defuse-Clone/" target="_blank" id="linkToMapTest" style="display: none;"></a> </br> -->
 		  </div>
       <div id="DME-hotkey-menu" style="display: none;">
-        <h1>Under Construction</h1>
-        <button onclick="document.querySelector('#DME-hotkey-menu').style.display='none';DME.openMenu=false;">Close</button>
+        <div style="display:grid;grid-template-areas:'head head head close''sub sub sub sub';padding-bottom:8px;"><div style="grid-area:head;color:white;font-size:22px;">Keybinds</div><div style="grid-area:sub;color:white;font-size:12px;">Click to change, Esc to unbind</div>
+        <button onclick="document.querySelector('#DME-hotkey-menu').style.display='none';DME.openMenu=false;" style="grid-area:close;width:70px;">Close</button></div>
+        <div><span>Move up</span><button onclick="DME.changeKeybind('MoveUp1');" id="DME-ch-MoveUp1">W</button><button onclick="DME.changeKeybind('MoveUp2');" id="DME-ch-MoveUp2">ARROWUP</button></div>
+        <div><span>Move down</span><button onclick="DME.changeKeybind('MoveDown1');" id="DME-ch-MoveDown1">S</button><button onclick="DME.changeKeybind('MoveDown2');" id="DME-ch-MoveDown2">ARROWDOWN</button></div>
+        <div><span>Move left</span><button onclick="DME.changeKeybind('MoveLeft1');" id="DME-ch-MoveLeft1">A</button><button onclick="DME.changeKeybind('MoveLeft2');" id="DME-ch-MoveLeft2">ARROWLEFT</button></div>
+        <div><span>Move right</span><button onclick="DME.changeKeybind('MoveRight1');" id="DME-ch-MoveRight1">D</button><button onclick="DME.changeKeybind('MoveRight2');" id="DME-ch-MoveRight2">ARROWRIGHT</button></div>
+        <div><span>Delete tower</span><button onclick="DME.changeKeybind('Delete1');" id="DME-ch-Delete1">DELETE</button><button onclick="DME.changeKeybind('Delete2');" id="DME-ch-Delete2"></button></div>
+        <div>3</div>
+        <div>4</div>
       </div>
     </div>
     <div class="screen-overlay-fade"></div>

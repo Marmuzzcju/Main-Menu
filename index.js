@@ -30,8 +30,23 @@ function fadeOutScreen(fadeIn = true) {
   if (fadeIn) setTimeout(() => fadeOutScreen(false), 1500);
 }
 
-function switchSite(newPage = "main-menu") {
-  fadeOutScreen();
+function switchSite(newPage = "main-menu", instance = 0) {
+  let t = 500;
+  switch(instance){
+    case 0:{
+      fadeOutScreen();
+      break;
+    }
+    case 1: {
+      fadeOutScreen(0);
+      t = 0;
+      break;
+    }
+    case 2:{
+      t = 0;
+      break;
+    }
+  }
   setTimeout((_) => {
     let allPages = document.querySelectorAll(".main-page");
     allPages.forEach((p) => {
@@ -56,7 +71,7 @@ function switchSite(newPage = "main-menu") {
         console.log("Unknown Page Selected");
       }
     }
-  }, 500);
+  }, t);
 }
 
 function toggleMainMenuContentPage(page) {
@@ -86,6 +101,16 @@ function config() {
     }
   }
   toggleMainMenuContentPage(pageToLoad);
+  //check url for specific site
+  let urlSpec = window.location.href?.split('?')[1];
+  if(urlSpec){
+    switch(urlSpec){
+      case 'map-editor':{
+        switchSite(urlSpec, 1);
+        break;
+      }
+    }
+  }
 }
 window.onbeforeunload = () => {
   if (hasLocalStorage) {
@@ -248,15 +273,16 @@ const DME = {
     Control: "CONTROL",
     Shift: "SHIFT",
     Enter: "ENTER",
-    Delete: "DELETE",
-    MoveUp1: "ARROWUP",
-    MoveUp2: "W",
-    MoveDown1: "ARROWDOWN",
-    MoveDown2: "S",
-    MoveLeft1: "ARROWLEFT",
-    MoveLeft2: "A",
-    MoveRight1: "ARROWRIGHT",
-    MoveRight2: "D",
+    Delete1: "DELETE",
+    Delete2: "",
+    MoveUp1: "W",
+    MoveUp2: "ARROWUP",
+    MoveDown1: "S",
+    MoveDown2: "ARROWDOWN",
+    MoveLeft1: "A",
+    MoveLeft2: "ARROWLEFT",
+    MoveRight1: "D",
+    MoveRight2: "ARROWRIGHT",
     g: "G",
     b: "B",
     r: "R",
@@ -279,6 +305,11 @@ const DME = {
     Two: "2",
     Three: "3",
     Four: "4",
+  },
+  changeKeybind: {
+    isChanging: false,
+    binding: '',
+    element: '',
   },
 
   isKeyPressed: {
@@ -610,7 +641,7 @@ const DME = {
     });
   },
 
-  resizeChunk: function (step) {
+  resizeChunkByDrag: function (step) {
     let o = this.chunckOptions;
     let mc = this.mouseCoords.relative;
     switch (step) {
@@ -683,6 +714,7 @@ const DME = {
         if (!origin?.z) o.vw = o.rw / mz + xDelta / mz;
         if (origin.y) o.vy = this.relToFsPt.y(o.ry) - yDelta / mz;
         if (!origin?.z) o.vh = o.rh / mz + yDelta / mz;
+        this.updateChunkSizeDisplay(xDelta, yDelta);
         break;
       }
       case 2: {
@@ -742,50 +774,66 @@ const DME = {
             break;
           }
           case 9: {
-            origin = { x: 1, y: 1, z:1 };
-            xDelta = (o.co.x - mc.x);
-            yDelta = (o.co.y - mc.y);
+            origin = { x: 1, y: 1, z: 1 };
+            xDelta = o.co.x - mc.x;
+            yDelta = o.co.y - mc.y;
             break;
           }
         }
-        xDelta =
-          xDelta == 0
-            ? 0.0001
-            : xDelta == Infinity
-            ? 0.5
-            : xDelta == -Infinity
-            ? -0.5
-            : xDelta;
-        yDelta =
-          yDelta == 0
-            ? 0.0001
-            : yDelta == Infinity
-            ? 0.5
-            : yDelta == -Infinity
-            ? -0.5
-            : yDelta;
-        let s = !origin?.z;
-        this.selectedTowers.forEach((towerIndex) => {
-          let t = this.mapData.towers[towerIndex];
-          if(s){
-            t.x = origin.x + (t.x - origin.x) * xDelta;
-            t.y = origin.y + (t.y - origin.y) * yDelta;
-          } else {
-            t.x -= xDelta;
-            t.y -= yDelta;
-          }
-        });
-        let stID = [];
-        this.selectedTowers.forEach((idx) => {
-          stID.push(this.mapData.towers[idx].id);
-        });
-        this.updateWalls(stID);
-        this.updateAreas(stID);
+        this.resizeChunk(xDelta, yDelta, origin);
         o.isChanging = false;
-        this.updateChunkOptions();
         break;
       }
     }
+  },
+  resizeChunkByValue: function(type, value){
+    let o = this.chunckOptions;
+    let delta={x:value,y:1};
+    let origin = {x:o.rx,y:o.ry};
+    if(type[0]!=='fraction'){
+      delta.x = value*defly.UNIT_WIDTH/(type[1] == 'x' ? o.rw : o.rh);
+    }
+    if(type[1]==='y'){
+      delta.y = delta.x;
+      delta.x = 1;
+    }
+    this.resizeChunk(delta.x,delta.y,origin);
+  },
+  resizeChunk: function (xDelta, yDelta, origin) {
+    xDelta =
+      xDelta == 0
+        ? 0.0001
+        : xDelta == Infinity
+        ? 0.5
+        : xDelta == -Infinity
+        ? -0.5
+        : xDelta;
+    yDelta =
+      yDelta == 0
+        ? 0.0001
+        : yDelta == Infinity
+        ? 0.5
+        : yDelta == -Infinity
+        ? -0.5
+        : yDelta;
+    let s = !origin?.z;
+    this.selectedTowers.forEach((towerIndex) => {
+      let t = this.mapData.towers[towerIndex];
+      if (s) {
+        t.x = origin.x + (t.x - origin.x) * xDelta;
+        t.y = origin.y + (t.y - origin.y) * yDelta;
+      } else {
+        t.x -= xDelta;
+        t.y -= yDelta;
+      }
+    });
+    let stID = [];
+    this.selectedTowers.forEach((idx) => {
+      stID.push(this.mapData.towers[idx].id);
+    });
+    this.updateWalls(stID);
+    this.updateAreas(stID);
+    this.updateChunkOptions();
   },
 
   selectTower: function () {
@@ -900,6 +948,254 @@ const DME = {
       .querySelector("#DME-select-color-dropdown")
       .querySelectorAll("option")[c - 1].selected = true;
     this.selectedColor = c;
+  },
+
+  loadFile: function(input){
+    let file = input.files[0];
+    let reader = new FileReader();
+  
+    reader.readAsText(file);
+  
+    reader.onload = function () {
+      console.log(reader.result);
+      DME.loadMap(reader.result);
+    };
+  
+    reader.onerror = function () {
+      console.log(reader.error);
+      alert('Error: failed loading map file');
+      return;
+    };
+  },
+
+  loadMap: function(mapData, dataType) {
+    if(!dataType){
+      //determine type
+      dataType = mapData.split(/\n/).length == 1 && mapData.split('|').length == 6 ? 'compact' : undefined;
+      console.log(`Row length: ${mapData.split(/\n/).length}; Argument length: ${mapData.split('|').length}`);
+      console.log(mapData.split('|'));
+      dataType = !dataType ?  mapData.split(/\n/).length == 1 && mapData.split(':')[0] == '{"name"' ? 'astrolly' : undefined : dataType;
+      dataType = !dataType ? 'defly' : dataType;
+    }
+    let mapFile = mapData;
+    console.log(mapFile);
+    console.log(`Loading map - data type: ${dataType}`);
+    //only if new map is loaded
+    this.mapData.towers = [];
+    this.mapData.walls = [];
+    this.mapData.areas = [];
+    this.selectedTowers = [];
+    this.highestId = 1;
+    switch (dataType) {
+      case "defly": {
+        let newMapData = mapFile.split(/\s+/);
+        newMapData.forEach((identifier, position) => {
+          switch (identifier) {
+            case "MAP_WIDTH": {
+              this.mapData.width = newMapData[position + 1] * defly.UNIT_WIDTH;
+              break;
+            }
+            case "MAP_HEIGHT": {
+              this.mapData.height = newMapData[position + 1] * defly.UNIT_WIDTH;
+              break;
+            }
+            case "d": {
+              let color = isNaN(Number(newMapData[position + 4]))
+                ? 1
+                : newMapData[position + 4];
+              this.createTower(Number(newMapData[position + 2]) * defly.UNIT_WIDTH, Number(newMapData[position + 3]) * defly.UNIT_WIDTH, color, Number(newMapData[position + 1]));
+              break;
+            }
+            case "l": {
+              this.createWall(Number(newMapData[position + 1]), Number(newMapData[position + 2]));
+              break;
+            }
+            case "z": {
+              let ids = [];
+              for (let c = 1; c < newMapData.length; c++) {
+                let id = Number(newMapData[position + c]);
+                if (isNaN(id) || (id < 0)) {
+                  c = newMapData.length;
+                  continue;
+                }
+                ids.push(id);
+              }
+              this.createArea(ids);
+              break;
+            }
+            case "s": {
+              //spawns - not here yet - stay tuned
+              /*
+              let team = {
+                id: Number(newMapData[position + 1]),
+              };
+              team.name = team.id > 0 ? "red" : "blue";
+              permanentMapData.spawns[team.id] = {
+                x: Number(newMapData[position + 2]) * defly.UNIT_WIDTH - defly.UNIT_WIDTH / 2,
+                y: Number(newMapData[position + 3]) * defly.UNIT_WIDTH - defly.UNIT_WIDTH / 2,
+              };
+              */
+              break;
+            }
+            case "t": {
+              //bomb spots - not here yet - stay tuned
+              /*
+              let type = {
+                id: Number(newMapData[position + 1]),
+              };
+              type.type = type.id > 0 ? "b" : "a";
+              permanentMapData.bombs[type.id] = {
+                type: type.type,
+                x: Number(newMapData[position + 2]) * defly.UNIT_WIDTH,
+                y: Number(newMapData[position + 3]) * defly.UNIT_WIDTH,
+              };
+              */
+              break;
+            }
+          }
+        });
+        break;
+      }
+      case "compact": {
+        let newMapData = mapFile.split("|");
+  
+        //map size
+        let newMapSize = newMapData[0].split(",");
+        this.mapData.width =
+          Number(newMapSize[0]) > 0
+            ? Number(newMapSize[0]) * defly.UNIT_WIDTH
+            : this.mapData.width;
+        this.mapData.height =
+          Number(newMapSize[1]) > 0
+            ? Number(newMapSize[1]) * defly.UNIT_WIDTH
+            : this.mapData.height;
+  
+        //koth bounds - not here yet - stay tuned
+        //kothBounds = newMapData[1].split(",").length < 4 ? [] : newMapData[1].split(",");
+  
+        //bomb spots - not here yet - stay tuned
+        /*
+        let bombData = newMapData[2].split(",");
+        for (let c = 0; bombData.length > c; c += 2) {
+          permanentMapData.bombs[c / 2] = {
+            type: c / 2 == 0 ? "a" : "b",
+            x: bombData[0 + c] * defly.UNIT_WIDTH,
+            y: bombData[1 + c] * defly.UNIT_WIDTH,
+          };
+        }
+        */
+  
+        //defuse spawns - not here yet - stay tuned
+        /*
+        let spawnData = newMapData[3].split(",");
+        for (let c = 0; spawnData.length > c; c += 3) {
+          permanentMapData.spawns[c / 3 + 1] = {
+            x: spawnData[0 + c] * defly.UNIT_WIDTH,
+            y: spawnData[1 + c] * defly.UNIT_WIDTH,
+          };
+          //rotation: spawnData[2 + c],
+        }
+        */
+  
+        //towers (and walls)
+        let towerData = newMapData[4].split(";");
+        towerData.forEach((rawTower, index) => {
+          let tower = rawTower.split(",");
+          let color = tower[2] === "" ? 1 : tower[2];
+          this.createTower(tower[0]*defly.UNIT_WIDTH,tower[1]*defly.UNIT_WIDTH,color,index+1);
+          //walls
+          for (let c = 3; c < tower.length; c++) {
+            this.createWall(index+1,Number(tower[c]));//might be 'Number(tower[c])-1' - in case of crash try change
+          }
+        });
+        this.updateWalls();
+  
+        //shading
+        let shadingData = newMapData[5].split(";");
+        shadingData.forEach((rawShading) => {
+          let shading = rawShading.split(",");
+          let ids = [];
+          shading.forEach((tId) => {
+            ids.push(Number(tId));
+          });
+          this.createArea(ids);
+        });
+        break;
+      }
+      case 'astrolly':{
+        console.log(JSON.parse(mapFile));
+        let newMapData = JSON.parse(mapFile);
+        this.mapData.width = newMapData.width;
+        this.mapData.height = newMapData.height;
+        Object.entries(newMapData.nodes).forEach(nV => {
+          this.createTower(nV[1].x, nV[1].y, 1, nV[1].nodeId);
+        });
+        newMapData.edges.forEach(e => {
+          this.createWall(e.fromNodeId, e.toNodeId);
+        });
+        /*newMapData.regions.forEach(r => {
+          let ids = [];
+          r.forEach(n => {
+            //!here \/ has to be fixed - don't have files on me rn
+            ids.push(n.value);
+          });
+          this.createArea(ids);
+        });*/
+        //bomb spots - not supported yet
+
+        //spawns - not supported yet
+
+        break;
+      }
+      default:{
+        alert('Sorry, this map format is not supported yet!');
+        break;
+      }
+    }
+    //update displayed map size
+    document.querySelector('#DME-input-map-width').value = this.mapData.width;
+    document.querySelector('#DME-input-map-height').value = this.mapData.height;
+  },
+
+  generateMapFile: function(){
+    let d = this.mapData;
+    let text = ``;
+    text += `MAP_WIDTH ${d.width/defly.UNIT_WIDTH}`;
+    text += `\nMAP_HEIGHT ${d.height/defly.UNIT_WIDTH}`;
+    let t_text = ``;
+    d.towers.forEach(t => {
+      t_text += `\nd ${t.id} ${t.x/defly.UNIT_WIDTH} ${t.y/defly.UNIT_WIDTH}${t.color!=1?' '+t.color:''}`
+    });
+    let w_text = ``;
+    d.walls.forEach(w => {
+      w_text += `\nl ${w.from.id} ${w.to.id}`;
+    });
+    let a_text = ``;
+    d.areas.forEach(a => {
+      a_text += `\nz `;
+      a.nodes.forEach(n => {
+        a_text += `${n.id} `;
+      });
+      a_text.trimEnd();
+    });
+    text += `${t_text}${w_text}${a_text}`;
+    text.trimEnd();
+    return text;
+  },
+
+  exportMap: function(){
+    let filename = `${new Date().getTime()}-defly-map`;
+    let textContent = this.generateMapFile();
+    let element = document.createElement("a");
+    element.setAttribute(
+      "href",
+      "data:text/plain;charset=utf-8," + encodeURIComponent(textContent)
+    );
+    element.setAttribute("download", filename);
+    element.style.display = "none";
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
   },
 
   getDistance: function (x1, y1, x2, y2) {
@@ -1030,11 +1326,38 @@ const DME = {
     return targetIndex;
   },
 
+  changeKeybind: function(key){
+    console.log(`Trying to update ${key}`);
+    if(this.changeKeybind.isChanging){
+      this.changeKeybind.element.innerText = this.hotkeys[this.changeKeybind.binding];
+      this.changeKeybind.element.style.fontSize = '16px';
+    }
+    this.changeKeybind.isChanging = true;
+    this.changeKeybind.binding = key;
+    this.changeKeybind.element = document.querySelector(`#DME-ch-${key}`);
+    this.changeKeybind.element.style.fontSize = '12px';
+    this.changeKeybind.element.innerText = 'press any key';
+    this.changeKeybind.element.blur();
+    onkeydown = function (event) {
+      if (!DME.changeKeybind.isChanging) {
+        return;
+      }
+      let newBind = event.key.toUpperCase();
+      newBind = newBind == 'ESCAPE' ? '' : newBind;
+      DME.changeKeybind.element.innerText = newBind;
+      DME.changeKeybind.element.style.fontSize = '16px';
+      //markDoubleKeys();
+      DME.changeKeybind.isChanging = false;
+      DME.hotkeys[DME.changeKeybind.binding] = newBind;
+      return;
+    };
+  },
+
   updateMouse: function (x, y) {
     this.updateMouseCoords(x, y);
-    let mc = this.mouseCoords.relative;
     let o = this.chunckOptions;
     if (!o.active) return;
+    let mc = this.mouseCoords.relative;
     let cP = {
       distance: 0,
       index: o.hovering - 1,
@@ -1055,7 +1378,7 @@ const DME = {
           cP.index = index;
         }
       });
-    } else this.resizeChunk(1);
+    } else this.resizeChunkByDrag(1);
     let cS = "";
     switch (cP.index) {
       case 0:
@@ -1195,15 +1518,44 @@ const DME = {
       cO.ry = top; //... y posittion
       cO.rw = right - left; //... width
       cO.rh = bottom - top; //... height
-      cO.rsr = 20 * mz + 20; //... selective radious around key points
+      cO.rsr = 12 * mz + 12; //... selective radious around key points
       cO.rsw = 10 * mz + 10; //... selective width of outline
       cO.vx = vx; //visual left x position
       cO.vy = vy; //... y position
       cO.vw = vw; //... width
       cO.vh = vh; //... height
-      cO.vsr = 12 + 12 / mz; //... selective radious around key points
+      cO.vsr = 8 + 8 / mz; //... selective radious around key points
       cO.vsw = 6 + 6 / mz; //... selective width of the outlines
     } else this.chunckOptions.active = false;
+    this.updateChunkSizeDisplay();
+  },
+  updateChunkSizeDisplay: function (xDelta, yDelta) {
+    if (this.selectedTowers.length <= 1) {
+      document.querySelector("#DME-resize-values").style.display = "none";
+      return;
+    }
+    let newl = xDelta === undefined && yDelta === undefined ? true : false;
+    let cO = this.chunckOptions;
+    /*xDelta = xDelta ? xDelta : cO.rw;
+    yDelta = yDelta ? yDelta : cO.rh;*/
+    if(!newl && cO.hovering == 9) newl = true;
+    document.querySelector("#DME-resize-values").style.display = "inline";
+    let xSel = document.querySelector("#DME-resize-values-x");
+    xSel.style.left = `${cO.vx + cO.vw / 2 - 58}px`;
+    xSel.style.top = `${cO.vy + cO.vh + 20}px`;
+    let xSels = xSel.querySelectorAll("input");
+    xSels[0].value = newl ? 100 : ((cO.rw + xDelta) / cO.rw) * 100;
+    xSels[1].value = newl
+      ? cO.rw / defly.UNIT_WIDTH
+      : (cO.rw + xDelta) / defly.UNIT_WIDTH;
+    let ySel = document.querySelector("#DME-resize-values-y");
+    ySel.style.left = `${cO.vx + cO.vw + 20}px`;
+    ySel.style.top = `${cO.vy + cO.vh / 2 - 22}px`;
+    let ySels = ySel.querySelectorAll("input");
+    ySels[0].value = newl ? 100 : ((cO.rh + yDelta) / cO.rh) * 100;
+    ySels[1].value = newl
+      ? cO.rh / defly.UNIT_WIDTH
+      : (cO.rh + yDelta) / defly.UNIT_WIDTH;
   },
 
   relToFsPt: {
@@ -1361,10 +1713,12 @@ const DME = {
       let d = this.chunckOptions;
 
       ctx.strokeStyle = "rgba(170, 90, 30, 0.8)";
+      ctx.lineDashOffset = 4;
       ctx.lineWidth = d.vsw;
       ctx.strokeRect(d.vx, d.vy, d.vw, d.vh);
 
-      ctx.lineWidth = d.vsw/2;
+      ctx.lineDashOffset = 0;
+      ctx.lineWidth = d.vsw / 2;
       let [o, s] = [d.vsr, 2 * d.vsr];
       ctx.strokeRect(d.vx - o, d.vy - o, s, s);
       ctx.strokeRect(d.vx - o + d.vw / 2, d.vy - o, s, s);
@@ -1430,7 +1784,7 @@ const DME = {
       switch (e.button) {
         case 0: {
           if (this.chunckOptions.hovering) {
-            this.resizeChunk(0);
+            this.resizeChunkByDrag(0);
           } else this.selectTower();
           break;
         }
@@ -1439,7 +1793,7 @@ const DME = {
           break;
         }
         case 2: {
-          this.placeTower();
+          if(!this.chunckOptions.hovering) this.placeTower();
           break;
         }
       }
@@ -1448,7 +1802,7 @@ const DME = {
       switch (e.button) {
         case 0: {
           if (this.chunckOptions.isChanging) {
-            this.resizeChunk(2);
+            this.resizeChunkByDrag(2);
           }
           break;
         }
@@ -1509,7 +1863,8 @@ const DME = {
           this.snapping = !c;
           break;
         }
-        case this.hotkeys.Delete: {
+        case this.hotkeys.Delete1:
+        case this.hotkeys.Delete2: {
           this.deleteTowers();
           break;
         }
