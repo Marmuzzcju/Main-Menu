@@ -115,6 +115,13 @@ function config() {
 window.onbeforeunload = () => {
   if (hasLocalStorage) {
     localStorage.setItem("current-page", currentPage);
+    switch(currentSite){
+      case 'DME':{
+        localStorage.setItem('DMEauto-saved-map', DME.generateMapFile('compact'));
+        localStorage.setItem('DMEhotkeys', JSON.stringify(DME.hotkeys));
+        break;
+      }
+  }
   }
 };
 
@@ -283,7 +290,10 @@ const DME = {
     MoveLeft2: "ARROWLEFT",
     MoveRight1: "D",
     MoveRight2: "ARROWRIGHT",
-    g: "G",
+    toggleSnap1: "G",
+    toggleSnap2: "",
+    shadeArea1: "F",
+    shadeArea2: '',
     b: "B",
     r: "R",
     m: "M",
@@ -296,7 +306,6 @@ const DME = {
     a: "A",
     s: "S",
     d: "D",
-    f: "F",
     x: "X",
     Plus: "+",
     Minus: "-",
@@ -593,6 +602,7 @@ const DME = {
   },
 
   createArea: function (ids) {
+    console.log(`Area has been created with following ids: ${ids}`);
     let nodes = [];
     let towers = DME.mapData.towers;
     ids.forEach((id) => {
@@ -1153,34 +1163,85 @@ const DME = {
       }
     }
     //update displayed map size
-    document.querySelector('#DME-input-map-width').value = this.mapData.width;
-    document.querySelector('#DME-input-map-height').value = this.mapData.height;
+    document.querySelector('#DME-input-map-width').value = this.mapData.width/defly.UNIT_WIDTH;
+    document.querySelector('#DME-input-map-height').value = this.mapData.height/defly.UNIT_WIDTH;
   },
 
-  generateMapFile: function(){
-    let d = this.mapData;
+  generateMapFile: function(type='defly'){
+    let d = this.getCleanMapCopy();
     let text = ``;
-    text += `MAP_WIDTH ${d.width/defly.UNIT_WIDTH}`;
-    text += `\nMAP_HEIGHT ${d.height/defly.UNIT_WIDTH}`;
-    let t_text = ``;
-    d.towers.forEach(t => {
-      t_text += `\nd ${t.id} ${t.x/defly.UNIT_WIDTH} ${t.y/defly.UNIT_WIDTH}${t.color!=1?' '+t.color:''}`
-    });
-    let w_text = ``;
-    d.walls.forEach(w => {
-      w_text += `\nl ${w.from.id} ${w.to.id}`;
-    });
-    let a_text = ``;
-    d.areas.forEach(a => {
-      a_text += `\nz `;
-      a.nodes.forEach(n => {
-        a_text += `${n.id} `;
-      });
-      a_text.trimEnd();
-    });
-    text += `${t_text}${w_text}${a_text}`;
-    text.trimEnd();
+    switch(type){
+      case 'defly':{
+        text += `MAP_WIDTH ${d.width/defly.UNIT_WIDTH}`;
+        text += `\nMAP_HEIGHT ${d.height/defly.UNIT_WIDTH}`;
+        let t_text = ``;
+        d.towers.forEach(t => {
+          t_text += `\nd ${t.id} ${t.x/defly.UNIT_WIDTH} ${t.y/defly.UNIT_WIDTH}${t.color!=1?' '+t.color:''}`
+        });
+        let w_text = ``;
+        d.walls.forEach(w => {
+          w_text += `\nl ${w.from.id} ${w.to.id}`;
+        });
+        let a_text = ``;
+        d.areas.forEach(a => {
+          a_text += `\nz`;
+          a.nodes.forEach(n => {
+            a_text += ` ${n.id}`;
+          });
+        });
+        text += `${t_text}${w_text}${a_text}`;
+        break;
+      }
+      case 'compact':{
+        text += `${d.width/defly.UNIT_WIDTH},${d.height/defly.UNIT_WIDTH}|${/*Koth bounds*/''}|${/*Defuse spawns*/''}|${/*Defuse bombs*/''}|`;
+        cWalls = {};
+        d.walls.forEach(w => {
+          if(!Array.isArray(cWalls[w.from.id])) cWalls[w.from.id] = [];
+          cWalls[w.from.id].push(w.to.id);
+        });
+        d.towers.forEach((t,c) => {
+          text += `${c?';':''}${t.x/defly.UNIT_WIDTH},${t.y/defly.UNIT_WIDTH},${t.color==1?'':t.color}`;
+          cWalls[c+1]?.forEach(w => {
+            text += `,${w}`;
+          });
+        });
+        text += `|`;
+        d.areas.forEach((a,ac) => {
+          a.nodes.forEach((n,nc) => {
+            text += `${nc?',':ac?';':''}${n.id}`;
+          });
+        });
+        break;
+      }
+      case 'astrolly':{
+        alert('Not supported yet...');
+        break;
+      }
+      default: {
+        alert('Error: Unknown file type');
+        break;
+      }
+    }
     return text;
+  },
+
+  getCleanMapCopy: function(){
+    let copy = JSON.parse(JSON.stringify(this.mapData));
+    let newId = {};
+    copy.towers.forEach((t,c) => {
+      newId[t.id] = c+1;
+      t.id = c+1;
+    });
+    copy.walls.forEach(w => {
+      w.from.id = newId[w.from.id];
+      w.to.id = newId[w.to.id];
+    });
+    copy.areas.forEach(a => {
+      a.nodes.forEach(n => {
+        n.id = newId[n.id];
+      });
+    });
+    return copy;
   },
 
   exportMap: function(){
@@ -1743,32 +1804,33 @@ const DME = {
   },
 
   config: function () {
-    /*
     if (hasLocalStorage) {
       if (!localStorage.getItem("DMEhotkeys")) {
         localStorage.setItem("DMEhotkeys", JSON.stringify(DME.hotkeys));
       } else {
         let storedHotkeys = JSON.parse(localStorage.getItem("DMEhotkeys"));
+        console.log(storedHotkeys);
         Object.entries(storedHotkeys).forEach((key) => {
           DME.hotkeys[key[0]] = key[1];
         });
       }
-      Array.from(document.querySelectorAll(".hotkey-change-button")).forEach(
-        (buttonVal) => {
-          buttonVal.innerHTML =
-            DME.hotkeys[buttonVal.id.replace("hotkeys.change", "")];
+      Array.from(document.querySelectorAll("#DME-hotkey-menu > div > button")).forEach(
+        (button) => {
+          if(DME.hotkeys?.[button.id.replace("DME-ch-", "")]){
+          button.innerHTML =
+            DME.hotkeys[button.id.replace("DME-ch-", "")];
+          }
         }
       );
-
       if (!localStorage.getItem("DMEauto-saved-map")) {
         localStorage.setItem(
           "DMEauto-saved-map",
           "MAP_WIDTH 210 MAP_HEIGHT 120"
         );
       } else {
-        DME.loadMapFile(
+        DME.loadMap(
           localStorage.getItem("DMEauto-saved-map"),
-          "deflyFormat"
+          "compact"
         );
       }
 
@@ -1776,7 +1838,7 @@ const DME = {
         localStorage.setItem("DMEsaved-map-list", JSON.stringify(["Empty"]));
       }
     }
-    */ //local storage not needed rn
+    /**/ //local storage not needed rn
     canvas.classList.remove("hidden");
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -1855,7 +1917,8 @@ const DME = {
           this.isKeyPressed.ENTER = true;
           break;
         }
-        case this.hotkeys.g: {
+        case this.hotkeys.toggleSnap1:
+        case this.hotkeys.toggleSnap2: {
           let c = document.querySelector(
             "#DME-toggle-snapping-checkbox"
           ).checked;
@@ -1868,7 +1931,8 @@ const DME = {
           this.deleteTowers();
           break;
         }
-        case this.hotkeys.f: {
+        case this.hotkeys.shadeArea1:
+        case this.hotkeys.shadeArea2: {
           console.log("Looking for Area to enshade...");
           this.placeArea();
           break;
@@ -1909,7 +1973,8 @@ const DME = {
           this.isKeyPressed.ENTER = false;
           break;
         }
-        case this.hotkeys.g: {
+        case this.hotkeys.toggleSnap1:
+        case this.hotkeys.toggleSnap2: {
           break;
         }
         case this.hotkeys.MoveUp1:
