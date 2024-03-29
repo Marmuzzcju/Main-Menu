@@ -453,7 +453,7 @@ const DME = {
   },
 
   placeArea: function () {
-    let mc = this.mouseCoords.snapped;
+    let mc = this.mouseCoords.relative;
 
     //get closest wall as area origin point
     let closestWall = {
@@ -653,7 +653,7 @@ const DME = {
 
   resizeChunkByDrag: function (step) {
     let o = this.chunckOptions;
-    let mc = this.mouseCoords.relative;
+    let mc = this.mouseCoords.snapped;
     switch (step) {
       case 0: {
         o.isChanging = true;
@@ -1418,7 +1418,7 @@ const DME = {
     this.updateMouseCoords(x, y);
     let o = this.chunckOptions;
     if (!o.active) return;
-    let mc = this.mouseCoords.relative;
+    let mc = this.mouseCoords.snapped;
     let cP = {
       distance: 0,
       index: o.hovering - 1,
@@ -1552,6 +1552,7 @@ const DME = {
     }
   },
 
+  //will be called once upon starting chunck resize
   updateChunkOptions: function () {
     if (this.selectedTowers.length > 1) {
       let mz = this.mapZoom;
@@ -1590,12 +1591,13 @@ const DME = {
     } else this.chunckOptions.active = false;
     this.updateChunkSizeDisplay();
   },
+  //updates the displayed chunck dimensions
   updateChunkSizeDisplay: function (xDelta, yDelta) {
     if (this.selectedTowers.length <= 1) {
       document.querySelector("#DME-resize-values").style.display = "none";
       return;
     }
-    let newl = xDelta === undefined && yDelta === undefined ? true : false;
+    let newl = xDelta === undefined && yDelta === undefined;
     let cO = this.chunckOptions;
     /*xDelta = xDelta ? xDelta : cO.rw;
     yDelta = yDelta ? yDelta : cO.rh;*/
