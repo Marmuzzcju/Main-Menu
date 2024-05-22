@@ -32,8 +32,8 @@ function fadeOutScreen(fadeIn = true) {
 
 function switchSite(newPage = "main-menu", instance = 0) {
   let t = 500;
-  switch(instance){
-    case 0:{
+  switch (instance) {
+    case 0: {
       fadeOutScreen();
       break;
     }
@@ -42,7 +42,7 @@ function switchSite(newPage = "main-menu", instance = 0) {
       t = 0;
       break;
     }
-    case 2:{
+    case 2: {
       t = 0;
       break;
     }
@@ -102,10 +102,10 @@ function config() {
   }
   toggleMainMenuContentPage(pageToLoad);
   //check url for specific site
-  let urlSpec = window.location.href?.split('?')[1];
-  if(urlSpec){
-    switch(urlSpec){
-      case 'map-editor':{
+  let urlSpec = window.location.href?.split("?")[1];
+  if (urlSpec) {
+    switch (urlSpec) {
+      case "map-editor": {
         switchSite(urlSpec, 1);
         break;
       }
@@ -115,13 +115,16 @@ function config() {
 window.onbeforeunload = () => {
   if (hasLocalStorage) {
     localStorage.setItem("current-page", currentPage);
-    switch(currentSite){
-      case 'DME':{
-        localStorage.setItem('DMEauto-saved-map', DME.generateMapFile('compact'));
-        localStorage.setItem('DMEhotkeys', JSON.stringify(DME.hotkeys));
+    switch (currentSite) {
+      case "DME": {
+        localStorage.setItem(
+          "DMEauto-saved-map",
+          DME.generateMapFile("compact")
+        );
+        localStorage.setItem("DMEhotkeys", JSON.stringify(DME.hotkeys));
         break;
       }
-  }
+    }
   }
 };
 
@@ -293,15 +296,20 @@ const DME = {
     toggleSnap1: "G",
     toggleSnap2: "",
     shadeArea1: "F",
-    shadeArea2: '',
-    b: "B",
+    shadeArea2: "",
+    copyChunk1: "C",
+    copyChunk2: "",
+    pasteChunk1: "V",
+    pasteChunk2: "",
+    undoAction1: "Z",
+    undoAction2: "",
+    redoAction1: "Y",
+    redoAction2: "",
+    shieldTower1: "B",
+    shieldTower2: "",
     r: "R",
     m: "M",
-    c: "C",
-    v: "V",
     n: "N",
-    z: "Z",
-    y: "Y",
     w: "W",
     a: "A",
     s: "S",
@@ -317,8 +325,8 @@ const DME = {
   },
   changeKeybind: {
     isChanging: false,
-    binding: '',
-    element: '',
+    binding: "",
+    element: "",
   },
 
   isKeyPressed: {
@@ -371,6 +379,18 @@ const DME = {
   },
   highestId: 1,
 
+  copiedChunk: {
+    towers: [],
+    walls: [],
+    areas: [],
+    width: 0,
+    height: 0,
+  },
+
+  lastActions: [],
+  logState: 1,//0: none, 1: normal, 2: update undone, 3: redone
+  undoneDepth: 0,
+
   selectedTowers: [],
   selectingChunk: {
     isSelecting: false,
@@ -407,11 +427,16 @@ const DME = {
     let mc = this.mouseCoords.snapped;
     let closestTower = this.getClosestTower(mc.x, mc.y);
     let towerId = this.highestId;
+    let logWalls = false;
+    let loggedWalls = [];
     if (closestTower.distance < defly.TOWER_WIDTH) {
       towerId = this.mapData.towers[closestTower.index].id;
+      logWalls = true;
     } else {
       this.createTower(mc.x, mc.y, this.selectedColor, towerId);
     }
+    let previousState = this.logState;
+    this.logState = 0;
     //store all tower ids from existing walls to that tower
     let existingWalls = [];
     this.mapData.walls.forEach((wall) => {
@@ -426,17 +451,24 @@ const DME = {
       //create a wall from each selected tower to new one
       //only if such wall didn´t exist yet
       if (id != towerId && !existingWalls.includes(id))
-        this.createWall(id, towerId);
+        loggedWalls.push({ from: id, to: towerId });
+      this.createWall(id, towerId);
     });
+    this.logState = previousState;
+    if (logWalls && loggedWalls.length > 0)
+      this.logAction({ action: "create", type: "walls", ids: loggedWalls });
     this.selectedTowers = [this.getIndexFromId(towerId)];
     this.updateChunkOptions();
   },
 
+  //action here
   createTower: function (x, y, color, id) {
     DME.mapData.towers.push({ x: x, y: y, color: color, id: id });
     DME.highestId = id > DME.highestId ? id : DME.highestId + 1;
+    this.logAction({ action: "create", type: "tower", id: id });
   },
 
+  //action here
   createWall: function (fromId, toId) {
     let tower1 = DME.getIndexFromId(fromId);
     let tower2 = DME.getIndexFromId(toId);
@@ -449,6 +481,11 @@ const DME = {
       from: { x: x1, y: y1, id: fromId },
       to: { x: x2, y: y2, id: toId },
       color: col,
+    });
+    this.logAction({
+      action: "create",
+      type: "walls",
+      ids: [{ from: fromId, to: toId }],
     });
   },
 
@@ -601,6 +638,7 @@ const DME = {
     }
   },
 
+  //action here
   createArea: function (ids) {
     console.log(`Area has been created with following ids: ${ids}`);
     let nodes = [];
@@ -613,6 +651,7 @@ const DME = {
     });
     let color = towers[DME.getIndexFromId(ids[0])].color;
     DME.mapData.areas.push({ length: ids.length, color: color, nodes: nodes });
+    this.logAction({ action: "create", type: "area", ids: ids });
   },
 
   /*
@@ -622,6 +661,12 @@ const DME = {
   go here
   ...
   */
+
+  shieldTowers: function(){
+    this.selectedTowers.forEach(idx => {
+      this.mapData.towers[idx].isShielded = true;
+    });
+  },
 
   updateWalls: function (ids = false) {
     this.mapData.walls.forEach((wall) => {
@@ -651,6 +696,229 @@ const DME = {
     });
   },
 
+  copyChunk: function () {
+    console.log("Fired copy!!");
+    this.copiedChunk = {
+      towers: [],
+      walls: [],
+      areas: [],
+      width: 0,
+      height: 0,
+    };
+    let ids = [];
+    let newIds = {};
+    let leftmost = Infinity;
+    let rightmost = 0;
+    let topmost = Infinity;
+    let bottommost = 0;
+    this.selectedTowers.forEach((tIdx, c) => {
+      let t = this.mapData.towers[tIdx];
+      ids.push(t.id);
+      newIds[t.id] = c + 1;
+      this.copiedChunk.towers.push({
+        x: t.x,
+        y: t.y,
+        color: t.color,
+        id: c + 1,
+      });
+      leftmost = t.x < leftmost ? t.x : leftmost;
+      rightmost = t.x > rightmost ? t.x : rightmost;
+      topmost = t.y < topmost ? t.y : topmost;
+      bottommost = t.y > bottommost ? t.y : bottommost;
+    });
+    this.copiedChunk.towers.forEach((idc, c) => {
+      let t = this.copiedChunk.towers[c];
+      t.x = t.x - leftmost;
+      t.y = t.y - topmost;
+    });
+    this.copiedChunk.width = rightmost - leftmost;
+    this.copiedChunk.height = bottommost - topmost;
+    this.mapData.walls.forEach((w) => {
+      if (ids.includes(w.from.id) && ids.includes(w.to.id)) {
+        this.copiedChunk.walls.push([newIds[w.from.id], newIds[w.to.id]]);
+      }
+    });
+    this.mapData.areas.forEach((a) => {
+      let inside = true;
+      let newIdAr = [];
+      a.nodes.forEach((n) => {
+        if (!ids.includes(n.id)) inside = false;
+        newIdAr.push(newIds[n.id]);
+      });
+      if (inside) {
+        this.copiedChunk.areas.push(newIdAr);
+      }
+    });
+  },
+  //action here - if paste chunk, we cannot catch the single build steps but rather whole chunk
+  pasteChunk: function (x, y) {
+    let previousState = this.logState;
+    this.logState = 0;
+    console.log("Fired paste!!");
+    x = x ? x : this.mouseCoords.snapped.x;
+    y = y ? y : this.mouseCoords.snapped.y;
+    let cId = this.highestId;
+    let cC = this.copiedChunk;
+    let loggedIds = [];
+    cC.towers.forEach((t) => {
+      this.createTower(
+        t.x - cC.width / 2 + x,
+        t.y - cC.height / 2 + y,
+        t.color,
+        t.id + cId
+      );
+      loggedIds.push(id + cId);
+    });
+    cC.walls.forEach((w) => {
+      this.createWall(w[0] + cId, w[1] + cId);
+    });
+    cC.areas.forEach((a) => {
+      let frIds = [];
+      a.forEach((id) => {
+        frIds.push(id + cId);
+      });
+      this.createArea(frIds);
+    });
+    this.logState = previousState;
+    this.logAction({ action: "create", type: "chunk", ids: loggedIds });
+  },
+
+  logAction: function (action) {
+    if (this.logState == 0) return;
+    console.log(action);
+    if(this.logState == 1) {
+      if (this.undoneDepth) this.lastActions.splice(-this.undoneDepth);
+      this.undoneDepth = 0;
+    }
+    let logNew=this.logState==1, splicePos = this.lastActions.length-this.undoneDepth-this.logState+2;
+    //determine whether log should be normal or updated
+    switch (action.action) {
+      case "create": {
+        if(logNew) this.lastActions.push(action);
+        else this.lastActions.splice(splicePos,1,action);
+        break;
+      }
+      case "modify": {
+        switch(action.type){
+          case 'resize':{
+            if(logNew) {
+              let lA = this.lastActions.at(-1);
+              if(lA?.type == 'resize' && lA?.ids == action.ids && lA?.origin == action.origin){
+                lA.x *= action.x;
+                lA.y *= action.y;
+              } else {
+                this.lastActions.push(action);
+              }
+            } else this.lastActions.splice(splicePos,1,action);
+            break;
+          }
+          case 'move':{
+            if(logNew) {
+              let lA = this.lastActions.at(-1);
+              if(lA?.type == 'move' && lA?.ids == action.ids){
+                lA.x += action.x;
+                lA.y += action.y;
+              } else {
+                this.lastActions.push(action);
+              }
+            } else this.lastActions.splice(splicePos,1,action);
+            break;
+          }
+        }
+        break;
+      }
+      case "delete": {
+        if(logNew) this.lastActions.push(action);
+        else this.lastActions.splice(splicePos,1,action);
+        break;
+      }
+    }
+  },
+  modifyLastAction: function (time) {
+    console.log("Reversing...");
+    if ((!time && this.lastActions.length <= this.undoneDepth) || (time && this.undoneDepth < 1)) return;
+    this.undoneDepth+=1-time;
+    let actionToModify = this.lastActions.at(-this.undoneDepth), ls = 2+time;
+    this.undoneDepth-=time;
+    this.logState = ls;
+    switch (actionToModify.action) {
+      case "create": {
+        switch (actionToModify.type) {
+          case "tower": {
+            this.deleteTowers([this.getIndexFromId(actionToModify.id)]);
+            break;
+          }
+          case "walls": {
+            this.deleteWalls(actionToModify.ids);
+            break;
+          }
+          case "area": {
+            this.deleteArea(actionToModify.ids);
+            break;
+          }
+          case 'chunk': {
+            this.deleteTowers([this.getIndexFromId(actionToModify.ids)]);
+          }
+        }
+        break;
+      }
+      case "modify": {
+        switch(actionToModify.type){
+          case 'resize':{
+            this.resizeChunk(1/actionToModify.x, 1/actionToModify.y, actionToModify.origin);
+            break;
+          }
+          case 'move':{
+            this.resizeChunk(-actionToModify.x, -actionToModify.y, {z:true});
+            break;
+          }
+          case 'rotate':{
+            //note: has to be updated once rotate is in place
+            this.resizeChunk(-actionToModify.x, -actionToModify.y, {z:true});
+            break;
+          }
+        }
+        break;
+      }
+      case "delete": {
+        switch(actionToModify.type){
+          case 'towers':{
+            this.logState = 0;
+            let tIds = [];
+            actionToModify.towers.forEach(t => {
+              this.createTower(t.x,t.y,t.color,t.id);
+              tIds.push(t.id);
+            });
+            actionToModify.walls.forEach(w => {
+              this.createWall(w.from,w.to);
+            });
+            actionToModify.areas.forEach(ids => {
+              this.createArea(ids);
+            });
+            this.logState = ls;
+            this.logAction({ action: "create", type: "chunk", ids: tIds });
+            break;
+          }
+          case 'walls':{
+            this.logState = 0;
+            let ids = [];
+            actionToModify.ids.forEach(set => {
+              ids.push(set);
+              this.createWall(set.from, set.to);
+            });
+            this.logState = ls;
+            this.logAction({ action: 'create', type: 'walls', ids: ids });
+          }
+          case 'area':{
+            this.createArea(actionToModify.ids);
+          }
+        }
+        break;
+      }
+    }
+    this.logState = 1;
+  },
+
   resizeChunkByDrag: function (step) {
     let o = this.chunckOptions;
     let mc = this.mouseCoords.snapped;
@@ -663,6 +931,7 @@ const DME = {
       }
       case 1: {
         let xDelta, yDelta, origin;
+        //'o.hovering' determines where the user started to resize e.g. top left corner
         switch (o.hovering) {
           case 1: {
             origin = { x: 1, y: 1 };
@@ -796,19 +1065,21 @@ const DME = {
       }
     }
   },
-  resizeChunkByValue: function(type, value){
+  resizeChunkByValue: function (type, value) {
     let o = this.chunckOptions;
-    let delta={x:value,y:1};
-    let origin = {x:o.rx,y:o.ry};
-    if(type[0]!=='fraction'){
-      delta.x = value*defly.UNIT_WIDTH/(type[1] == 'x' ? o.rw : o.rh);
+    let delta = { x: value, y: 1 };
+    let origin = { x: o.rx, y: o.ry };
+    if (type[0] !== "fraction") {
+      delta.x = (value * defly.UNIT_WIDTH) / (type[1] == "x" ? o.rw : o.rh);
     }
-    if(type[1]==='y'){
+    if (type[1] === "y") {
       delta.y = delta.x;
       delta.x = 1;
     }
-    this.resizeChunk(delta.x,delta.y,origin);
+    this.resizeChunk(delta.x, delta.y, origin);
   },
+  //action here
+  //actually resizes the chunk - if 'origin.z=true' then moves around instead
   resizeChunk: function (xDelta, yDelta, origin) {
     xDelta =
       xDelta == 0
@@ -827,8 +1098,10 @@ const DME = {
         ? -0.5
         : yDelta;
     let s = !origin?.z;
+    let loggedIds = [];
     this.selectedTowers.forEach((towerIndex) => {
       let t = this.mapData.towers[towerIndex];
+      loggedIds.push(t.id);
       if (s) {
         t.x = origin.x + (t.x - origin.x) * xDelta;
         t.y = origin.y + (t.y - origin.y) * yDelta;
@@ -844,6 +1117,24 @@ const DME = {
     this.updateWalls(stID);
     this.updateAreas(stID);
     this.updateChunkOptions();
+    if (s) {
+      this.logAction({
+        action: "modify",
+        type: "resize",
+        ids: loggedIds,
+        origin: origin,
+        x: xDelta,
+        y: yDelta,
+      });
+    } else {
+      this.logAction({
+        action: "modify",
+        type: "move",
+        ids: loggedIds,
+        x: xDelta,
+        y: yDelta,
+      });
+    }
   },
 
   selectTower: function () {
@@ -914,13 +1205,19 @@ const DME = {
     }
   },
 
-  deleteTowers: function () {
-    this.selectedTowers.sort((a, b) => {
+  //action here
+  deleteTowers: function (towerIdx = this.selectedTowers) {
+    let loggedTowers = [];
+    let loggedWalls = [];
+    let loggedAreas = [];
+    towerIdx.sort((a, b) => {
       return a - b;
     });
-    this.selectedTowers.forEach((index, counter) => {
+    towerIdx.forEach((index, counter) => {
       let realIndex = index - counter;
-      let id = this.mapData.towers[realIndex].id;
+      let t = this.mapData.towers[realIndex];
+      let id = t.id;
+      loggedTowers.push({ x: t.x, y: t.y, color: t.color, id: id });
       this.mapData.towers.splice(realIndex, 1);
       let wallsToDelete = [];
       this.mapData.walls.forEach((wall, index) => {
@@ -929,6 +1226,8 @@ const DME = {
         }
       });
       wallsToDelete.forEach((index, counter) => {
+        let w = this.mapData.walls[index - counter];
+        loggedWalls.push({ from: w.from.id, to: w.to.id });
         this.mapData.walls.splice(index - counter, 1);
       });
       let areasToDelete = [];
@@ -938,11 +1237,87 @@ const DME = {
         }
       });
       areasToDelete.forEach((index, counter) => {
+        let aIds = [];
+        this.mapData.areas[index - counter].nodes.forEach((n) => {
+          aIds.push(n.id);
+        });
+        loggedAreas.push(aIds);
         this.mapData.areas.splice(index - counter, 1);
       });
     });
-    this.selectedTowers = [];
+    this.logAction({
+      action: "delete",
+      type: "towers",
+      towers: loggedTowers,
+      walls: loggedWalls,
+      areas: loggedAreas,
+    });
+    let newSelectedTowers = structuredClone(this.selectedTowers);
+    newSelectedTowers.sort((a, b) => {
+      return a - b;
+    });
+    let dC = 0;
+    let deleted = [];
+    newSelectedTowers.forEach((t, c) => {
+      if (towerIdx.includes(t)) {
+        deleted.push(c);
+        dC++;
+      } else newSelectedTowers[c] -= dC;
+    });
+    deleted.forEach((idx, c) => {
+      newSelectedTowers.splice(idx - c, 1);
+    });
+    this.selectedTowers = newSelectedTowers;
     this.updateChunkOptions();
+  },
+
+  deleteWalls: function (ids) {
+    //note: if deleted wall is part of area, delete area as well (<- to be added)
+    let wallIdentifiers = [];
+    this.mapData.walls.forEach((w) => {
+      wallIdentifiers.push(`${w.from.id},${w.to.id}`);
+    });
+    let wallsToDelete = [];
+    ids.forEach((set) => {
+      let idx = wallIdentifiers.indexOf(`${set.from},${set.to}`);
+      if (idx >= 0) wallsToDelete.push(idx);
+    });
+    wallsToDelete.sort((a, b) => {
+      return a - b;
+    });
+    wallsToDelete.forEach((idx, c) => {
+      this.mapData.walls.splice(idx - c, 1);
+    });
+    this.logAction({
+      action: "delete",
+      type: "walls",
+      ids: ids,
+    });
+  },
+
+  deleteArea: function (ids) {
+    let areaIdentifiers = [];
+    this.mapData.areas.forEach((a) => {
+      let ideText = ``;
+      a.nodes.forEach((n) => {
+        ideText += `${n.id},`;
+      });
+      areaIdentifiers.push(ideText);
+    });
+    let areasToDelete = [];
+    let ident = ``;
+    ids.forEach((id) => {
+      ident += `${id},`;
+    });
+    let idx = areaIdentifiers.indexOf(ident);
+    if (idx >= 0) areasToDelete.push(idx);
+    areasToDelete.sort((a, b) => {
+      return a - b;
+    });
+    areasToDelete.forEach((idx, c) => {
+      this.mapData.areas.splice(idx - c, 1);
+    });
+    this.logAction({action:'delete',type:'area',ids:ids});
   },
 
   changeSelectedTowerColor: function (newColor) {
@@ -960,32 +1335,45 @@ const DME = {
     this.selectedColor = c;
   },
 
-  loadFile: function(input){
+  loadFile: function (input) {
     let file = input.files[0];
     let reader = new FileReader();
-  
+
     reader.readAsText(file);
-  
+
     reader.onload = function () {
       console.log(reader.result);
       DME.loadMap(reader.result);
     };
-  
+
     reader.onerror = function () {
       console.log(reader.error);
-      alert('Error: failed loading map file');
+      alert("Error: failed loading map file");
       return;
     };
   },
 
-  loadMap: function(mapData, dataType) {
-    if(!dataType){
+  loadMap: function (mapData, dataType) {
+    console.log(mapData);
+    this.logState = 0;
+    if (!dataType) {
       //determine type
-      dataType = mapData.split(/\n/).length == 1 && mapData.split('|').length == 6 ? 'compact' : undefined;
-      console.log(`Row length: ${mapData.split(/\n/).length}; Argument length: ${mapData.split('|').length}`);
-      console.log(mapData.split('|'));
-      dataType = !dataType ?  mapData.split(/\n/).length == 1 && mapData.split(':')[0] == '{"name"' ? 'astrolly' : undefined : dataType;
-      dataType = !dataType ? 'defly' : dataType;
+      dataType =
+        mapData.split(/\n/).length == 1 && mapData.split("|").length == 6
+          ? "compact"
+          : undefined;
+      console.log(
+        `Row length: ${mapData.split(/\n/).length}; Argument length: ${
+          mapData.split("|").length
+        }`
+      );
+      console.log(mapData.split("|"));
+      dataType = !dataType
+        ? mapData.split(/\n/).length == 1 && mapData.split(":")[0] == '{"name"'
+          ? "astrolly"
+          : undefined
+        : dataType;
+      dataType = !dataType ? "defly" : dataType;
     }
     let mapFile = mapData;
     console.log(mapFile);
@@ -1013,18 +1401,26 @@ const DME = {
               let color = isNaN(Number(newMapData[position + 4]))
                 ? 1
                 : newMapData[position + 4];
-              this.createTower(Number(newMapData[position + 2]) * defly.UNIT_WIDTH, Number(newMapData[position + 3]) * defly.UNIT_WIDTH, color, Number(newMapData[position + 1]));
+              this.createTower(
+                Number(newMapData[position + 2]) * defly.UNIT_WIDTH,
+                Number(newMapData[position + 3]) * defly.UNIT_WIDTH,
+                color,
+                Number(newMapData[position + 1])
+              );
               break;
             }
             case "l": {
-              this.createWall(Number(newMapData[position + 1]), Number(newMapData[position + 2]));
+              this.createWall(
+                Number(newMapData[position + 1]),
+                Number(newMapData[position + 2])
+              );
               break;
             }
             case "z": {
               let ids = [];
               for (let c = 1; c < newMapData.length; c++) {
                 let id = Number(newMapData[position + c]);
-                if (isNaN(id) || (id < 0)) {
+                if (isNaN(id) || id <= 0) {
                   c = newMapData.length;
                   continue;
                 }
@@ -1068,7 +1464,7 @@ const DME = {
       }
       case "compact": {
         let newMapData = mapFile.split("|");
-  
+
         //map size
         let newMapSize = newMapData[0].split(",");
         this.mapData.width =
@@ -1079,10 +1475,10 @@ const DME = {
           Number(newMapSize[1]) > 0
             ? Number(newMapSize[1]) * defly.UNIT_WIDTH
             : this.mapData.height;
-  
+
         //koth bounds - not here yet - stay tuned
         //kothBounds = newMapData[1].split(",").length < 4 ? [] : newMapData[1].split(",");
-  
+
         //bomb spots - not here yet - stay tuned
         /*
         let bombData = newMapData[2].split(",");
@@ -1094,7 +1490,7 @@ const DME = {
           };
         }
         */
-  
+
         //defuse spawns - not here yet - stay tuned
         /*
         let spawnData = newMapData[3].split(",");
@@ -1106,22 +1502,29 @@ const DME = {
           //rotation: spawnData[2 + c],
         }
         */
-  
+
         //towers (and walls)
         let towerData = newMapData[4].split(";");
+        if (towerData.at(-1) == "") towerData.splice(-1, 1);
         towerData.forEach((rawTower, index) => {
           let tower = rawTower.split(",");
           let color = tower[2] === "" ? 1 : tower[2];
-          this.createTower(tower[0]*defly.UNIT_WIDTH,tower[1]*defly.UNIT_WIDTH,color,index+1);
+          this.createTower(
+            tower[0] * defly.UNIT_WIDTH,
+            tower[1] * defly.UNIT_WIDTH,
+            color,
+            index + 1
+          );
           //walls
           for (let c = 3; c < tower.length; c++) {
-            this.createWall(index+1,Number(tower[c]));//might be 'Number(tower[c])-1' - in case of crash try change
+            this.createWall(index + 1, Number(tower[c])); //might be 'Number(tower[c])-1' - in case of crash try change
           }
         });
         this.updateWalls();
-  
+
         //shading
         let shadingData = newMapData[5].split(";");
+        if (shadingData.at(-1) == "") shadingData.splice(-1, 1);
         shadingData.forEach((rawShading) => {
           let shading = rawShading.split(",");
           let ids = [];
@@ -1132,15 +1535,15 @@ const DME = {
         });
         break;
       }
-      case 'astrolly':{
+      case "astrolly": {
         console.log(JSON.parse(mapFile));
         let newMapData = JSON.parse(mapFile);
         this.mapData.width = newMapData.width;
         this.mapData.height = newMapData.height;
-        Object.entries(newMapData.nodes).forEach(nV => {
+        Object.entries(newMapData.nodes).forEach((nV) => {
           this.createTower(nV[1].x, nV[1].y, 1, nV[1].nodeId);
         });
-        newMapData.edges.forEach(e => {
+        newMapData.edges.forEach((e) => {
           this.createWall(e.fromNodeId, e.toNodeId);
         });
         /*newMapData.regions.forEach(r => {
@@ -1157,94 +1560,115 @@ const DME = {
 
         break;
       }
-      default:{
-        alert('Sorry, this map format is not supported yet!');
+      default: {
+        alert("Sorry, this map format is not supported yet!");
         break;
       }
     }
     //update displayed map size
-    document.querySelector('#DME-input-map-width').value = this.mapData.width/defly.UNIT_WIDTH;
-    document.querySelector('#DME-input-map-height').value = this.mapData.height/defly.UNIT_WIDTH;
+    document.querySelector("#DME-input-map-width").value =
+      this.mapData.width / defly.UNIT_WIDTH;
+    document.querySelector("#DME-input-map-height").value =
+      this.mapData.height / defly.UNIT_WIDTH;
+    //enable action logging
+    this.logState = 1;
   },
 
-  generateMapFile: function(type='defly'){
+  generateMapFile: function (type = "defly") {
     let d = this.getCleanMapCopy();
     let text = ``;
-    switch(type){
-      case 'defly':{
-        text += `MAP_WIDTH ${d.width/defly.UNIT_WIDTH}`;
-        text += `\nMAP_HEIGHT ${d.height/defly.UNIT_WIDTH}`;
+    switch (type) {
+      case "defly": {
+        text += `MAP_WIDTH ${d.width / defly.UNIT_WIDTH}`;
+        text += `\nMAP_HEIGHT ${d.height / defly.UNIT_WIDTH}`;
         let t_text = ``;
-        d.towers.forEach(t => {
-          t_text += `\nd ${t.id} ${t.x/defly.UNIT_WIDTH} ${t.y/defly.UNIT_WIDTH}${t.color!=1?' '+t.color:''}`
+        let shieldedTowers = [];
+        d.towers.forEach((t) => {
+          t_text += `\nd ${t.id} ${(t.x / defly.UNIT_WIDTH).toFixed(0)} ${
+            (t.y / defly.UNIT_WIDTH).toFixed(0)
+          }${t.color != 1 ? " " + t.color : ""}`;
+          if(t?.isShielded && t.color == 1) {
+            shieldedTowers.push(t.id);
+            t_text += `\nd ${t.id+this.highestId} ${(t.x / defly.UNIT_WIDTH).toFixed(0)} ${(t.y / defly.UNIT_WIDTH).toFixed(0)}`;
+          };
         });
         let w_text = ``;
-        d.walls.forEach(w => {
+        d.walls.forEach((w) => {
           w_text += `\nl ${w.from.id} ${w.to.id}`;
         });
+        shieldedTowers.forEach(id => {
+          w_text += `\nl ${id} ${id+this.highestId}`;
+        });
         let a_text = ``;
-        d.areas.forEach(a => {
+        d.areas.forEach((a) => {
           a_text += `\nz`;
-          a.nodes.forEach(n => {
+          a.nodes.forEach((n) => {
             a_text += ` ${n.id}`;
           });
+        });
+        shieldedTowers.forEach(id => {
+          a_text += `\nz ${id} ${id+this.highestId}`;
         });
         text += `${t_text}${w_text}${a_text}`;
         break;
       }
-      case 'compact':{
-        text += `${d.width/defly.UNIT_WIDTH},${d.height/defly.UNIT_WIDTH}|${/*Koth bounds*/''}|${/*Defuse spawns*/''}|${/*Defuse bombs*/''}|`;
+      case "compact": {
+        text += `${d.width / defly.UNIT_WIDTH},${d.height / defly.UNIT_WIDTH}|${
+          /*Koth bounds*/ ""
+        }|${/*Defuse spawns*/ ""}|${/*Defuse bombs*/ ""}|`;
         cWalls = {};
-        d.walls.forEach(w => {
-          if(!Array.isArray(cWalls[w.from.id])) cWalls[w.from.id] = [];
+        d.walls.forEach((w) => {
+          if (!Array.isArray(cWalls[w.from.id])) cWalls[w.from.id] = [];
           cWalls[w.from.id].push(w.to.id);
         });
-        d.towers.forEach((t,c) => {
-          text += `${c?';':''}${t.x/defly.UNIT_WIDTH},${t.y/defly.UNIT_WIDTH},${t.color==1?'':t.color}`;
-          cWalls[c+1]?.forEach(w => {
+        d.towers.forEach((t, c) => {
+          text += `${c ? ";" : ""}${t.x / defly.UNIT_WIDTH},${
+            t.y / defly.UNIT_WIDTH
+          },${t.color == 1 ? "" : t.color}`;
+          cWalls[c + 1]?.forEach((w) => {
             text += `,${w}`;
           });
         });
         text += `|`;
-        d.areas.forEach((a,ac) => {
-          a.nodes.forEach((n,nc) => {
-            text += `${nc?',':ac?';':''}${n.id}`;
+        d.areas.forEach((a, ac) => {
+          a.nodes.forEach((n, nc) => {
+            text += `${nc ? "," : ac ? ";" : ""}${n.id}`;
           });
         });
         break;
       }
-      case 'astrolly':{
-        alert('Not supported yet...');
+      case "astrolly": {
+        alert("Not supported yet...");
         break;
       }
       default: {
-        alert('Error: Unknown file type');
+        alert("Error: Unknown file type");
         break;
       }
     }
     return text;
   },
 
-  getCleanMapCopy: function(){
+  getCleanMapCopy: function () {
     let copy = JSON.parse(JSON.stringify(this.mapData));
     let newId = {};
-    copy.towers.forEach((t,c) => {
-      newId[t.id] = c+1;
-      t.id = c+1;
+    copy.towers.forEach((t, c) => {
+      newId[t.id] = c + 1;
+      t.id = c + 1;
     });
-    copy.walls.forEach(w => {
+    copy.walls.forEach((w) => {
       w.from.id = newId[w.from.id];
       w.to.id = newId[w.to.id];
     });
-    copy.areas.forEach(a => {
-      a.nodes.forEach(n => {
+    copy.areas.forEach((a) => {
+      a.nodes.forEach((n) => {
         n.id = newId[n.id];
       });
     });
     return copy;
   },
 
-  exportMap: function(){
+  exportMap: function () {
     let filename = `${new Date().getTime()}-defly-map`;
     let textContent = this.generateMapFile();
     let element = document.createElement("a");
@@ -1379,34 +1803,47 @@ const DME = {
     return neighbours;
   },
 
-  getIndexFromId: function (id) {
-    let targetIndex = 0;
-    DME.mapData.towers.forEach((tower, index) => {
-      targetIndex = tower.id == id ? index : targetIndex;
-    });
-    return targetIndex;
+  getIndexFromId: function (ids) {
+    switch(typeof(ids)){
+      case 'number':{
+        let targetIndex = 0;
+        DME.mapData.towers.forEach((tower, index) => {
+          targetIndex = tower.id == ids ? index : targetIndex;
+        });
+        return targetIndex;
+      }
+      case 'object':{
+        let targetIndexs = [];
+        DME.mapData.towers.forEach((tower, index) => {
+          if(ids.includes(tower.id)) targetIndexs.push(index);
+        });
+        return targetIndexs;
+      }
+    }
+    
   },
 
-  changeKeybind: function(key){
+  changeKeybind: function (key) {
     console.log(`Trying to update ${key}`);
-    if(this.changeKeybind.isChanging){
-      this.changeKeybind.element.innerText = this.hotkeys[this.changeKeybind.binding];
-      this.changeKeybind.element.style.fontSize = '16px';
+    if (this.changeKeybind.isChanging) {
+      this.changeKeybind.element.innerText =
+        this.hotkeys[this.changeKeybind.binding];
+      this.changeKeybind.element.style.fontSize = "16px";
     }
     this.changeKeybind.isChanging = true;
     this.changeKeybind.binding = key;
     this.changeKeybind.element = document.querySelector(`#DME-ch-${key}`);
-    this.changeKeybind.element.style.fontSize = '12px';
-    this.changeKeybind.element.innerText = 'press any key';
+    this.changeKeybind.element.style.fontSize = "12px";
+    this.changeKeybind.element.innerText = "press any key";
     this.changeKeybind.element.blur();
     onkeydown = function (event) {
       if (!DME.changeKeybind.isChanging) {
         return;
       }
       let newBind = event.key.toUpperCase();
-      newBind = newBind == 'ESCAPE' ? '' : newBind;
+      newBind = newBind == "ESCAPE" ? "" : newBind;
       DME.changeKeybind.element.innerText = newBind;
-      DME.changeKeybind.element.style.fontSize = '16px';
+      DME.changeKeybind.element.style.fontSize = "16px";
       //markDoubleKeys();
       DME.changeKeybind.isChanging = false;
       DME.hotkeys[DME.changeKeybind.binding] = newBind;
@@ -1601,7 +2038,7 @@ const DME = {
     let cO = this.chunckOptions;
     /*xDelta = xDelta ? xDelta : cO.rw;
     yDelta = yDelta ? yDelta : cO.rh;*/
-    if(!newl && cO.hovering == 9) newl = true;
+    if (!newl && cO.hovering == 9) newl = true;
     document.querySelector("#DME-resize-values").style.display = "inline";
     let xSel = document.querySelector("#DME-resize-values-x");
     xSel.style.left = `${cO.vx + cO.vw / 2 - 58}px`;
@@ -1816,24 +2253,20 @@ const DME = {
           DME.hotkeys[key[0]] = key[1];
         });
       }
-      Array.from(document.querySelectorAll("#DME-hotkey-menu > div > button")).forEach(
-        (button) => {
-          if(DME.hotkeys?.[button.id.replace("DME-ch-", "")]){
-          button.innerHTML =
-            DME.hotkeys[button.id.replace("DME-ch-", "")];
-          }
+      Array.from(
+        document.querySelectorAll("#DME-hotkey-menu > div > button")
+      ).forEach((button) => {
+        if (DME.hotkeys?.[button.id.replace("DME-ch-", "")]) {
+          button.innerHTML = DME.hotkeys[button.id.replace("DME-ch-", "")];
         }
-      );
+      });
       if (!localStorage.getItem("DMEauto-saved-map")) {
         localStorage.setItem(
           "DMEauto-saved-map",
           "MAP_WIDTH 210 MAP_HEIGHT 120"
         );
       } else {
-        DME.loadMap(
-          localStorage.getItem("DMEauto-saved-map"),
-          "compact"
-        );
+        DME.loadMap(localStorage.getItem("DMEauto-saved-map"), "compact");
       }
 
       if (!localStorage.getItem("DMEsaved-map-list")) {
@@ -1857,7 +2290,7 @@ const DME = {
           break;
         }
         case 2: {
-          if(!this.chunckOptions.hovering) this.placeTower();
+          if (!this.chunckOptions.hovering) this.placeTower();
           break;
         }
       }
@@ -1939,24 +2372,43 @@ const DME = {
           this.placeArea();
           break;
         }
+        case this.hotkeys.shieldTower1:
+        case this.hotkeys.shieldTower2: {
+          this.shieldTowers();
+          break;
+        }
         case this.hotkeys.MoveUp1:
         case this.hotkeys.MoveUp2: {
-          this.isKeyPressed.MoveUp = true;
+          if (e.shiftKey) this.resizeChunk(0, this.snapRange, { z: true });
+          else this.isKeyPressed.MoveUp = true;
           break;
         }
         case this.hotkeys.MoveDown1:
         case this.hotkeys.MoveDown2: {
-          this.isKeyPressed.MoveDown = true;
+          if (e.shiftKey) this.resizeChunk(0, -this.snapRange, { z: true });
+          else this.isKeyPressed.MoveDown = true;
           break;
         }
         case this.hotkeys.MoveLeft1:
         case this.hotkeys.MoveLeft2: {
-          this.isKeyPressed.MoveLeft = true;
+          if (e.shiftKey) this.resizeChunk(this.snapRange, 0, { z: true });
+          else this.isKeyPressed.MoveLeft = true;
           break;
         }
         case this.hotkeys.MoveRight1:
         case this.hotkeys.MoveRight2: {
-          this.isKeyPressed.MoveRight = true;
+          if (e.shiftKey) this.resizeChunk(-this.snapRange, 0, { z: true });
+          else this.isKeyPressed.MoveRight = true;
+          break;
+        }
+        case this.hotkeys.copyChunk1:
+        case this.hotkeys.copyChunk2: {
+          if (e.ctrlKey) this.copyChunk();
+          break;
+        }
+        case this.hotkeys.pasteChunk1:
+        case this.hotkeys.pasteChunk2: {
+          if (e.ctrlKey) this.pasteChunk();
           break;
         }
       }
@@ -1999,6 +2451,16 @@ const DME = {
           this.isKeyPressed.MoveRight = false;
           break;
         }
+        case this.hotkeys.undoAction1:
+        case this.hotkeys.undoAction2: {
+          if (e.shiftKey) this.modifyLastAction(0);
+          break;
+        }
+        case this.hotkeys.redoAction1:
+        case this.hotkeys.redoAction2: {
+          if (e.shiftKey) this.modifyLastAction(1);
+          break;
+        }
       }
     });
     this.updateCanvas();
@@ -2020,4 +2482,7 @@ window.oncontextmenu = (e) => {
 
 window.addEventListener("resize", (event) => {
   updateFOV();
+});
+window.addEventListener("keydown", (e) => {
+  if (e.ctrlKey) e.preventDefault();
 });
