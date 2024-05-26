@@ -1473,12 +1473,12 @@ const DME = {
               break;
             }
             case "s": {
-              //spawns - not here yet - stay tuned
+              //spawns
               this.placeSpecial(5-newMapData[position + 1], {x:(Number(newMapData[position + 2])+4.5) * defly.UNIT_WIDTH,y:(Number(newMapData[position + 3])+4.5) * defly.UNIT_WIDTH,r:isNaN(Number(newMapData[position + 4]))?0:newMapData[position + 4]});
               break;
             }
             case "t": {
-              //bomb spots - working here... //HERET
+              //bomb spots
               this.placeSpecial(Number(newMapData[position + 1])+1, {x:newMapData[position + 2] * defly.UNIT_WIDTH,y:newMapData[position + 3] * defly.UNIT_WIDTH});
               break;
             }
@@ -1644,7 +1644,7 @@ const DME = {
         d?.bombs?.forEach((b,c)=>{bombData += `${c?',':''}${(b.x/uW).toRounded(6)},${(b.y/uW).toRounded(6)}`});
         let spawnData = '';
         d?.spawns?.forEach((b,c)=>{spawnData += `${c?',':''}${(b.x/uW-4.5).toRounded(6)},${(b.y/uW-4.5).toRounded(6)},${b.t},${b.r?b.r:''}`});
-        text += `${/*Defuse bombs*/ bombData}|${/*Defuse spawns*/ spawnData}|`;//HERET
+        text += `${/*Defuse bombs*/ bombData}|${/*Defuse spawns*/ spawnData}|`;
         let cWalls = {};
         d.walls.forEach((w) => {
           if (!Array.isArray(cWalls[w.from.id])) cWalls[w.from.id] = [];
@@ -2537,6 +2537,9 @@ const DME = {
         case this.hotkeys.pasteChunk2: {
           if (e.ctrlKey) this.pasteChunk();
           break;
+        }
+        case 'ESCAPE':{
+          this.selectedTowers = [];
         }
       }
     });
