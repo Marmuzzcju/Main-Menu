@@ -187,7 +187,7 @@ function calculateParallelLines(A, B, offset) {
 Number.prototype.toRounded = function (decPlaces) {
   console.log(`${this}1`);
   if((this+'1').split('.')[1]?.length <= decPlaces) return this;
-  return this.toFixed(decPlaces); 
+  return this.toFixed(decPlaces);
 }
 
 function updateFOV() {
@@ -1599,11 +1599,11 @@ const DME = {
       case "defly": {
         text += `MAP_WIDTH ${d.width / uW}`;
         text += `\nMAP_HEIGHT ${d.height / uW}`;
-        d?.bombs?.forEach(b=>{
-          text += `\ns ${(b.x/uW).toRounded(6)} ${(b.y/uW).toRounded(6)}`;
+        d?.bombs?.forEach((b, c)=>{
+          text += `\nt ${c} ${(b.x/uW).toRounded(6)} ${(b.y/uW).toRounded(6)}`;
         });
-        d?.spawns?.forEach(b=>{
-          text += `\nt ${(b.x/uW-4.5).toRounded(6)} ${(b.y/uW-4.5).toRounded(6)}${b.r?' '+b.r:''}`;
+        d?.spawns?.forEach((b, c)=>{
+          text += `\ns ${c+1} ${(b.x/uW-4.5).toRounded(6)} ${(b.y/uW-4.5).toRounded(6)}${b.r?' '+b.r:''}`;
         });
         let t_text = ``;
         let shieldedTowers = [];
@@ -1908,14 +1908,15 @@ const DME = {
       distance: 0,
       index: o.hovering - 1,
     };
-    if (!o.isChanging) {
+    if (!o.isChanging) {//if selected but havent started changing yet
       cP.distance = Infinity;
       let sp = [];
       for (let h = 0; h <= 1; h += 0.5) {
         for (let w = 0; w <= 1; w += 0.5) {
           sp.push([o.rx + o.rw * w, o.ry + o.rh * h]);
         }
-      }
+      }//get all edge points for the resize
+
       sp.splice(4, 1);
       sp.forEach((pos, index) => {
         let d = this.getDistance(mc.x, mc.y, pos[0], pos[1]);
@@ -1924,9 +1925,9 @@ const DME = {
           cP.index = index;
         }
       });
-    } else this.resizeChunkByDrag(1);
-    let cS = "";
-    switch (cP.index) {
+    } else this.resizeChunkByDrag(1);//call function to take in mouse movement
+    let cS = "";//cursor style
+    switch (cP.index) {//index: determining which case of resizing
       case 0:
       case 7: {
         //top-left/bottom-right
@@ -2080,6 +2081,8 @@ const DME = {
   updateChunkSizeDisplay: function (xDelta, yDelta) {
     if (this.selectedTowers.length <= 1) {
       document.querySelector("#DME-resize-values").style.display = "none";
+      this.chunckOptions.hovering = 0;
+      this.chunckOptions.active = false;
       return;
     }
     let newl = xDelta === undefined && yDelta === undefined;
@@ -2370,7 +2373,7 @@ const DME = {
       if (!localStorage.getItem("DMEauto-saved-map")) {
         localStorage.setItem(
           "DMEauto-saved-map",
-          "MAP_WIDTH 210 MAP_HEIGHT 120"
+          "210,120|||||"
         );
       } else {
         DME.loadMap(localStorage.getItem("DMEauto-saved-map"), "compact");
@@ -2379,6 +2382,10 @@ const DME = {
       if (!localStorage.getItem("DMEsaved-map-list")) {
         localStorage.setItem("DMEsaved-map-list", JSON.stringify(["Empty"]));
       }
+    }
+    this.focusPoint = {
+      x: this.mapData.width/2,
+      y: this.mapData.height/2,
     }
     /**/ //local storage not needed rn
     canvas.classList.remove("hidden");
@@ -2540,6 +2547,7 @@ const DME = {
         }
         case 'ESCAPE':{
           this.selectedTowers = [];
+          this.updateChunkOptions();
         }
       }
     });
