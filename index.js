@@ -183,6 +183,13 @@ function calculateParallelLines(A, B, offset) {
   return { line1: [C1, D1], line2: [C2, D2] };
 }
 
+//dot functions (DO NOT USE ON EXTERNAL PROJECTS)
+Number.prototype.toRounded = function (decPlaces) {
+  console.log(`${this}1`);
+  if((this+'1').split('.')[1]?.length <= decPlaces) return this;
+  return this.toFixed(decPlaces); 
+}
+
 function updateFOV() {
   switch (currentSite) {
     case "DME": {
@@ -260,7 +267,13 @@ const defly = {
   GRID_WIDTH: 44,
   UNIT_WIDTH: 22, //GRID_WIDTH / 2
   MAX_WALL_LENGTH: 660, //GRID_WIDTH * 15
+  images: {
+    bombA: new Image(),
+    bombB: new Image(),
+  }
 };
+defly.images.bombA.src = 'images/defly-defuse-bombSpotA.png';
+defly.images.bombB.src = 'images/defly-defuse-bombSpotB.png';
 
 /*
 js for site 1:
@@ -307,6 +320,14 @@ const DME = {
     redoAction2: "",
     shieldTower1: "B",
     shieldTower2: "",
+    placeBombA1: '1',
+    placeBombA2: '',
+    placeBombB1: '2',
+    placeBombB2: '',
+    placSpawnRed1: '3',
+    placSpawnRed2: '',
+    placSpawnBlue1: '4',
+    placSpawnBlue2: '',
     r: "R",
     m: "M",
     n: "N",
@@ -373,7 +394,7 @@ const DME = {
   mapData: {
     width: 210 * defly.UNIT_WIDTH,
     height: 120 * defly.UNIT_WIDTH,
-    towers: [], //{x : xPosition, y : yPosition, color : color, id : uniqueTowerId}
+    towers: [], //{x : xPosition, y : yPosition, color : color, id : uniqueTowerId} || + isShaded : bool, isNotTower : number
     walls: [], //{from : {x : xPosition, y : yPosition, id : towerId}, to : {x : xPosition, y : yPosition, id : towerId}, color : wallColor}
     areas: [], //{length : amountOfNodesInThatArea, color : areaColor(defined by first node's color), nodes : [{x : nodeXposition, y : nodeYposition, id : nodeTowerId}]}
   },
@@ -472,11 +493,13 @@ const DME = {
   createWall: function (fromId, toId) {
     let tower1 = DME.getIndexFromId(fromId);
     let tower2 = DME.getIndexFromId(toId);
-    let x1 = DME.mapData.towers[tower1].x;
-    let y1 = DME.mapData.towers[tower1].y;
-    let x2 = DME.mapData.towers[tower2].x;
-    let y2 = DME.mapData.towers[tower2].y;
-    let col = DME.mapData.towers[tower1].color;
+    let towers = DME.mapData.towers;
+    if(towers[tower1]?.isNotTower || towers[tower2]?.isNotTower) return;
+    let x1 = towers[tower1].x;
+    let y1 = towers[tower1].y;
+    let x2 = towers[tower2].x;
+    let y2 = towers[tower2].y;
+    let col = towers[tower1].color;
     DME.mapData.walls.push({
       from: { x: x1, y: y1, id: fromId },
       to: { x: x2, y: y2, id: toId },
@@ -494,7 +517,7 @@ const DME = {
 
     //get closest wall as area origin point
     let closestWall = {
-      index: 0,
+      index: -1,
       distance: Infinity,
     };
     this.mapData.walls.forEach((wall, idx) => {
@@ -512,11 +535,12 @@ const DME = {
         closestWall.distance = dist;
       }
     });
-    let startingTowerId = this.mapData.walls[closestWall.index].from.id;
-    let finishTowerId = this.mapData.walls[closestWall.index].to.id;
 
     //only keep going if close walls exist
-    if (closestWall.distance === Infinity) return;
+    if(closestWall.index == -1) return;
+
+    let startingTowerId = this.mapData.walls[closestWall.index].from.id;
+    let finishTowerId = this.mapData.walls[closestWall.index].to.id;
 
     //check if pointer is inside an area & closest wall part of that area
     function handleCursorInsideArea(regardWall = true) {
@@ -656,6 +680,25 @@ const DME = {
 
   /*
   bomb
+  */
+  placeSpecial: function (id,coords) {//id: 1 = bomb A; 2 = bomb B; 3 = spawn red; 4 = spawn blue
+    let mc = coords ?? this.mouseCoords.snapped, idx = this.getIndexFromId(-id);
+    if(idx < 0) {
+      if(id < 3) DME.mapData.towers.push({ x: mc.x, y: mc.y, color: 3, id: -id, isNotTower: true });
+      else DME.mapData.towers.push({ x: mc.x, y: mc.y, color: 3, id: coords?.t ?? -id, isNotTower: true, rotation: coords?.r ? Number(coords.r) : 0 });
+      this.logAction({ action: "create", type: "tower", id: -id });
+    } else {
+      let o = this.mapData.towers[idx];
+      if(id > 2 && o.x == mc.x && o.y == mc.y) {
+        DME.mapData.towers[idx].rotation=++DME.mapData.towers[idx].rotation%4;
+      } else {
+        this.logAction({ action: 'modify', type: 'move', ids: [-id], x: mc.x-o.x, y: mc.y-o.y});
+        DME.mapData.towers[idx].x = mc.x;
+        DME.mapData.towers[idx].y = mc.y;
+      }
+    }
+  },
+  /*
   &
   spawns
   go here
@@ -767,7 +810,7 @@ const DME = {
         t.color,
         t.id + cId
       );
-      loggedIds.push(id + cId);
+      loggedIds.push(t.id + cId);
     });
     cC.walls.forEach((w) => {
       this.createWall(w[0] + cId, w[1] + cId);
@@ -857,7 +900,7 @@ const DME = {
             break;
           }
           case 'chunk': {
-            this.deleteTowers([this.getIndexFromId(actionToModify.ids)]);
+            this.deleteTowers(this.getIndexFromId(actionToModify.ids));
           }
         }
         break;
@@ -1431,31 +1474,12 @@ const DME = {
             }
             case "s": {
               //spawns - not here yet - stay tuned
-              /*
-              let team = {
-                id: Number(newMapData[position + 1]),
-              };
-              team.name = team.id > 0 ? "red" : "blue";
-              permanentMapData.spawns[team.id] = {
-                x: Number(newMapData[position + 2]) * defly.UNIT_WIDTH - defly.UNIT_WIDTH / 2,
-                y: Number(newMapData[position + 3]) * defly.UNIT_WIDTH - defly.UNIT_WIDTH / 2,
-              };
-              */
+              this.placeSpecial(5-newMapData[position + 1], {x:(Number(newMapData[position + 2])+4.5) * defly.UNIT_WIDTH,y:(Number(newMapData[position + 3])+4.5) * defly.UNIT_WIDTH,r:isNaN(Number(newMapData[position + 4]))?0:newMapData[position + 4]});
               break;
             }
             case "t": {
-              //bomb spots - not here yet - stay tuned
-              /*
-              let type = {
-                id: Number(newMapData[position + 1]),
-              };
-              type.type = type.id > 0 ? "b" : "a";
-              permanentMapData.bombs[type.id] = {
-                type: type.type,
-                x: Number(newMapData[position + 2]) * defly.UNIT_WIDTH,
-                y: Number(newMapData[position + 3]) * defly.UNIT_WIDTH,
-              };
-              */
+              //bomb spots - working here... //HERET
+              this.placeSpecial(Number(newMapData[position + 1])+1, {x:newMapData[position + 2] * defly.UNIT_WIDTH,y:newMapData[position + 3] * defly.UNIT_WIDTH});
               break;
             }
           }
@@ -1479,33 +1503,22 @@ const DME = {
         //koth bounds - not here yet - stay tuned
         //kothBounds = newMapData[1].split(",").length < 4 ? [] : newMapData[1].split(",");
 
-        //bomb spots - not here yet - stay tuned
-        /*
+        //bomb spots
         let bombData = newMapData[2].split(",");
-        for (let c = 0; bombData.length > c; c += 2) {
-          permanentMapData.bombs[c / 2] = {
-            type: c / 2 == 0 ? "a" : "b",
-            x: bombData[0 + c] * defly.UNIT_WIDTH,
-            y: bombData[1 + c] * defly.UNIT_WIDTH,
-          };
+        for (let c = 0; bombData.length > c+1; c += 2) {
+          this.placeSpecial(c/2+1, {x:bombData[0 + c] * defly.UNIT_WIDTH,y:bombData[1 + c] * defly.UNIT_WIDTH});
         }
-        */
 
-        //defuse spawns - not here yet - stay tuned
-        /*
+        //defuse spawns
         let spawnData = newMapData[3].split(",");
-        for (let c = 0; spawnData.length > c; c += 3) {
-          permanentMapData.spawns[c / 3 + 1] = {
-            x: spawnData[0 + c] * defly.UNIT_WIDTH,
-            y: spawnData[1 + c] * defly.UNIT_WIDTH,
-          };
-          //rotation: spawnData[2 + c],
+        for (let c = 0; spawnData.length > c+1; c += 4) {
+          this.placeSpecial(c/4+3, {x:(Number(spawnData[0 + c])+4.5) * defly.UNIT_WIDTH,y:(Number(spawnData[1 + c])+4.5) * defly.UNIT_WIDTH,t:spawnData[2+c],r:spawnData[3+c]});
         }
-        */
 
         //towers (and walls)
         let towerData = newMapData[4].split(";");
         if (towerData.at(-1) == "") towerData.splice(-1, 1);
+        let wallsToPlace = [];
         towerData.forEach((rawTower, index) => {
           let tower = rawTower.split(",");
           let color = tower[2] === "" ? 1 : tower[2];
@@ -1516,9 +1529,13 @@ const DME = {
             index + 1
           );
           //walls
+
           for (let c = 3; c < tower.length; c++) {
-            this.createWall(index + 1, Number(tower[c])); //might be 'Number(tower[c])-1' - in case of crash try change
+            wallsToPlace.push([index+1, Number(tower[c])]); //might be 'Number(tower[c])-1' - in case of crash try change
           }
+        });
+        wallsToPlace.forEach(w => {
+          this.createWall(w[0], w[1]);
         });
         this.updateWalls();
 
@@ -1577,19 +1594,26 @@ const DME = {
   generateMapFile: function (type = "defly") {
     let d = this.getCleanMapCopy();
     let text = ``;
+    let uW = defly.UNIT_WIDTH;
     switch (type) {
       case "defly": {
-        text += `MAP_WIDTH ${d.width / defly.UNIT_WIDTH}`;
-        text += `\nMAP_HEIGHT ${d.height / defly.UNIT_WIDTH}`;
+        text += `MAP_WIDTH ${d.width / uW}`;
+        text += `\nMAP_HEIGHT ${d.height / uW}`;
+        d?.bombs?.forEach(b=>{
+          text += `\ns ${(b.x/uW).toRounded(6)} ${(b.y/uW).toRounded(6)}`;
+        });
+        d?.spawns?.forEach(b=>{
+          text += `\nt ${(b.x/uW-4.5).toRounded(6)} ${(b.y/uW-4.5).toRounded(6)}${b.r?' '+b.r:''}`;
+        });
         let t_text = ``;
         let shieldedTowers = [];
         d.towers.forEach((t) => {
-          t_text += `\nd ${t.id} ${(t.x / defly.UNIT_WIDTH).toFixed(0)} ${
-            (t.y / defly.UNIT_WIDTH).toFixed(0)
+          t_text += `\nd ${t.id} ${(t.x / uW).toRounded(2)} ${
+            (t.y / uW).toRounded(2)
           }${t.color != 1 ? " " + t.color : ""}`;
           if(t?.isShielded && t.color == 1) {
             shieldedTowers.push(t.id);
-            t_text += `\nd ${t.id+this.highestId} ${(t.x / defly.UNIT_WIDTH).toFixed(0)} ${(t.y / defly.UNIT_WIDTH).toFixed(0)}`;
+            t_text += `\nd ${t.id+this.highestId} ${(t.x / uW).toRounded(6)} ${(t.y / uW).toRounded(6)}`;
           };
         });
         let w_text = ``;
@@ -1613,17 +1637,22 @@ const DME = {
         break;
       }
       case "compact": {
-        text += `${d.width / defly.UNIT_WIDTH},${d.height / defly.UNIT_WIDTH}|${
+        text += `${(d.width / uW).toRounded(2)},${(d.height / uW).toRounded(2)}|${
           /*Koth bounds*/ ""
-        }|${/*Defuse spawns*/ ""}|${/*Defuse bombs*/ ""}|`;
-        cWalls = {};
+        }|`;
+        let bombData = '';
+        d?.bombs?.forEach((b,c)=>{bombData += `${c?',':''}${(b.x/uW).toRounded(6)},${(b.y/uW).toRounded(6)}`});
+        let spawnData = '';
+        d?.spawns?.forEach((b,c)=>{spawnData += `${c?',':''}${(b.x/uW-4.5).toRounded(6)},${(b.y/uW-4.5).toRounded(6)},${b.t},${b.r?b.r:''}`});
+        text += `${/*Defuse bombs*/ bombData}|${/*Defuse spawns*/ spawnData}|`;//HERET
+        let cWalls = {};
         d.walls.forEach((w) => {
           if (!Array.isArray(cWalls[w.from.id])) cWalls[w.from.id] = [];
           cWalls[w.from.id].push(w.to.id);
         });
         d.towers.forEach((t, c) => {
-          text += `${c ? ";" : ""}${t.x / defly.UNIT_WIDTH},${
-            t.y / defly.UNIT_WIDTH
+          text += `${c ? ";" : ""}${(t.x / uW).toRounded(6)},${
+            (t.y / uW).toRounded(6)
           },${t.color == 1 ? "" : t.color}`;
           cWalls[c + 1]?.forEach((w) => {
             text += `,${w}`;
@@ -1652,20 +1681,39 @@ const DME = {
   getCleanMapCopy: function () {
     let copy = JSON.parse(JSON.stringify(this.mapData));
     let newId = {};
+    let ntC = 0, falseTowers = [];
     copy.towers.forEach((t, c) => {
-      newId[t.id] = c + 1;
-      t.id = c + 1;
+      if(!t?.isNotTower){
+        newId[t.id] = c + 1 - ntC;
+        copy.towers[c].id = c + 1 - ntC;
+      } else {
+        ntC++;
+        if(t.id>-3){
+          if(!copy?.bombs) copy.bombs = [];
+          copy.bombs.push({x:t.x,y:t.y/*,t:t.id>-2?'a':'b'*/});
+        } else {
+          if(!copy?.spawns) copy.spawns = [];
+          copy.spawns.push({x:t.x,y:t.y,t:t.id,r:t.rotation});
+        }
+        falseTowers.push(c);
+      }
     });
-    copy.walls.forEach((w) => {
-      w.from.id = newId[w.from.id];
-      w.to.id = newId[w.to.id];
+    falseTowers.forEach((idx,c) => copy.towers.splice(idx-c,1));
+    copy.walls.forEach((w,idx) => {
+      copy.walls[idx].from.id = newId[w.from.id];
+      copy.walls[idx].to.id = newId[w.to.id];
     });
-    copy.areas.forEach((a) => {
-      a.nodes.forEach((n) => {
-        n.id = newId[n.id];
+    copy.areas.forEach((a,ac) => {
+      a.nodes.forEach((n,nc) => {
+        copy.areas[ac].nodes[nc].id = newId[n.id];
       });
     });
     return copy;
+  },
+
+  fixedDec: function (float, maxPlaces) {
+    if(!(''+float)?.split('.')[1].length >= maxPlaces) return;
+    return float.toFixed(maxPlaces);
   },
 
   exportMap: function () {
@@ -1806,7 +1854,7 @@ const DME = {
   getIndexFromId: function (ids) {
     switch(typeof(ids)){
       case 'number':{
-        let targetIndex = 0;
+        let targetIndex = -1;
         DME.mapData.towers.forEach((tower, index) => {
           targetIndex = tower.id == ids ? index : targetIndex;
         });
@@ -2147,25 +2195,27 @@ const DME = {
       let t = this.mapData.towers;
       this.selectedTowers.forEach((index) => {
         let tower = t[index];
-        ctx.strokeStyle = defly.colors.standard[tower.color];
-        ctx.lineWidth = wallWidth - 4 / mz;
-        ctx.beginPath();
-        ctx.moveTo(this.relToFsPt.x(tower.x), this.relToFsPt.y(tower.y));
-        ctx.lineTo(mcX, mcY);
-        ctx.stroke();
-        let borderLines = calculateParallelLines(
-          [mcX, mcY],
-          [this.relToFsPt.x(tower.x), this.relToFsPt.y(tower.y)],
-          wallWidth / 2 - 1 / mz
-        );
-        ctx.strokeStyle = defly.colors.darkened[tower.color];
-        ctx.lineWidth = 2 / mz;
-        ctx.beginPath();
-        ctx.moveTo(borderLines.line1[0][0], borderLines.line1[0][1]);
-        ctx.lineTo(borderLines.line1[1][0], borderLines.line1[1][1]);
-        ctx.moveTo(borderLines.line2[0][0], borderLines.line2[0][1]);
-        ctx.lineTo(borderLines.line2[1][0], borderLines.line2[1][1]);
-        ctx.stroke();
+        if(!tower?.isNotTower){
+          ctx.strokeStyle = defly.colors.standard[tower.color];
+          ctx.lineWidth = wallWidth - 4 / mz;
+          ctx.beginPath();
+          ctx.moveTo(this.relToFsPt.x(tower.x), this.relToFsPt.y(tower.y));
+          ctx.lineTo(mcX, mcY);
+          ctx.stroke();
+          let borderLines = calculateParallelLines(
+            [mcX, mcY],
+            [this.relToFsPt.x(tower.x), this.relToFsPt.y(tower.y)],
+            wallWidth / 2 - 1 / mz
+          );
+          ctx.strokeStyle = defly.colors.darkened[tower.color];
+          ctx.lineWidth = 2 / mz;
+          ctx.beginPath();
+          ctx.moveTo(borderLines.line1[0][0], borderLines.line1[0][1]);
+          ctx.lineTo(borderLines.line1[1][0], borderLines.line1[1][1]);
+          ctx.moveTo(borderLines.line2[0][0], borderLines.line2[0][1]);
+          ctx.lineTo(borderLines.line2[1][0], borderLines.line2[1][1]);
+          ctx.stroke();
+        }
       });
       ctx.globalAlpha = gA;
     }
@@ -2176,21 +2226,78 @@ const DME = {
         x: this.relToFsPt.x(tower.x),
         y: this.relToFsPt.y(tower.y),
       };
-      if (this.selectedTowers.includes(index)) {
-        ctx.fillStyle = "rgba(230, 50, 50, 0.6)";
+      if(!tower?.isNotTower){
+        if (this.selectedTowers.includes(index)) {
+          ctx.fillStyle = "rgba(230, 50, 50, 0.6)";
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, towerWidth + 10, 2 * Math.PI, false);
+          ctx.fill();
+        }
+        ctx.fillStyle = defly.colors.darkened[tower.color];
         ctx.beginPath();
-        ctx.arc(t.x, t.y, towerWidth + 10, 2 * Math.PI, false);
+        ctx.arc(t.x, t.y, towerWidth, 2 * Math.PI, false);
         ctx.fill();
+        //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
+        ctx.fillStyle = defly.colors.standard[tower.color];
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, towerWidth - 2 / mz, 2 * Math.PI, false);
+        ctx.fill();
+      } else {
+        //not a tower: either spawn or bomb
+        let bombRadius = 6*defly.UNIT_WIDTH/mz, sS = 4.5*defly.UNIT_WIDTH/mz, tS = defly.TOWER_WIDTH/mz;
+
+        if(tower.id > -3) {
+          //bomb spot
+          let img = defly.images.bombB;
+          if(tower.id == -1) img = defly.images.bombA;
+          ctx.drawImage(img, t.x-bombRadius, t.y-bombRadius, 2*bombRadius, 2*bombRadius);
+        } else {
+          //spawn
+          let col = tower.id == -3 ? 3 : 2;
+          ctx.fillStyle = defly.colors.faded[col];
+          ctx.fillRect(t.x-sS,t.y-sS,2*sS,2*sS);
+          //triangle, based on spawn rotation
+          ctx.fillStyle = defly.colors.standard[col];
+          ctx.beginPath();
+          switch(tower.rotation){
+            case 0:{
+              ctx.moveTo(t.x-tS,t.y);
+              ctx.lineTo(t.x+tS,t.y-tS);
+              ctx.lineTo(t.x+tS,t.y+tS);
+              break;
+            }
+            case 1:{
+              ctx.moveTo(t.x+tS,t.y);
+              ctx.lineTo(t.x-tS,t.y-tS);
+              ctx.lineTo(t.x-tS,t.y+tS);
+              break;
+            }
+            case 2:{
+              ctx.moveTo(t.x,t.y-tS);
+              ctx.lineTo(t.x-tS,t.y+tS);
+              ctx.lineTo(t.x+tS,t.y+tS);
+              break;
+            }
+            case 3:{
+              ctx.moveTo(t.x,t.y+tS);
+              ctx.lineTo(t.x-tS,t.y-tS);
+              ctx.lineTo(t.x+tS,t.y-tS);
+              break;
+            }
+          }
+          ctx.closePath();
+          ctx.fill();
+            //l, r, o, u
+        }
+
+        if (this.selectedTowers.includes(index)) {
+          ctx.strokeStyle = "rgba(230, 50, 50, 0.6)";
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, bombRadius + 3, 2 * Math.PI, false);
+          ctx.stroke();
+        }
       }
-      ctx.fillStyle = defly.colors.darkened[tower.color];
-      ctx.beginPath();
-      ctx.arc(t.x, t.y, towerWidth, 2 * Math.PI, false);
-      ctx.fill();
-      //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
-      ctx.fillStyle = defly.colors.standard[tower.color];
-      ctx.beginPath();
-      ctx.arc(t.x, t.y, towerWidth - 2 / mz, 2 * Math.PI, false);
-      ctx.fill();
     });
     //draw tower preview
     if (!this.selectingChunk.isSelecting) {
@@ -2377,6 +2484,26 @@ const DME = {
           this.shieldTowers();
           break;
         }
+        case this.hotkeys.placeBombA1:
+        case this.hotkeys.placeBombA2: {
+          this.placeSpecial(1);
+          break;
+        }
+        case this.hotkeys.placeBombB1:
+        case this.hotkeys.placeBombB2: {
+          this.placeSpecial(2);
+          break;
+        }
+        case this.hotkeys.placSpawnRed1:
+        case this.hotkeys.placSpawnRed2: {
+          this.placeSpecial(3);
+          break;
+        }
+        case this.hotkeys.placSpawnBlue1:
+        case this.hotkeys.placSpawnBlue2: {
+          this.placeSpecial(4);
+          break;
+        }
         case this.hotkeys.MoveUp1:
         case this.hotkeys.MoveUp2: {
           if (e.shiftKey) this.resizeChunk(0, this.snapRange, { z: true });
@@ -2453,12 +2580,12 @@ const DME = {
         }
         case this.hotkeys.undoAction1:
         case this.hotkeys.undoAction2: {
-          if (e.shiftKey) this.modifyLastAction(0);
+          if (e.ctrlKey) this.modifyLastAction(0);
           break;
         }
         case this.hotkeys.redoAction1:
         case this.hotkeys.redoAction2: {
-          if (e.shiftKey) this.modifyLastAction(1);
+          if (e.ctrlKey) this.modifyLastAction(1);
           break;
         }
       }
