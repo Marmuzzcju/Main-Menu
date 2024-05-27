@@ -176,7 +176,7 @@ button {
   border-radius: 10px;
   flex-direction: column;
   position: fixed;
-  left: 335px;
+  left: 355px;
   top: 30px;
   width: 410px;
   background-color: rgba(10, 10, 10, 0.6);
@@ -189,7 +189,7 @@ button {
 }
 #DME-hotkey-menu > div > span {
   color: white;
-  width: 130px;
+  width: 150px;
 }
 #DME-hotkey-menu > div > button {
   border-radius: 4px;

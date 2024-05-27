@@ -185,7 +185,6 @@ function calculateParallelLines(A, B, offset) {
 
 //dot functions (DO NOT USE ON EXTERNAL PROJECTS)
 Number.prototype.toRounded = function (decPlaces) {
-  console.log(`${this}1`);
   if((this+'1').split('.')[1]?.length > decPlaces+1) return this.toFixed(decPlaces);
   return this;
 }
@@ -328,21 +327,10 @@ const DME = {
     placSpawnRed2: '',
     placSpawnBlue1: '4',
     placSpawnBlue2: '',
-    r: "R",
-    m: "M",
-    n: "N",
-    w: "W",
-    a: "A",
-    s: "S",
-    d: "D",
-    x: "X",
-    Plus: "+",
-    Minus: "-",
-    Zero: "0",
-    One: "1",
-    Two: "2",
-    Three: "3",
-    Four: "4",
+    toggleMirrorMode1: 'M',
+    toggleMirrorMode2: '',
+    toggleRotateMode1: 'R',
+    toggleRotateMode2: '',
   },
   changeKeybind: {
     isChanging: false,
@@ -358,6 +346,8 @@ const DME = {
     MoveDown: false,
     MoveLeft: false,
     MoveRight: false,
+    MirrorMode: false,
+    RotateMode: false,
   },
 
   mouseCoords: {
@@ -2530,6 +2520,16 @@ const DME = {
           this.snapping = !c;
           break;
         }
+        case this.hotkeys.toggleMirrorMode1:
+        case this.hotkeys.toggleMirrorMode2: {
+          this.isKeyPressed.MirrorMode = true;
+          break;
+        }
+        case this.hotkeys.toggleRotateMode1:
+        case this.hotkeys.toggleRotateMode2: {
+          this.isKeyPressed.RotateMode = true;
+          break;
+        }
         case this.hotkeys.Delete1:
         case this.hotkeys.Delete2: {
           this.deleteTowers();
@@ -2622,6 +2622,16 @@ const DME = {
         }
         case this.hotkeys.toggleSnap1:
         case this.hotkeys.toggleSnap2: {
+          break;
+        }
+        case this.hotkeys.toggleMirrorMode1:
+        case this.hotkeys.toggleMirrorMode2: {
+          this.isKeyPressed.MirrorMode = false;
+          break;
+        }
+        case this.hotkeys.toggleRotateMode1:
+        case this.hotkeys.toggleRotateMode2: {
+          this.isKeyPressed.RotateMode = false;
           break;
         }
         case this.hotkeys.MoveUp1:
