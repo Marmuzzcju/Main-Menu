@@ -933,16 +933,16 @@ const DME = {
       case "modify": {
         switch(actionToModify.type){
           case 'resize':{
-            this.resizeChunk(1/actionToModify.x, 1/actionToModify.y, actionToModify.origin);
+            this.resizeChunk(1/actionToModify.x, 1/actionToModify.y, actionToModify.origin, this.getIndexFromId(actionToModify.ids));
             break;
           }
           case 'move':{
-            this.resizeChunk(-actionToModify.x, -actionToModify.y, {z:true});
+            this.resizeChunk(-actionToModify.x, -actionToModify.y, {z:true}, this.getIndexFromId(actionToModify.ids));
             break;
           }
           case 'rotate':{
             //note: has to be updated once rotate is in place
-            this.resizeChunk(-actionToModify.x, -actionToModify.y, {z:true});
+            this.resizeChunk(-actionToModify.x, -actionToModify.y, {z:true}, this.getIndexFromId(actionToModify.ids));
             break;
           }
         }
@@ -954,7 +954,12 @@ const DME = {
             this.logState = 0;
             let tIds = [];
             actionToModify.towers.forEach(t => {
-              this.createTower(t.x,t.y,t.color,t.id);
+              if(t.id>0) this.createTower(t.x,t.y,t.color,t.id);
+              else {
+                let coords = {x: t.x, y: t.y};
+                if(t?.rotation) coords.r = t.rotation;
+                this.placeSpecial(-t.id, coords);
+              }
               tIds.push(t.id);
             });
             actionToModify.walls.forEach(w => {
@@ -1148,7 +1153,7 @@ const DME = {
   },
   //action here
   //actually resizes the chunk - if 'origin.z=true' then moves around instead
-  resizeChunk: function (xDelta, yDelta, origin) {
+  resizeChunk: function (xDelta, yDelta, origin, towersToMod = this.selectedTowers) {
     xDelta =
       xDelta == 0
         ? 0.0001
@@ -1167,7 +1172,7 @@ const DME = {
         : yDelta;
     let s = !origin?.z;
     let loggedIds = [];
-    this.selectedTowers.forEach((towerIndex) => {
+    towersToMod.forEach((towerIndex) => {
       let t = this.mapData.towers[towerIndex];
       loggedIds.push(t.id);
       if (s) {
@@ -1179,7 +1184,7 @@ const DME = {
       }
     });
     let stID = [];
-    this.selectedTowers.forEach((idx) => {
+    towersToMod.forEach((idx) => {
       stID.push(this.mapData.towers[idx].id);
     });
     this.updateWalls(stID);
@@ -1285,7 +1290,16 @@ const DME = {
       let realIndex = index - counter;
       let t = this.mapData.towers[realIndex];
       let id = t.id;
-      loggedTowers.push({ x: t.x, y: t.y, color: t.color, id: id });
+      if(id>0) loggedTowers.push({ x: t.x, y: t.y, color: t.color, id: id });
+      else {
+        let push = {
+          x: t.x,
+          y: t.y,
+          id: id,
+        };
+        if(t?.rotation) push.rotation = t.rotation;
+        loggedTowers.push(push);
+      }
       this.mapData.towers.splice(realIndex, 1);
       let wallsToDelete = [];
       this.mapData.walls.forEach((wall, index) => {
