@@ -375,6 +375,10 @@ const DME = {
     },
   },
 
+  visuals: {
+    showMapHalves: true,
+  },
+
   scrollingSpeed: 10,
   focusPoint: {
     x: 500,
@@ -2195,6 +2199,16 @@ const DME = {
       this.mapData.width / mz,
       this.mapData.height / mz
     );
+    if(this.visuals.showMapHalves){
+      ctx.strokeStyle = "#A0A0FF";
+      ctx.lineWidth = 1 + 0.5/mz;
+      ctx.beginPath();
+      ctx.moveTo(this.relToFsPt.x(-50),this.relToFsPt.y(this.mapData.height/2));
+      ctx.lineTo(this.relToFsPt.x(this.mapData.width+50),this.relToFsPt.y(this.mapData.height/2));
+      ctx.moveTo(this.relToFsPt.x(this.mapData.width/2),this.relToFsPt.y(-50));
+      ctx.lineTo(this.relToFsPt.x(this.mapData.width/2),this.relToFsPt.y(this.mapData.height+50));
+      ctx.stroke();
+    }
 
     let mc = this.mouseCoords.snapped;
     let [mcX, mcY] = [this.relToFsPt.x(mc.x), this.relToFsPt.y(mc.y)];
