@@ -758,12 +758,23 @@ const DME = {
       let t = this.mapData.towers[tIdx];
       ids.push(t.id);
       newIds[t.id] = c + 1;
-      this.copiedChunk.towers.push({
-        x: t.x,
-        y: t.y,
-        color: t.color,
-        id: c + 1,
-      });
+      if(t.id>0){
+        this.copiedChunk.towers.push({
+          x: t.x,
+          y: t.y,
+          color: t.color,
+          id: c + 1,
+        });
+      } else {
+        this.copiedChunk.towers.push({
+          x: t.x,
+          y: t.y,
+          id: t.id,
+        });
+        if(t?.rotation){
+          this.copiedChunk.towers.at(-1).rotation = t.rotation;
+        }
+      }
       leftmost = t.x < leftmost ? t.x : leftmost;
       rightmost = t.x > rightmost ? t.x : rightmost;
       topmost = t.y < topmost ? t.y : topmost;
@@ -804,13 +815,27 @@ const DME = {
     let cC = this.copiedChunk;
     let loggedIds = [];
     cC.towers.forEach((t) => {
-      this.createTower(
-        t.x - cC.width / 2 + x,
-        t.y - cC.height / 2 + y,
-        t.color,
-        t.id + cId
-      );
-      loggedIds.push(t.id + cId);
+      if(t.id > 0){
+        this.createTower(
+          t.x - cC.width / 2 + x,
+          t.y - cC.height / 2 + y,
+          t.color,
+          t.id + cId
+        );
+        loggedIds.push(t.id + cId);
+      } else {
+        let modif = this.getIndexFromId(t.id)==-1 ? 0 : (t.id==-1||t.id==-3) ? -1 : 1;
+        if(this.getIndexFromId(t.id+modif)<0){
+          //doesn´t exist already, just place down
+          let pos = {
+            x: t.x - cC.width / 2 + x,
+            y: t.y - cC.height / 2 + y,
+          }
+          if(t?.rotation) pos.r = t.rotation
+          this.placeSpecial(-(t.id+modif), pos);
+          loggedIds.push(t.id+modif);
+        }
+      }
     });
     cC.walls.forEach((w) => {
       this.createWall(w[0] + cId, w[1] + cId);
