@@ -479,7 +479,7 @@ const DME = {
   //action here
   createTower: function (x, y, color, id) {
     DME.mapData.towers.push({ x: x, y: y, color: color, id: id });
-    DME.highestId = id > DME.highestId ? id : DME.highestId + 1;
+    DME.highestId = id > DME.highestId ? id + 1 : DME.highestId + 1;
     this.logAction({ action: "create", type: "tower", id: id });
   },
 
