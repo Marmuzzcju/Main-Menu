@@ -677,7 +677,7 @@ const DME = {
   */
   placeSpecial: function (id,coords) {//id: 1 = bomb A; 2 = bomb B; 3 = spawn red; 4 = spawn blue
     let mc = coords ?? this.mouseCoords.snapped, idx = this.getIndexFromId(-id);
-    if(idx < 0) {
+    if(idx < 0) {//HERE
       if(id < 3) DME.mapData.towers.push({ x: mc.x, y: mc.y, color: 3, id: -id, isNotTower: true });
       else DME.mapData.towers.push({ x: mc.x, y: mc.y, color: 3, id: coords?.t ?? -id, isNotTower: true, rotation: coords?.r ? Number(coords.r) : 0 });
       this.logAction({ action: "create", type: "tower", id: -id });
@@ -886,6 +886,17 @@ const DME = {
             } else this.lastActions.splice(splicePos,1,action);
             break;
           }
+          case 'rotate':{
+            if(logNew) {
+              let lA = this.lastActions.at(-1);
+              if(lA?.type == 'rotate' && lA?.idxs == action.idxs){
+                lA.properties.angle += action.properties.angle;
+              } else {
+                this.lastActions.push(action);
+              }
+            } else this.lastActions.splice(splicePos,1,action);
+            break;
+          }
         }
         break;
       }
@@ -935,8 +946,7 @@ const DME = {
             break;
           }
           case 'rotate':{
-            //note: has to be updated once rotate is in place
-            this.resizeChunk(-actionToModify.x, -actionToModify.y, {z:true}, this.getIndexFromId(actionToModify.ids));
+            this.rotateChunk(actionToModify.properties, actionToModify.idxs);
             break;
           }
         }
@@ -1396,6 +1406,26 @@ const DME = {
     this.logAction({action:'delete',type:'area',ids:ids});
   },
 
+  rotateChunk: function (properties, towers = this.selectedTowers) {
+    let centre = properties?.centre ?? this.getCentreOfChunk(towers);
+    if(!properties?.angle) {
+      alert('Error: missing angle');
+      return;
+    };
+    let [sin,cos] = [Math.sin(properties.angle),Math.cos(properties.angle)];
+    towers.forEach(idx => {
+      let t = this.mapData.towers[idx];
+      let [x,y] = [t.x-centre.x,t.y-centre.y];
+      t.x = x * cos - y * sin + centre.x;
+      t.y = x * sin + y * cos + centre.y;
+    });
+    let [wIds,aIds] = [this.mapData.walls.length>50?this.getIdFromIndex(towers):undefined,this.mapData.areas.length>30?this.getIdFromIndex(towers):undefined];
+    this.updateWalls(wIds);
+    this.updateAreas(aIds);
+    this.updateChunkOptions();
+    this.logAction({action:'modify',type:'rotate',idxs:towers,properties:{centre:centre,angle:properties.angle}});
+  },
+
   changeSelectedTowerColor: function (newColor) {
     let c =
       Number(newColor) < 14 && Number(newColor) > 0
@@ -1544,8 +1574,8 @@ const DME = {
 
         //defuse spawns
         let spawnData = newMapData[3].split(",");
-        for (let c = 0; spawnData.length > c+1; c += 4) {
-          this.placeSpecial(c/4+3, {x:(Number(spawnData[0 + c])+4.5) * defly.UNIT_WIDTH,y:(Number(spawnData[1 + c])+4.5) * defly.UNIT_WIDTH,t:spawnData[2+c],r:spawnData[3+c]});
+        for (let c = 0; spawnData.length > c+1; c += 4) {//HERE
+          this.placeSpecial(undefined, {x:(Number(spawnData[0 + c])+4.5) * defly.UNIT_WIDTH,y:(Number(spawnData[1 + c])+4.5) * defly.UNIT_WIDTH,t:Number(spawnData[2+c]),r:Number(spawnData[3+c])});
         }
 
         //towers (and walls)
@@ -1675,7 +1705,7 @@ const DME = {
         }|`;
         let bombData = '';
         d?.bombs?.forEach((b,c)=>{bombData += `${c?',':''}${(b.x/uW).toRounded(6)},${(b.y/uW).toRounded(6)}`});
-        let spawnData = '';
+        let spawnData = '';//HERE
         d?.spawns?.forEach((b,c)=>{spawnData += `${c?',':''}${(b.x/uW-4.5).toRounded(6)},${(b.y/uW-4.5).toRounded(6)},${b.t},${b.r?b.r:''}`});
         text += `${/*Defuse bombs*/ bombData}|${/*Defuse spawns*/ spawnData}|`;
         let cWalls = {};
@@ -1762,6 +1792,15 @@ const DME = {
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
+  },
+
+  getCentreOfChunk: function(towers = this.selectedTowers){
+    let [sX, hX, sY, hY] = [Infinity, 0, Infinity, 0];
+    towers.forEach(idx => {
+      let t = this.mapData.towers[idx];
+      [sX,hX,sY,hY]=[t.x<sX?t.x:sX,t.x>hX?t.x:hX,t.y<sY?t.y:sY,t.y>hY?t.y:hY];
+    });
+    return {x:(sX+hX)/2,y:(sY+hY)/2};
   },
 
   getDistance: function (x1, y1, x2, y2) {
@@ -1904,6 +1943,20 @@ const DME = {
     
   },
 
+  getIdFromIndex: function (idxs) {
+    switch(typeof(idxs)){
+      case 'number':{
+        return this.mapData.towers[idxs].id;
+      }
+      case 'object':{
+        let targetIds = [];
+        let ts = this.mapData.towers;
+        idxs.forEach(idx => {targetIds.push(ts[idx].id)});
+        return targetIds;
+      }
+    }
+  },
+
   changeKeybind: function (key) {
     console.log(`Trying to update ${key}`);
     if (this.changeKeybind.isChanging) {
@@ -1930,6 +1983,51 @@ const DME = {
       DME.hotkeys[DME.changeKeybind.binding] = newBind;
       return;
     };
+  },
+
+  handleMoveInput: function(direction){
+    //HERRT
+    switch(true){
+      case this.isKeyPressed.SHIFT:{
+        switch(direction){
+          case 'Up':{
+            this.resizeChunk(0, this.snapRange, { z: true });
+            break;
+          }
+          case 'Down':{
+            this.resizeChunk(0, -this.snapRange, { z: true });
+            break;
+          }
+          case 'Left':{
+            this.resizeChunk(this.snapRange, 0, { z: true });
+            break;
+          }
+          case 'Right':{
+            this.resizeChunk(-this.snapRange, 0, { z: true });
+            break;
+          }
+        }
+        break;
+      }
+      case this.isKeyPressed.MirrorMode:{
+        //mirror towers
+        console.log(`Mirror ${direction}`);
+        break;
+      }
+      case this.isKeyPressed.RotateMode:{
+        //rotate towers
+        let angle = Number(prompt('Enter rotation angle', 90))/180*Math.PI;
+        if(direction == 'Left') angle*=-1;
+        else if(direction != 'Right') return;
+        console.log(`Rotate ${direction} for ${angle} degree`);
+        this.isKeyPressed.RotateMode = false;
+        this.rotateChunk({angle:angle});
+        break;
+      }
+      default:{
+        this.isKeyPressed[`Move${direction}`] = true;
+      }
+    }
   },
 
   updateMouse: function (x, y) {
@@ -2568,26 +2666,24 @@ const DME = {
         }
         case this.hotkeys.MoveUp1:
         case this.hotkeys.MoveUp2: {
-          if (e.shiftKey) this.resizeChunk(0, this.snapRange, { z: true });
-          else this.isKeyPressed.MoveUp = true;
+          /*if (e.shiftKey) this.resizeChunk(0, this.snapRange, { z: true });
+          else this.isKeyPressed.MoveUp = true;*/
+          this.handleMoveInput('Up');
           break;
         }
         case this.hotkeys.MoveDown1:
         case this.hotkeys.MoveDown2: {
-          if (e.shiftKey) this.resizeChunk(0, -this.snapRange, { z: true });
-          else this.isKeyPressed.MoveDown = true;
+          this.handleMoveInput('Down');
           break;
         }
         case this.hotkeys.MoveLeft1:
         case this.hotkeys.MoveLeft2: {
-          if (e.shiftKey) this.resizeChunk(this.snapRange, 0, { z: true });
-          else this.isKeyPressed.MoveLeft = true;
+          this.handleMoveInput('Left');
           break;
         }
         case this.hotkeys.MoveRight1:
         case this.hotkeys.MoveRight2: {
-          if (e.shiftKey) this.resizeChunk(-this.snapRange, 0, { z: true });
-          else this.isKeyPressed.MoveRight = true;
+          this.handleMoveInput('Right');
           break;
         }
         case this.hotkeys.copyChunk1:
