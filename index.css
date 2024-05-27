@@ -198,6 +198,13 @@ button {
   font-size: 16px;
 }
 
+#DME-coords-info {
+  position: fixed;
+  bottom: 10px;
+  right: 5px;
+  background-color: rgba(160,160,160,.4);
+}
+
 #DME-display-canvas {
   position: fixed;
   top: 0;

@@ -186,8 +186,8 @@ function calculateParallelLines(A, B, offset) {
 //dot functions (DO NOT USE ON EXTERNAL PROJECTS)
 Number.prototype.toRounded = function (decPlaces) {
   console.log(`${this}1`);
-  if((this+'1').split('.')[1]?.length <= decPlaces) return this;
-  return this.toFixed(decPlaces);
+  if((this+'1').split('.')[1]?.length > decPlaces+1) return this.toFixed(decPlaces);
+  return this;
 }
 
 function updateFOV() {
@@ -2055,6 +2055,8 @@ const DME = {
         : mc.snapped.y > this.mapData.height
         ? this.mapData.height
         : mc.snapped.y;
+    document.querySelector('#DME-coords-info-x').innerText = (mc.snapped.x/defly.UNIT_WIDTH).toRounded(2);
+    document.querySelector('#DME-coords-info-y').innerText = (mc.snapped.y/defly.UNIT_WIDTH).toRounded(2);
   },
 
   updateFocusPoint: function () {
