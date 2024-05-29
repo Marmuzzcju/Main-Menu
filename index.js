@@ -1423,7 +1423,11 @@ const DME = {
     this.updateWalls(wIds);
     this.updateAreas(aIds);
     this.updateChunkOptions();
-    this.logAction({action:'modify',type:'rotate',idxs:towers,properties:{centre:centre,angle:properties.angle}});
+    this.logAction({action:'modify',type:'rotate',idxs:towers,properties:{centre:centre,angle:-properties.angle}});
+  },
+
+  mirrorChunk: function(properties, towers = this.selectTowers){
+    alert('work in progres...');
   },
 
   changeSelectedTowerColor: function (newColor) {
