@@ -700,9 +700,21 @@ const DME = {
   */
 
   shieldTowers: function(){
+    let ls = this.logState;
+    this.logState = 0;
     this.selectedTowers.forEach(idx => {
-      this.mapData.towers[idx].isShielded = true;
+      let t = this.mapData.towers[idx];
+      if(!t?.isShielded && t.color == 1){
+        t.towers[idx].isShielded = true;
+        this.createTower(t.x,t.y,t.c,this.highestId);
+        this.createTower(t.x,t.y,t.c,this.highestId);
+        this.createWall(t.id, this.highestId-2);
+        this.createWall(t.id, this.highestId-1);
+        this.createWall(this.highestId-2, this.highestId-1);
+        this.createArea([t.id, this.highestId-2, this.highestId-1]);
+      }
     });
+    this.logState = ls;
   },
 
   updateWalls: function (ids = false) {
@@ -1440,10 +1452,14 @@ const DME = {
       let t = this.mapData.towers[idx],
           x = t.x + (mirrorAxies-t.x) * xModif,
           y = t.y + (mirrorAxies-t.y) * yModif;
-      mirroredIds[t.id] = this.highestId;
       collectiveIds.push(t.id);
-      colNewIds.push(this.highestId);
-      this.createTower(x, y, t.color, this.highestId);
+      if(t.x == x && t.y == y){
+        mirroredIds[t.id] = t.id;
+      }else{
+        mirroredIds[t.id] = this.highestId;
+        colNewIds.push(this.highestId);
+        this.createTower(x, y, t.color, this.highestId);
+      }
     });
     this.mapData.walls.forEach(w => {
       if(collectiveIds.includes(w.from.id) && collectiveIds.includes(w.to.id)){
