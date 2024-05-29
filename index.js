@@ -1426,8 +1426,33 @@ const DME = {
     this.logAction({action:'modify',type:'rotate',idxs:towers,properties:{centre:centre,angle:-properties.angle}});
   },
 
-  mirrorChunk: function(properties, towers = this.selectTowers){
-    alert('work in progres...');
+  mirrorChunk: function(properties, towers = this.selectedTowers){
+    let d = properties.direction,
+        mirrorAxies = this.getOuterMostPositionsOfChunk(towers)[properties.direction],
+        [xModif, yModif] = [(d == 'left' || d == 'right') ? 2 : 0, (d == 'bottom' || d=='top') ? 2 : 0],
+        mirroredIds = {},
+        collectiveIds = [];
+        colNewIds = [];
+    //disable log
+    let ls = this.logState;
+    this.logState = 0;
+    towers.forEach(idx => {
+      let t = this.mapData.towers[idx],
+          x = t.x + (mirrorAxies-t.x) * xModif,
+          y = t.y + (mirrorAxies-t.y) * yModif;
+      mirroredIds[t.id] = this.highestId;
+      collectiveIds.push(t.id);
+      colNewIds.push(this.highestId);
+      this.createTower(x, y, t.color, this.highestId);
+    });
+    this.mapData.walls.forEach(w => {
+      if(collectiveIds.includes(w.from.id) && collectiveIds.includes(w.to.id)){
+        this.createWall(mirroredIds[w.from.id],mirroredIds[w.to.id]);
+      }
+    });
+    //enable log back
+    this.logState = ls;
+    this.logAction({action:'create', type: 'chunk', ids: colNewIds});
   },
 
   changeSelectedTowerColor: function (newColor) {
@@ -1807,6 +1832,29 @@ const DME = {
     return {x:(sX+hX)/2,y:(sY+hY)/2};
   },
 
+  getOuterMostPositionsOfChunk: function(towers = this.selectedTowers){
+    let most = {
+      left: Infinity,
+      right: 0,
+      top: Infinity,
+      bottom: 0,
+    };
+    towers.forEach(idx => {
+      let t = this.mapData.towers[idx];
+      most.left = Math.min(t.x, most.left);
+      most.right = Math.max(t.x, most.right);
+      most.top = Math.min(t.y, most.top);
+      most.bottom = Math.max(t.y, most.bottom);
+      /*if(all){
+        most.left = Math.min(t.x, most.left);
+        most.right = Math.max(t.x, most.right);
+        most.to = Math.min(t.y, most.top);
+        most.bottom = Math.max(t.y, most.bottom);
+      } else most[edges] = */  //would be nice shortcut but idk..
+    });
+    return most;
+  },
+
   getDistance: function (x1, y1, x2, y2) {
     return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5;
   },
@@ -2015,7 +2063,9 @@ const DME = {
       }
       case this.isKeyPressed.MirrorMode:{
         //mirror towers
-        console.log(`Mirror ${direction}`);
+        let mirrorDir = direction == 'Up' ? 'top' : direction == 'Down' ? 'bottom' : direction.toLowerCase();
+        console.log(`Mirror ${mirrorDir}`);
+        this.mirrorChunk({direction:mirrorDir});
         break;
       }
       case this.isKeyPressed.RotateMode:{
