@@ -558,6 +558,7 @@ const DME = {
       //if so - delete that area and return
       if (typeof insideAreas == "number") {
         DME.mapData.areas.splice(insideAreas, 1);
+        DME.updateShields();
         return true;
       } else return false;
     }
@@ -661,10 +662,13 @@ const DME = {
     console.log(`Area has been created with following ids: ${ids}`);
     let nodes = [];
     let towers = DME.mapData.towers;
-    ids.forEach((id) => {
-      let idx = DME.getIndexFromId(id);
-      let x = towers[idx].x;
-      let y = towers[idx].y;
+    let idxs = this.getIndexFromId(ids);
+    idxs.forEach(idx => {
+      let t = towers[idx],
+          x = t.x,
+          y = t.y,
+          id = t.id;
+      t.isShielded = true;
       nodes.push({ x: x, y: y, id: id });
     });
     let color = towers[DME.getIndexFromId(ids[0])].color;
@@ -705,9 +709,8 @@ const DME = {
     this.selectedTowers.forEach(idx => {
       let t = this.mapData.towers[idx];
       if(!t?.isShielded && t.color == 1){
-        t.towers[idx].isShielded = true;
-        this.createTower(t.x,t.y,t.c,this.highestId);
-        this.createTower(t.x,t.y,t.c,this.highestId);
+        this.createTower(t.x,t.y,1,this.highestId);
+        this.createTower(t.x,t.y,1,this.highestId);
         this.createWall(t.id, this.highestId-2);
         this.createWall(t.id, this.highestId-1);
         this.createWall(this.highestId-2, this.highestId-1);
@@ -715,6 +718,7 @@ const DME = {
       }
     });
     this.logState = ls;
+    this.logAction({action:'create',type:'chunk',ids:[this.highestId-2, this.highestId-1]});
   },
 
   updateWalls: function (ids = false) {
@@ -742,6 +746,19 @@ const DME = {
           console.log(`Updating node (${node.id})`);
         }
       });
+    });
+  },
+
+  updateShields: function(){
+    let sT = [];
+    this.mapData.areas.forEach(a => {
+      a.nodes.forEach(n => {
+        sT.push(this.getIndexFromId(n.id));
+      })
+    });
+    sT = [...new Set(sT)];
+    this.mapData.towers.forEach((t,idx) => {
+      t.isShielded = sT.includes(idx);
     });
   },
 
@@ -1367,6 +1384,7 @@ const DME = {
     });
     this.selectedTowers = newSelectedTowers;
     this.updateChunkOptions();
+    if(loggedAreas.length) this.updateShields();
   },
 
   deleteWalls: function (ids) {
@@ -1415,6 +1433,7 @@ const DME = {
     areasToDelete.forEach((idx, c) => {
       this.mapData.areas.splice(idx - c, 1);
     });
+    this.updateShields();
     this.logAction({action:'delete',type:'area',ids:ids});
   },
 
@@ -2458,6 +2477,18 @@ const DME = {
         ctx.beginPath();
         ctx.arc(t.x, t.y, towerWidth - 2 / mz, 2 * Math.PI, false);
         ctx.fill();
+
+        //if tower is shielded, draw shield
+        if(tower?.isShielded){
+          ctx.shadowColor = defly.colors.standard[1];
+          ctx.strokeStyle = defly.colors.faded[1];
+          ctx.lineWidth = 4/mz;
+          ctx.shadowBlur = 3/mz;
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, towerWidth + 2/mz, 2 * Math.PI, false);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
       } else {
         //not a tower: either spawn or bomb
         let bombRadius = 6*defly.UNIT_WIDTH/mz, sS = 4.5*defly.UNIT_WIDTH/mz, tS = defly.TOWER_WIDTH/mz;
