@@ -845,7 +845,7 @@ const DME = {
           t.id + cId
         );
         loggedIds.push(t.id + cId);
-      } else {
+      } else {//HERE
         let modif = this.getIndexFromId(t.id)==-1 ? 0 : (t.id==-1||t.id==-3) ? -1 : 1;
         if(this.getIndexFromId(t.id+modif)<0){
           //doesn´t exist already, just place down
@@ -1474,9 +1474,24 @@ const DME = {
       if(t.x == x && t.y == y){
         mirroredIds[t.id] = t.id;
       }else{
-        mirroredIds[t.id] = this.highestId;
-        colNewIds.push(this.highestId);
-        this.createTower(x, y, t.color, this.highestId);
+        if(t.id>0){
+          mirroredIds[t.id] = this.highestId;
+          colNewIds.push(this.highestId);
+          this.createTower(x, y, t.color, this.highestId);
+        } else {
+          //HERE
+          let modif = this.getIndexFromId(t.id)==-1 ? 0 : (t.id==-1||t.id==-3) ? -1 : 1;
+          if(this.getIndexFromId(t.id+modif)<0){
+            //doesn´t exist already, just place down
+            let pos = {
+              x: t.x - cC.width / 2 + x,
+              y: t.y - cC.height / 2 + y,
+            }
+            if(t?.rotation) pos.r = t.rotation
+            this.placeSpecial(-(t.id+modif), pos);
+            colNewIds.push(t.id+modif);
+          }
+        }
       }
     });
     this.mapData.walls.forEach(w => {
@@ -1637,7 +1652,7 @@ const DME = {
 
         //defuse spawns
         let spawnData = newMapData[3].split(",");
-        for (let c = 0; spawnData.length > c+1; c += 4) {//HERE
+        for (let c = 0; spawnData.length > c+1; c += 4) {
           this.placeSpecial(undefined, {x:(Number(spawnData[0 + c])+4.5) * defly.UNIT_WIDTH,y:(Number(spawnData[1 + c])+4.5) * defly.UNIT_WIDTH,t:Number(spawnData[2+c]),r:Number(spawnData[3+c])});
         }
 
@@ -1757,7 +1772,7 @@ const DME = {
         }|`;
         let bombData = '';
         d?.bombs?.forEach((b,c)=>{bombData += `${c?',':''}${(b.x/uW).toRounded(6)},${(b.y/uW).toRounded(6)}`});
-        let spawnData = '';//HERE
+        let spawnData = '';
         d?.spawns?.forEach((b,c)=>{spawnData += `${c?',':''}${(b.x/uW-4.5).toRounded(6)},${(b.y/uW-4.5).toRounded(6)},${b.t},${b.r?b.r:''}`});
         text += `${/*Defuse bombs*/ bombData}|${/*Defuse spawns*/ spawnData}|`;
         let cWalls = {};
