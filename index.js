@@ -662,12 +662,11 @@ const DME = {
     console.log(`Area has been created with following ids: ${ids}`);
     let nodes = [];
     let towers = DME.mapData.towers;
-    let idxs = this.getIndexFromId(ids);
-    idxs.forEach(idx => {
-      let t = towers[idx],
+    ids.forEach(id => {
+      let idx = this.getIndexFromId(id),
+          t = towers[idx],
           x = t.x,
-          y = t.y,
-          id = t.id;
+          y = t.y;
       t.isShielded = true;
       nodes.push({ x: x, y: y, id: id });
     });
@@ -1733,22 +1732,14 @@ const DME = {
           text += `\ns ${c+1} ${(b.x/uW-4.5).toRounded(6)} ${(b.y/uW-4.5).toRounded(6)}${b.r?' '+b.r:''}`;
         });
         let t_text = ``;
-        let shieldedTowers = [];
         d.towers.forEach((t) => {
           t_text += `\nd ${t.id} ${(t.x / uW).toRounded(2)} ${
             (t.y / uW).toRounded(2)
           }${t.color != 1 ? " " + t.color : ""}`;
-          if(t?.isShielded && t.color == 1) {
-            shieldedTowers.push(t.id);
-            t_text += `\nd ${t.id+this.highestId} ${(t.x / uW).toRounded(6)} ${(t.y / uW).toRounded(6)}`;
-          };
         });
         let w_text = ``;
         d.walls.forEach((w) => {
           w_text += `\nl ${w.from.id} ${w.to.id}`;
-        });
-        shieldedTowers.forEach(id => {
-          w_text += `\nl ${id} ${id+this.highestId}`;
         });
         let a_text = ``;
         d.areas.forEach((a) => {
@@ -1756,9 +1747,6 @@ const DME = {
           a.nodes.forEach((n) => {
             a_text += ` ${n.id}`;
           });
-        });
-        shieldedTowers.forEach(id => {
-          a_text += `\nz ${id} ${id+this.highestId}`;
         });
         text += `${t_text}${w_text}${a_text}`;
         break;
@@ -2480,9 +2468,9 @@ const DME = {
 
         //if tower is shielded, draw shield
         if(tower?.isShielded){
-          ctx.shadowColor = defly.colors.standard[1];
+          ctx.shadowColor = 'black';
           ctx.strokeStyle = defly.colors.faded[1];
-          ctx.lineWidth = 4/mz;
+          ctx.lineWidth = 2/mz;
           ctx.shadowBlur = 3/mz;
           ctx.beginPath();
           ctx.arc(t.x, t.y, towerWidth + 2/mz, 2 * Math.PI, false);
