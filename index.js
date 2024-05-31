@@ -845,7 +845,7 @@ const DME = {
           t.id + cId
         );
         loggedIds.push(t.id + cId);
-      } else {//HERE
+      } else {
         let modif = this.getIndexFromId(t.id)==-1 ? 0 : (t.id==-1||t.id==-3) ? -1 : 1;
         if(this.getIndexFromId(t.id+modif)<0){
           //doesn´t exist already, just place down
@@ -1484,8 +1484,8 @@ const DME = {
           if(this.getIndexFromId(t.id+modif)<0){
             //doesn´t exist already, just place down
             let pos = {
-              x: t.x - cC.width / 2 + x,
-              y: t.y - cC.height / 2 + y,
+              x: t.x + (mirrorAxies-t.x) * xModif,
+              y: t.y + (mirrorAxies-t.y) * yModif,
             }
             if(t?.rotation) pos.r = t.rotation
             this.placeSpecial(-(t.id+modif), pos);
@@ -1497,6 +1497,17 @@ const DME = {
     this.mapData.walls.forEach(w => {
       if(collectiveIds.includes(w.from.id) && collectiveIds.includes(w.to.id)){
         this.createWall(mirroredIds[w.from.id],mirroredIds[w.to.id]);
+      }
+    });
+    this.mapData.areas.forEach((a) => {
+      let inside = true,
+          newIdAr = [];
+      a.nodes.forEach((n) => {
+        if (!collectiveIds.includes(n.id)) inside = false;
+        newIdAr.push(mirroredIds[n.id]);
+      });
+      if (inside) {
+        this.createArea(newIdAr);
       }
     });
     //enable log back
