@@ -376,6 +376,7 @@ const DME = {
   visuals: {
     showMapHalves: true,
     showKothBounds: true,
+    showTowerShields: true,
   },
 
   scrollingSpeed: 10,
@@ -2768,7 +2769,7 @@ const DME = {
         ctx.fill();
 
         //if tower is shielded, draw shield
-        if (tower?.isShielded) {
+        if (tower?.isShielded && this.visuals.showTowerShields) {
           ctx.shadowColor = "black";
           ctx.strokeStyle = defly.colors.faded[1];
           ctx.lineWidth = 2 / mz;
