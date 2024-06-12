@@ -375,6 +375,7 @@ const DME = {
 
   visuals: {
     showMapHalves: true,
+    showKothBounds: true,
   },
 
   scrollingSpeed: 10,
@@ -2654,7 +2655,7 @@ const DME = {
     let towerWidth = defly.TOWER_WIDTH / mz;
 
     //draw koth bounds
-    if (this.mapData.koth) {
+    if (this.mapData.koth && this.visuals.showKothBounds) {
       let koth = this.mapData.koth;
       ctx.fillStyle = "rgba(212,175,55,.5)";
       let w = (koth[2] ? koth[2] : mc.x) - koth[0],
@@ -3213,6 +3214,10 @@ const DME = {
     document.addEventListener("keyup", (e) => {
       this.handleInput("keyup", e);
     });
+
+    //update menu (such as "Enable XY" -> "Upadate XY" if XY already exists)
+    if(this.mapData.koth) document.querySelector("#DME-edit-KOTH").innerText = "Edit KOTH bounds";
+
     this.updateCanvas();
   },
 
