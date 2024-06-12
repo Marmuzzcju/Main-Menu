@@ -493,7 +493,7 @@ const DME = {
     DME.mapData.towers.push({ x: x, y: y, color: color, id: id });
     //check if tower is inside koth bounds
     let k = this.mapData.koth;
-    if (k && x > k[0] && x < k[2] && y > k[1] && y < k[3])
+    if (k && x >= k[0] && x <= k[2] && y >= k[1] && y <= k[3])
       this.mapData.towers.at(-1).isKothTower = true;
     DME.highestId = id > DME.highestId ? id + 1 : DME.highestId + 1;
     this.logAction({ action: "create", type: "tower", id: id });
@@ -812,7 +812,7 @@ const DME = {
     let kothIds = [];
     this.mapData.towers.forEach((t) => {
       let k = this.mapData.koth;
-      if (t.x > k[0] && t.x < k[2] && t.y > k[1] && t.y < k[3] && t.id > 0) {
+      if (t.x >= k[0] && t.x <= k[2] && t.y >= k[1] && t.y <= k[3] && t.id > 0) {
         t.isKothTower = true;
       } else t.isKothTower = false;
       if (t.isKothTower) {
