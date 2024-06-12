@@ -185,9 +185,10 @@ function calculateParallelLines(A, B, offset) {
 
 //dot functions (DO NOT USE ON EXTERNAL PROJECTS)
 Number.prototype.toRounded = function (decPlaces) {
-  if((this+'1').split('.')[1]?.length > decPlaces+1) return this.toFixed(decPlaces);
+  if ((this + "1").split(".")[1]?.length > decPlaces + 1)
+    return this.toFixed(decPlaces);
   return this;
-}
+};
 
 function updateFOV() {
   switch (currentSite) {
@@ -225,6 +226,7 @@ const defly = {
       12: "rgb(147,254,0)",
       13: "rgb(0,255,188)",
       14: "rgb(0,0,0)",
+      koth: "rgb(238,175,47)",
     },
     darkened: {
       1: "rgb(38,38,38)",
@@ -241,6 +243,7 @@ const defly = {
       12: "rgb(74,127,0)",
       13: "rgb(0,178,94)",
       14: "rgb(0,0,0)",
+      koth: "rgb(167,123,33)",
     },
     faded: {
       1: "rgba(77,77,77,0.5)",
@@ -257,6 +260,7 @@ const defly = {
       12: "rgba(147,254,0,0.5)",
       13: "rgba(0,255,188,0.5)",
       14: "rgba(0,0,0,0.5)",
+      koth: "rgba(238,175,47,0.5)",
     },
   },
   BULLET_WIDTH: 7,
@@ -269,10 +273,14 @@ const defly = {
   images: {
     bombA: new Image(),
     bombB: new Image(),
-  }
+    koth_tower: new Image(),
+    koth_crown: new Image(),
+  },
 };
-defly.images.bombA.src = 'images/defly-defuse-bombSpotA.png';
-defly.images.bombB.src = 'images/defly-defuse-bombSpotB.png';
+defly.images.bombA.src = "images/defly-defuse-bombSpotA.png";
+defly.images.bombB.src = "images/defly-defuse-bombSpotB.png";
+defly.images.koth_tower.src = "images/defuse-koth-tower.png";
+defly.images.koth_crown.src = "images/defuse-koth-crown.svg";
 
 /*
 js for site 1:
@@ -319,18 +327,18 @@ const DME = {
     redoAction2: "",
     shieldTower1: "B",
     shieldTower2: "",
-    placeBombA1: '1',
-    placeBombA2: '',
-    placeBombB1: '2',
-    placeBombB2: '',
-    placSpawnRed1: '3',
-    placSpawnRed2: '',
-    placSpawnBlue1: '4',
-    placSpawnBlue2: '',
-    toggleMirrorMode1: 'M',
-    toggleMirrorMode2: '',
-    toggleRotateMode1: 'R',
-    toggleRotateMode2: '',
+    placeBombA1: "1",
+    placeBombA2: "",
+    placeBombB1: "2",
+    placeBombB2: "",
+    placSpawnRed1: "3",
+    placSpawnRed2: "",
+    placSpawnBlue1: "4",
+    placSpawnBlue2: "",
+    toggleMirrorMode1: "M",
+    toggleMirrorMode2: "",
+    toggleRotateMode1: "R",
+    toggleRotateMode2: "",
   },
   changeKeybind: {
     isChanging: false,
@@ -388,6 +396,7 @@ const DME = {
   mapData: {
     width: 210 * defly.UNIT_WIDTH,
     height: 120 * defly.UNIT_WIDTH,
+    koth: false,
     towers: [], //{x : xPosition, y : yPosition, color : color, id : uniqueTowerId} || + isShaded : bool, isNotTower : number
     walls: [], //{from : {x : xPosition, y : yPosition, id : towerId}, to : {x : xPosition, y : yPosition, id : towerId}, color : wallColor}
     areas: [], //{length : amountOfNodesInThatArea, color : areaColor(defined by first node's color), nodes : [{x : nodeXposition, y : nodeYposition, id : nodeTowerId}]}
@@ -403,8 +412,10 @@ const DME = {
   },
 
   lastActions: [],
-  logState: 1,//0: none, 1: normal, 2: update undone, 3: redone
+  logState: 1, //0: none, 1: normal, 2: update undone, 3: redone
   undoneDepth: 0,
+
+  editMode: "building",
 
   selectedTowers: [],
   selectingChunk: {
@@ -479,6 +490,10 @@ const DME = {
   //action here
   createTower: function (x, y, color, id) {
     DME.mapData.towers.push({ x: x, y: y, color: color, id: id });
+    //check if tower is inside koth bounds
+    let k = this.mapData.koth;
+    if (k && x > k[0] && x < k[2] && y > k[1] && y < k[3])
+      this.mapData.towers.at(-1).isKothTower = true;
     DME.highestId = id > DME.highestId ? id + 1 : DME.highestId + 1;
     this.logAction({ action: "create", type: "tower", id: id });
   },
@@ -488,12 +503,12 @@ const DME = {
     let tower1 = DME.getIndexFromId(fromId);
     let tower2 = DME.getIndexFromId(toId);
     let towers = DME.mapData.towers;
-    if(towers[tower1]?.isNotTower || towers[tower2]?.isNotTower) return;
+    if (towers[tower1]?.isNotTower || towers[tower2]?.isNotTower) return;
     let x1 = towers[tower1].x;
     let y1 = towers[tower1].y;
     let x2 = towers[tower2].x;
     let y2 = towers[tower2].y;
-    let col = towers[tower1].color;
+    let col = towers[tower1]?.isKothTower ? "koth" : towers[tower1].color;
     DME.mapData.walls.push({
       from: { x: x1, y: y1, id: fromId },
       to: { x: x2, y: y2, id: toId },
@@ -531,7 +546,7 @@ const DME = {
     });
 
     //only keep going if close walls exist
-    if(closestWall.index == -1) return;
+    if (closestWall.index == -1) return;
 
     let startingTowerId = this.mapData.walls[closestWall.index].from.id;
     let finishTowerId = this.mapData.walls[closestWall.index].to.id;
@@ -662,15 +677,17 @@ const DME = {
     console.log(`Area has been created with following ids: ${ids}`);
     let nodes = [];
     let towers = DME.mapData.towers;
-    ids.forEach(id => {
+    ids.forEach((id) => {
       let idx = this.getIndexFromId(id),
-          t = towers[idx],
-          x = t.x,
-          y = t.y;
+        t = towers[idx],
+        x = t.x,
+        y = t.y;
       t.isShielded = true;
       nodes.push({ x: x, y: y, id: id });
     });
-    let color = towers[DME.getIndexFromId(ids[0])].color;
+    let color = towers[DME.getIndexFromId(ids[0])]?.isKothTower
+      ? "koth"
+      : towers[DME.getIndexFromId(ids[0])].color;
     DME.mapData.areas.push({ length: ids.length, color: color, nodes: nodes });
     this.logAction({ action: "create", type: "area", ids: ids });
   },
@@ -678,18 +695,43 @@ const DME = {
   /*
   bomb
   */
-  placeSpecial: function (id,coords) {//id: 1 = bomb A; 2 = bomb B; 3 = spawn red; 4 = spawn blue
-    let mc = coords ?? this.mouseCoords.snapped, idx = this.getIndexFromId(-id);
-    if(idx < 0) {//HERE
-      if(id < 3) DME.mapData.towers.push({ x: mc.x, y: mc.y, color: 3, id: -id, isNotTower: true });
-      else DME.mapData.towers.push({ x: mc.x, y: mc.y, color: 3, id: coords?.t ?? -id, isNotTower: true, rotation: coords?.r ? Number(coords.r) : 0 });
+  placeSpecial: function (id, coords) {
+    //id: 1 = bomb A; 2 = bomb B; 3 = spawn red; 4 = spawn blue
+    let mc = coords ?? this.mouseCoords.snapped,
+      idx = this.getIndexFromId(-id);
+    if (idx < 0) {
+      //HERE
+      if (id < 3)
+        DME.mapData.towers.push({
+          x: mc.x,
+          y: mc.y,
+          color: 3,
+          id: -id,
+          isNotTower: true,
+        });
+      else
+        DME.mapData.towers.push({
+          x: mc.x,
+          y: mc.y,
+          color: 3,
+          id: coords?.t ?? -id,
+          isNotTower: true,
+          rotation: coords?.r ? Number(coords.r) : 0,
+        });
       this.logAction({ action: "create", type: "tower", id: -id });
     } else {
       let o = this.mapData.towers[idx];
-      if(id > 2 && o.x == mc.x && o.y == mc.y) {
-        DME.mapData.towers[idx].rotation=++DME.mapData.towers[idx].rotation%4;
+      if (id > 2 && o.x == mc.x && o.y == mc.y) {
+        DME.mapData.towers[idx].rotation =
+          ++DME.mapData.towers[idx].rotation % 4;
       } else {
-        this.logAction({ action: 'modify', type: 'move', ids: [-id], x: mc.x-o.x, y: mc.y-o.y});
+        this.logAction({
+          action: "modify",
+          type: "move",
+          ids: [-id],
+          x: mc.x - o.x,
+          y: mc.y - o.y,
+        });
         DME.mapData.towers[idx].x = mc.x;
         DME.mapData.towers[idx].y = mc.y;
       }
@@ -702,22 +744,26 @@ const DME = {
   ...
   */
 
-  shieldTowers: function(){
+  shieldTowers: function () {
     let ls = this.logState;
     this.logState = 0;
-    this.selectedTowers.forEach(idx => {
+    this.selectedTowers.forEach((idx) => {
       let t = this.mapData.towers[idx];
-      if(!t?.isShielded && t.color == 1){
-        this.createTower(t.x,t.y,1,this.highestId);
-        this.createTower(t.x,t.y,1,this.highestId);
-        this.createWall(t.id, this.highestId-2);
-        this.createWall(t.id, this.highestId-1);
-        this.createWall(this.highestId-2, this.highestId-1);
-        this.createArea([t.id, this.highestId-2, this.highestId-1]);
+      if (!t?.isShielded && t.color == 1) {
+        this.createTower(t.x, t.y, 1, this.highestId);
+        this.createTower(t.x, t.y, 1, this.highestId);
+        this.createWall(t.id, this.highestId - 2);
+        this.createWall(t.id, this.highestId - 1);
+        this.createWall(this.highestId - 2, this.highestId - 1);
+        this.createArea([t.id, this.highestId - 2, this.highestId - 1]);
       }
     });
     this.logState = ls;
-    this.logAction({action:'create',type:'chunk',ids:[this.highestId-2, this.highestId-1]});
+    this.logAction({
+      action: "create",
+      type: "chunk",
+      ids: [this.highestId - 2, this.highestId - 1],
+    });
   },
 
   updateWalls: function (ids = false) {
@@ -748,16 +794,41 @@ const DME = {
     });
   },
 
-  updateShields: function(){
+  updateShields: function () {
     let sT = [];
-    this.mapData.areas.forEach(a => {
-      a.nodes.forEach(n => {
+    this.mapData.areas.forEach((a) => {
+      a.nodes.forEach((n) => {
         sT.push(this.getIndexFromId(n.id));
-      })
+      });
     });
     sT = [...new Set(sT)];
-    this.mapData.towers.forEach((t,idx) => {
+    this.mapData.towers.forEach((t, idx) => {
       t.isShielded = sT.includes(idx);
+    });
+  },
+
+  updateKothTowers: function () {
+    let kothIds = [];
+    this.mapData.towers.forEach((t) => {
+      let k = this.mapData.koth;
+      if (t.x > k[0] && t.x < k[2] && t.y > k[1] && t.y < k[3] && t.id > 0) {
+        t.isKothTower = true;
+      } else t.isKothTower = false;
+      if (t.isKothTower) {
+        kothIds.push(t.id);
+      }
+    });
+    this.mapData.walls.forEach((w) => {
+      if (kothIds.includes(w.from.id)) {
+        w.color = "koth";
+      } else
+        w.color = this.mapData.towers[this.getIndexFromId(w.from.id)].color;
+    });
+    this.mapData.areas.forEach((a) => {
+      if (kothIds.includes(a.nodes[0].id)) {
+        a.color = "koth";
+      } else
+        a.color = this.mapData.towers[this.getIndexFromId(a.nodes[0].id)].color;
     });
   },
 
@@ -780,7 +851,7 @@ const DME = {
       let t = this.mapData.towers[tIdx];
       ids.push(t.id);
       newIds[t.id] = c + 1;
-      if(t.id>0){
+      if (t.id > 0) {
         this.copiedChunk.towers.push({
           x: t.x,
           y: t.y,
@@ -793,7 +864,7 @@ const DME = {
           y: t.y,
           id: t.id,
         });
-        if(t?.rotation){
+        if (t?.rotation) {
           this.copiedChunk.towers.at(-1).rotation = t.rotation;
         }
       }
@@ -837,7 +908,7 @@ const DME = {
     let cC = this.copiedChunk;
     let loggedIds = [];
     cC.towers.forEach((t) => {
-      if(t.id > 0){
+      if (t.id > 0) {
         this.createTower(
           t.x - cC.width / 2 + x,
           t.y - cC.height / 2 + y,
@@ -846,16 +917,21 @@ const DME = {
         );
         loggedIds.push(t.id + cId);
       } else {
-        let modif = this.getIndexFromId(t.id)==-1 ? 0 : (t.id==-1||t.id==-3) ? -1 : 1;
-        if(this.getIndexFromId(t.id+modif)<0){
+        let modif =
+          this.getIndexFromId(t.id) == -1
+            ? 0
+            : t.id == -1 || t.id == -3
+            ? -1
+            : 1;
+        if (this.getIndexFromId(t.id + modif) < 0) {
           //doesn´t exist already, just place down
           let pos = {
             x: t.x - cC.width / 2 + x,
             y: t.y - cC.height / 2 + y,
-          }
-          if(t?.rotation) pos.r = t.rotation
-          this.placeSpecial(-(t.id+modif), pos);
-          loggedIds.push(t.id+modif);
+          };
+          if (t?.rotation) pos.r = t.rotation;
+          this.placeSpecial(-(t.id + modif), pos);
+          loggedIds.push(t.id + modif);
         }
       }
     });
@@ -876,71 +952,82 @@ const DME = {
   logAction: function (action) {
     if (this.logState == 0) return;
     console.log(action);
-    if(this.logState == 1) {
+    if (this.logState == 1) {
       if (this.undoneDepth) this.lastActions.splice(-this.undoneDepth);
       this.undoneDepth = 0;
     }
-    let logNew=this.logState==1, splicePos = this.lastActions.length-this.undoneDepth-this.logState+2;
+    let logNew = this.logState == 1,
+      splicePos =
+        this.lastActions.length - this.undoneDepth - this.logState + 2;
     //determine whether log should be normal or updated
     switch (action.action) {
       case "create": {
-        if(logNew) this.lastActions.push(action);
-        else this.lastActions.splice(splicePos,1,action);
+        if (logNew) this.lastActions.push(action);
+        else this.lastActions.splice(splicePos, 1, action);
         break;
       }
       case "modify": {
-        switch(action.type){
-          case 'resize':{
-            if(logNew) {
+        switch (action.type) {
+          case "resize": {
+            if (logNew) {
               let lA = this.lastActions.at(-1);
-              if(lA?.type == 'resize' && lA?.ids == action.ids && lA?.origin == action.origin){
+              if (
+                lA?.type == "resize" &&
+                lA?.ids == action.ids &&
+                lA?.origin == action.origin
+              ) {
                 lA.x *= action.x;
                 lA.y *= action.y;
               } else {
                 this.lastActions.push(action);
               }
-            } else this.lastActions.splice(splicePos,1,action);
+            } else this.lastActions.splice(splicePos, 1, action);
             break;
           }
-          case 'move':{
-            if(logNew) {
+          case "move": {
+            if (logNew) {
               let lA = this.lastActions.at(-1);
-              if(lA?.type == 'move' && lA?.ids == action.ids){
+              if (lA?.type == "move" && lA?.ids == action.ids) {
                 lA.x += action.x;
                 lA.y += action.y;
               } else {
                 this.lastActions.push(action);
               }
-            } else this.lastActions.splice(splicePos,1,action);
+            } else this.lastActions.splice(splicePos, 1, action);
             break;
           }
-          case 'rotate':{
-            if(logNew) {
+          case "rotate": {
+            if (logNew) {
               let lA = this.lastActions.at(-1);
-              if(lA?.type == 'rotate' && lA?.idxs == action.idxs){
+              if (lA?.type == "rotate" && lA?.idxs == action.idxs) {
                 lA.properties.angle += action.properties.angle;
               } else {
                 this.lastActions.push(action);
               }
-            } else this.lastActions.splice(splicePos,1,action);
+            } else this.lastActions.splice(splicePos, 1, action);
             break;
           }
         }
         break;
       }
       case "delete": {
-        if(logNew) this.lastActions.push(action);
-        else this.lastActions.splice(splicePos,1,action);
+        if (logNew) this.lastActions.push(action);
+        else this.lastActions.splice(splicePos, 1, action);
         break;
       }
     }
   },
   modifyLastAction: function (time) {
     console.log("Reversing...");
-    if ((!time && this.lastActions.length <= this.undoneDepth) || (time && this.undoneDepth < 1)) return;
-    this.undoneDepth+=1-time;
-    let actionToModify = this.lastActions.at(-this.undoneDepth), ls = 2+time;
-    this.undoneDepth-=time;
+    if (
+      (!time && this.lastActions.length <= this.undoneDepth) ||
+      (time && this.undoneDepth < 1)
+    )
+      return;
+    this.undoneDepth += 1 - time;
+    let actionToModify = this.lastActions.at(-this.undoneDepth),
+      ls = 2 + time;
+    this.undoneDepth -= time;
     this.logState = ls;
     switch (actionToModify.action) {
       case "create": {
@@ -957,23 +1044,33 @@ const DME = {
             this.deleteArea(actionToModify.ids);
             break;
           }
-          case 'chunk': {
+          case "chunk": {
             this.deleteTowers(this.getIndexFromId(actionToModify.ids));
           }
         }
         break;
       }
       case "modify": {
-        switch(actionToModify.type){
-          case 'resize':{
-            this.resizeChunk(1/actionToModify.x, 1/actionToModify.y, actionToModify.origin, this.getIndexFromId(actionToModify.ids));
+        switch (actionToModify.type) {
+          case "resize": {
+            this.resizeChunk(
+              1 / actionToModify.x,
+              1 / actionToModify.y,
+              actionToModify.origin,
+              this.getIndexFromId(actionToModify.ids)
+            );
             break;
           }
-          case 'move':{
-            this.resizeChunk(-actionToModify.x, -actionToModify.y, {z:true}, this.getIndexFromId(actionToModify.ids));
+          case "move": {
+            this.resizeChunk(
+              -actionToModify.x,
+              -actionToModify.y,
+              { z: true },
+              this.getIndexFromId(actionToModify.ids)
+            );
             break;
           }
-          case 'rotate':{
+          case "rotate": {
             this.rotateChunk(actionToModify.properties, actionToModify.idxs);
             break;
           }
@@ -981,40 +1078,40 @@ const DME = {
         break;
       }
       case "delete": {
-        switch(actionToModify.type){
-          case 'towers':{
+        switch (actionToModify.type) {
+          case "towers": {
             this.logState = 0;
             let tIds = [];
-            actionToModify.towers.forEach(t => {
-              if(t.id>0) this.createTower(t.x,t.y,t.color,t.id);
+            actionToModify.towers.forEach((t) => {
+              if (t.id > 0) this.createTower(t.x, t.y, t.color, t.id);
               else {
-                let coords = {x: t.x, y: t.y};
-                if(t?.rotation) coords.r = t.rotation;
+                let coords = { x: t.x, y: t.y };
+                if (t?.rotation) coords.r = t.rotation;
                 this.placeSpecial(-t.id, coords);
               }
               tIds.push(t.id);
             });
-            actionToModify.walls.forEach(w => {
-              this.createWall(w.from,w.to);
+            actionToModify.walls.forEach((w) => {
+              this.createWall(w.from, w.to);
             });
-            actionToModify.areas.forEach(ids => {
+            actionToModify.areas.forEach((ids) => {
               this.createArea(ids);
             });
             this.logState = ls;
             this.logAction({ action: "create", type: "chunk", ids: tIds });
             break;
           }
-          case 'walls':{
+          case "walls": {
             this.logState = 0;
             let ids = [];
-            actionToModify.ids.forEach(set => {
+            actionToModify.ids.forEach((set) => {
               ids.push(set);
               this.createWall(set.from, set.to);
             });
             this.logState = ls;
-            this.logAction({ action: 'create', type: 'walls', ids: ids });
+            this.logAction({ action: "create", type: "walls", ids: ids });
           }
-          case 'area':{
+          case "area": {
             this.createArea(actionToModify.ids);
           }
         }
@@ -1185,7 +1282,12 @@ const DME = {
   },
   //action here
   //actually resizes the chunk - if 'origin.z=true' then moves around instead
-  resizeChunk: function (xDelta, yDelta, origin, towersToMod = this.selectedTowers) {
+  resizeChunk: function (
+    xDelta,
+    yDelta,
+    origin,
+    towersToMod = this.selectedTowers
+  ) {
     xDelta =
       xDelta == 0
         ? 0.0001
@@ -1322,14 +1424,14 @@ const DME = {
       let realIndex = index - counter;
       let t = this.mapData.towers[realIndex];
       let id = t.id;
-      if(id>0) loggedTowers.push({ x: t.x, y: t.y, color: t.color, id: id });
+      if (id > 0) loggedTowers.push({ x: t.x, y: t.y, color: t.color, id: id });
       else {
         let push = {
           x: t.x,
           y: t.y,
           id: id,
         };
-        if(t?.rotation) push.rotation = t.rotation;
+        if (t?.rotation) push.rotation = t.rotation;
         loggedTowers.push(push);
       }
       this.mapData.towers.splice(realIndex, 1);
@@ -1383,7 +1485,7 @@ const DME = {
     });
     this.selectedTowers = newSelectedTowers;
     this.updateChunkOptions();
-    if(loggedAreas.length) this.updateShields();
+    if (loggedAreas.length) this.updateShields();
   },
 
   deleteWalls: function (ids) {
@@ -1433,75 +1535,95 @@ const DME = {
       this.mapData.areas.splice(idx - c, 1);
     });
     this.updateShields();
-    this.logAction({action:'delete',type:'area',ids:ids});
+    this.logAction({ action: "delete", type: "area", ids: ids });
   },
 
   rotateChunk: function (properties, towers = this.selectedTowers) {
     let centre = properties?.centre ?? this.getCentreOfChunk(towers);
-    if(!properties?.angle) {
-      alert('Error: missing angle');
+    if (!properties?.angle) {
+      alert("Error: missing angle");
       return;
-    };
-    let [sin,cos] = [Math.sin(properties.angle),Math.cos(properties.angle)];
-    towers.forEach(idx => {
+    }
+    let [sin, cos] = [Math.sin(properties.angle), Math.cos(properties.angle)];
+    towers.forEach((idx) => {
       let t = this.mapData.towers[idx];
-      let [x,y] = [t.x-centre.x,t.y-centre.y];
+      let [x, y] = [t.x - centre.x, t.y - centre.y];
       t.x = x * cos - y * sin + centre.x;
       t.y = x * sin + y * cos + centre.y;
     });
-    let [wIds,aIds] = [this.mapData.walls.length>50?this.getIdFromIndex(towers):undefined,this.mapData.areas.length>30?this.getIdFromIndex(towers):undefined];
+    let [wIds, aIds] = [
+      this.mapData.walls.length > 50 ? this.getIdFromIndex(towers) : undefined,
+      this.mapData.areas.length > 30 ? this.getIdFromIndex(towers) : undefined,
+    ];
     this.updateWalls(wIds);
     this.updateAreas(aIds);
     this.updateChunkOptions();
-    this.logAction({action:'modify',type:'rotate',idxs:towers,properties:{centre:centre,angle:-properties.angle}});
+    this.logAction({
+      action: "modify",
+      type: "rotate",
+      idxs: towers,
+      properties: { centre: centre, angle: -properties.angle },
+    });
   },
 
-  mirrorChunk: function(properties, towers = this.selectedTowers){
+  mirrorChunk: function (properties, towers = this.selectedTowers) {
     let d = properties.direction,
-        mirrorAxies = this.getOuterMostPositionsOfChunk(towers)[properties.direction],
-        [xModif, yModif] = [(d == 'left' || d == 'right') ? 2 : 0, (d == 'bottom' || d=='top') ? 2 : 0],
-        mirroredIds = {},
-        collectiveIds = [];
-        colNewIds = [];
+      mirrorAxies =
+        this.getOuterMostPositionsOfChunk(towers)[properties.direction],
+      [xModif, yModif] = [
+        d == "left" || d == "right" ? 2 : 0,
+        d == "bottom" || d == "top" ? 2 : 0,
+      ],
+      mirroredIds = {},
+      collectiveIds = [];
+    colNewIds = [];
     //disable log
     let ls = this.logState;
     this.logState = 0;
-    towers.forEach(idx => {
+    towers.forEach((idx) => {
       let t = this.mapData.towers[idx],
-          x = t.x + (mirrorAxies-t.x) * xModif,
-          y = t.y + (mirrorAxies-t.y) * yModif;
+        x = t.x + (mirrorAxies - t.x) * xModif,
+        y = t.y + (mirrorAxies - t.y) * yModif;
       collectiveIds.push(t.id);
-      if(t.x == x && t.y == y){
+      if (t.x == x && t.y == y) {
         mirroredIds[t.id] = t.id;
-      }else{
-        if(t.id>0){
+      } else {
+        if (t.id > 0) {
           mirroredIds[t.id] = this.highestId;
           colNewIds.push(this.highestId);
           this.createTower(x, y, t.color, this.highestId);
         } else {
           //HERE
-          let modif = this.getIndexFromId(t.id)==-1 ? 0 : (t.id==-1||t.id==-3) ? -1 : 1;
-          if(this.getIndexFromId(t.id+modif)<0){
+          let modif =
+            this.getIndexFromId(t.id) == -1
+              ? 0
+              : t.id == -1 || t.id == -3
+              ? -1
+              : 1;
+          if (this.getIndexFromId(t.id + modif) < 0) {
             //doesn´t exist already, just place down
             let pos = {
-              x: t.x + (mirrorAxies-t.x) * xModif,
-              y: t.y + (mirrorAxies-t.y) * yModif,
-            }
-            if(t?.rotation) pos.r = t.rotation
-            this.placeSpecial(-(t.id+modif), pos);
-            colNewIds.push(t.id+modif);
+              x: t.x + (mirrorAxies - t.x) * xModif,
+              y: t.y + (mirrorAxies - t.y) * yModif,
+            };
+            if (t?.rotation) pos.r = t.rotation;
+            this.placeSpecial(-(t.id + modif), pos);
+            colNewIds.push(t.id + modif);
           }
         }
       }
     });
-    this.mapData.walls.forEach(w => {
-      if(collectiveIds.includes(w.from.id) && collectiveIds.includes(w.to.id)){
-        this.createWall(mirroredIds[w.from.id],mirroredIds[w.to.id]);
+    this.mapData.walls.forEach((w) => {
+      if (
+        collectiveIds.includes(w.from.id) &&
+        collectiveIds.includes(w.to.id)
+      ) {
+        this.createWall(mirroredIds[w.from.id], mirroredIds[w.to.id]);
       }
     });
     this.mapData.areas.forEach((a) => {
       let inside = true,
-          newIdAr = [];
+        newIdAr = [];
       a.nodes.forEach((n) => {
         if (!collectiveIds.includes(n.id)) inside = false;
         newIdAr.push(mirroredIds[n.id]);
@@ -1512,7 +1634,7 @@ const DME = {
     });
     //enable log back
     this.logState = ls;
-    this.logAction({action:'create', type: 'chunk', ids: colNewIds});
+    this.logAction({ action: "create", type: "chunk", ids: colNewIds });
   },
 
   changeSelectedTowerColor: function (newColor) {
@@ -1528,6 +1650,49 @@ const DME = {
       .querySelector("#DME-select-color-dropdown")
       .querySelectorAll("option")[c - 1].selected = true;
     this.selectedColor = c;
+  },
+
+  handleKothInput: function (step) {
+    let mc = this.mouseCoords.snapped;
+    switch (step) {
+      case 0: {
+        this.editMode = "KOTH";
+        if (!this.mapData.koth) {
+          document.querySelector("#DME-edit-KOTH").innerText =
+            "Edit KOTH bounds";
+          this.mapData.koth = [];
+        }
+        this.mapData.koth[4] = true;
+        break;
+      }
+      case 1: {
+        this.mapData.koth[4] = false;
+        this.mapData.koth[0] = mc.x;
+        this.mapData.koth[1] = mc.y;
+        if (!isNaN(this.mapData.koth[2])) {
+          //update tower visuals
+          this.updateKothTowers();
+        }
+        break;
+      }
+      case 2: {
+        this.mapData.koth[2] = mc.x;
+        this.mapData.koth[3] = mc.y;
+        if (this.mapData.koth[0] > this.mapData.koth[2]) {
+          let t = this.mapData.koth[0];
+          this.mapData.koth[0] = this.mapData.koth[2];
+          this.mapData.koth[2] = t;
+        }
+        if (this.mapData.koth[1] > this.mapData.koth[3]) {
+          let t = this.mapData.koth[1];
+          this.mapData.koth[1] = this.mapData.koth[3];
+          this.mapData.koth[3] = t;
+        }
+        this.editMode = "building";
+        this.updateKothTowers();
+        break;
+      }
+    }
   },
 
   loadFile: function (input) {
@@ -1592,6 +1757,15 @@ const DME = {
               this.mapData.height = newMapData[position + 1] * defly.UNIT_WIDTH;
               break;
             }
+            case "KOTH": {
+              this.mapData.koth = [
+                newMapData[position + 1] * defly.UNIT_WIDTH,
+                newMapData[position + 2] * defly.UNIT_WIDTH,
+                newMapData[position + 3] * defly.UNIT_WIDTH,
+                newMapData[position + 4] * defly.UNIT_WIDTH,
+              ];
+              break;
+            }
             case "d": {
               let color = isNaN(Number(newMapData[position + 4]))
                 ? 1
@@ -1626,12 +1800,21 @@ const DME = {
             }
             case "s": {
               //spawns
-              this.placeSpecial(5-newMapData[position + 1], {x:(Number(newMapData[position + 2])+4.5) * defly.UNIT_WIDTH,y:(Number(newMapData[position + 3])+4.5) * defly.UNIT_WIDTH,r:isNaN(Number(newMapData[position + 4]))?0:newMapData[position + 4]});
+              this.placeSpecial(5 - newMapData[position + 1], {
+                x: (Number(newMapData[position + 2]) + 4.5) * defly.UNIT_WIDTH,
+                y: (Number(newMapData[position + 3]) + 4.5) * defly.UNIT_WIDTH,
+                r: isNaN(Number(newMapData[position + 4]))
+                  ? 0
+                  : newMapData[position + 4],
+              });
               break;
             }
             case "t": {
               //bomb spots
-              this.placeSpecial(Number(newMapData[position + 1])+1, {x:newMapData[position + 2] * defly.UNIT_WIDTH,y:newMapData[position + 3] * defly.UNIT_WIDTH});
+              this.placeSpecial(Number(newMapData[position + 1]) + 1, {
+                x: newMapData[position + 2] * defly.UNIT_WIDTH,
+                y: newMapData[position + 3] * defly.UNIT_WIDTH,
+              });
               break;
             }
           }
@@ -1652,19 +1835,28 @@ const DME = {
             ? Number(newMapSize[1]) * defly.UNIT_WIDTH
             : this.mapData.height;
 
-        //koth bounds - not here yet - stay tuned
-        //kothBounds = newMapData[1].split(",").length < 4 ? [] : newMapData[1].split(",");
+        //koth bounds
+        this.mapData.koth =
+          newMapData[1].split(",").length < 4 ? [] : newMapData[1].split(",");
 
         //bomb spots
         let bombData = newMapData[2].split(",");
-        for (let c = 0; bombData.length > c+1; c += 2) {
-          this.placeSpecial(c/2+1, {x:bombData[0 + c] * defly.UNIT_WIDTH,y:bombData[1 + c] * defly.UNIT_WIDTH});
+        for (let c = 0; bombData.length > c + 1; c += 2) {
+          this.placeSpecial(c / 2 + 1, {
+            x: bombData[0 + c] * defly.UNIT_WIDTH,
+            y: bombData[1 + c] * defly.UNIT_WIDTH,
+          });
         }
 
         //defuse spawns
         let spawnData = newMapData[3].split(",");
-        for (let c = 0; spawnData.length > c+1; c += 4) {
-          this.placeSpecial(undefined, {x:(Number(spawnData[0 + c])+4.5) * defly.UNIT_WIDTH,y:(Number(spawnData[1 + c])+4.5) * defly.UNIT_WIDTH,t:Number(spawnData[2+c]),r:Number(spawnData[3+c])});
+        for (let c = 0; spawnData.length > c + 1; c += 4) {
+          this.placeSpecial(undefined, {
+            x: (Number(spawnData[0 + c]) + 4.5) * defly.UNIT_WIDTH,
+            y: (Number(spawnData[1 + c]) + 4.5) * defly.UNIT_WIDTH,
+            t: Number(spawnData[2 + c]),
+            r: Number(spawnData[3 + c]),
+          });
         }
 
         //towers (and walls)
@@ -1683,10 +1875,10 @@ const DME = {
           //walls
 
           for (let c = 3; c < tower.length; c++) {
-            wallsToPlace.push([index+1, Number(tower[c])]); //might be 'Number(tower[c])-1' - in case of crash try change
+            wallsToPlace.push([index + 1, Number(tower[c])]); //might be 'Number(tower[c])-1' - in case of crash try change
           }
         });
-        wallsToPlace.forEach(w => {
+        wallsToPlace.forEach((w) => {
           this.createWall(w[0], w[1]);
         });
         this.updateWalls();
@@ -1751,17 +1943,26 @@ const DME = {
       case "defly": {
         text += `MAP_WIDTH ${d.width / uW}`;
         text += `\nMAP_HEIGHT ${d.height / uW}`;
-        d?.bombs?.forEach((b, c)=>{
-          text += `\nt ${c} ${(b.x/uW).toRounded(6)} ${(b.y/uW).toRounded(6)}`;
+        if (d.koth)
+          text += `\nKOTH ${d.koth[0] / uW.toRounded(6)} ${
+            d.koth[1] / uW.toRounded(6)
+          } ${d.koth[2] / uW.toRounded(6)} ${d.koth[3] / uW.toRounded(6)}`;
+        d?.bombs?.forEach((b, c) => {
+          text += `\nt ${c} ${(b.x / uW).toRounded(6)} ${(b.y / uW).toRounded(
+            6
+          )}`;
         });
-        d?.spawns?.forEach((b, c)=>{
-          text += `\ns ${c+1} ${(b.x/uW-4.5).toRounded(6)} ${(b.y/uW-4.5).toRounded(6)}${b.r?' '+b.r:''}`;
+        d?.spawns?.forEach((b, c) => {
+          text += `\ns ${c + 1} ${(b.x / uW - 4.5).toRounded(6)} ${(
+            b.y / uW -
+            4.5
+          ).toRounded(6)}${b.r ? " " + b.r : ""}`;
         });
         let t_text = ``;
         d.towers.forEach((t) => {
-          t_text += `\nd ${t.id} ${(t.x / uW).toRounded(2)} ${
-            (t.y / uW).toRounded(2)
-          }${t.color != 1 ? " " + t.color : ""}`;
+          t_text += `\nd ${t.id} ${(t.x / uW).toRounded(2)} ${(
+            t.y / uW
+          ).toRounded(2)}${t.color != 1 ? " " + t.color : ""}`;
         });
         let w_text = ``;
         d.walls.forEach((w) => {
@@ -1778,13 +1979,26 @@ const DME = {
         break;
       }
       case "compact": {
-        text += `${(d.width / uW).toRounded(2)},${(d.height / uW).toRounded(2)}|${
-          /*Koth bounds*/ ""
+        text += `${(d.width / uW).toRounded(2)},${(d.height / uW).toRounded(
+          2
+        )}|${
+          /*Koth bounds*/ d.koth
+            ? `${d.koth[0]},${d.koth[1]},${d.koth[2]},${d.koth[3]}`
+            : ""
         }|`;
-        let bombData = '';
-        d?.bombs?.forEach((b,c)=>{bombData += `${c?',':''}${(b.x/uW).toRounded(6)},${(b.y/uW).toRounded(6)}`});
-        let spawnData = '';
-        d?.spawns?.forEach((b,c)=>{spawnData += `${c?',':''}${(b.x/uW-4.5).toRounded(6)},${(b.y/uW-4.5).toRounded(6)},${b.t},${b.r?b.r:''}`});
+        let bombData = "";
+        d?.bombs?.forEach((b, c) => {
+          bombData += `${c ? "," : ""}${(b.x / uW).toRounded(6)},${(
+            b.y / uW
+          ).toRounded(6)}`;
+        });
+        let spawnData = "";
+        d?.spawns?.forEach((b, c) => {
+          spawnData += `${c ? "," : ""}${(b.x / uW - 4.5).toRounded(6)},${(
+            b.y / uW -
+            4.5
+          ).toRounded(6)},${b.t},${b.r ? b.r : ""}`;
+        });
         text += `${/*Defuse bombs*/ bombData}|${/*Defuse spawns*/ spawnData}|`;
         let cWalls = {};
         d.walls.forEach((w) => {
@@ -1792,9 +2006,9 @@ const DME = {
           cWalls[w.from.id].push(w.to.id);
         });
         d.towers.forEach((t, c) => {
-          text += `${c ? ";" : ""}${(t.x / uW).toRounded(6)},${
-            (t.y / uW).toRounded(6)
-          },${t.color == 1 ? "" : t.color}`;
+          text += `${c ? ";" : ""}${(t.x / uW).toRounded(6)},${(
+            t.y / uW
+          ).toRounded(6)},${t.color == 1 ? "" : t.color}`;
           cWalls[c + 1]?.forEach((w) => {
             text += `,${w}`;
           });
@@ -1822,30 +2036,31 @@ const DME = {
   getCleanMapCopy: function () {
     let copy = JSON.parse(JSON.stringify(this.mapData));
     let newId = {};
-    let ntC = 0, falseTowers = [];
+    let ntC = 0,
+      falseTowers = [];
     copy.towers.forEach((t, c) => {
-      if(!t?.isNotTower){
+      if (!t?.isNotTower) {
         newId[t.id] = c + 1 - ntC;
         copy.towers[c].id = c + 1 - ntC;
       } else {
         ntC++;
-        if(t.id>-3){
-          if(!copy?.bombs) copy.bombs = [];
-          copy.bombs.push({x:t.x,y:t.y/*,t:t.id>-2?'a':'b'*/});
+        if (t.id > -3) {
+          if (!copy?.bombs) copy.bombs = [];
+          copy.bombs.push({ x: t.x, y: t.y /*,t:t.id>-2?'a':'b'*/ });
         } else {
-          if(!copy?.spawns) copy.spawns = [];
-          copy.spawns.push({x:t.x,y:t.y,t:t.id,r:t.rotation});
+          if (!copy?.spawns) copy.spawns = [];
+          copy.spawns.push({ x: t.x, y: t.y, t: t.id, r: t.rotation });
         }
         falseTowers.push(c);
       }
     });
-    falseTowers.forEach((idx,c) => copy.towers.splice(idx-c,1));
-    copy.walls.forEach((w,idx) => {
+    falseTowers.forEach((idx, c) => copy.towers.splice(idx - c, 1));
+    copy.walls.forEach((w, idx) => {
       copy.walls[idx].from.id = newId[w.from.id];
       copy.walls[idx].to.id = newId[w.to.id];
     });
-    copy.areas.forEach((a,ac) => {
-      a.nodes.forEach((n,nc) => {
+    copy.areas.forEach((a, ac) => {
+      a.nodes.forEach((n, nc) => {
         copy.areas[ac].nodes[nc].id = newId[n.id];
       });
     });
@@ -1853,7 +2068,7 @@ const DME = {
   },
 
   fixedDec: function (float, maxPlaces) {
-    if(!(''+float)?.split('.')[1].length >= maxPlaces) return;
+    if (!("" + float)?.split(".")[1].length >= maxPlaces) return;
     return float.toFixed(maxPlaces);
   },
 
@@ -1872,23 +2087,28 @@ const DME = {
     document.body.removeChild(element);
   },
 
-  getCentreOfChunk: function(towers = this.selectedTowers){
+  getCentreOfChunk: function (towers = this.selectedTowers) {
     let [sX, hX, sY, hY] = [Infinity, 0, Infinity, 0];
-    towers.forEach(idx => {
+    towers.forEach((idx) => {
       let t = this.mapData.towers[idx];
-      [sX,hX,sY,hY]=[t.x<sX?t.x:sX,t.x>hX?t.x:hX,t.y<sY?t.y:sY,t.y>hY?t.y:hY];
+      [sX, hX, sY, hY] = [
+        t.x < sX ? t.x : sX,
+        t.x > hX ? t.x : hX,
+        t.y < sY ? t.y : sY,
+        t.y > hY ? t.y : hY,
+      ];
     });
-    return {x:(sX+hX)/2,y:(sY+hY)/2};
+    return { x: (sX + hX) / 2, y: (sY + hY) / 2 };
   },
 
-  getOuterMostPositionsOfChunk: function(towers = this.selectedTowers){
+  getOuterMostPositionsOfChunk: function (towers = this.selectedTowers) {
     let most = {
       left: Infinity,
       right: 0,
       top: Infinity,
       bottom: 0,
     };
-    towers.forEach(idx => {
+    towers.forEach((idx) => {
       let t = this.mapData.towers[idx];
       most.left = Math.min(t.x, most.left);
       most.right = Math.max(t.x, most.right);
@@ -1899,7 +2119,7 @@ const DME = {
         most.right = Math.max(t.x, most.right);
         most.to = Math.min(t.y, most.top);
         most.bottom = Math.max(t.y, most.bottom);
-      } else most[edges] = */  //would be nice shortcut but idk..
+      } else most[edges] = */ //would be nice shortcut but idk..
     });
     return most;
   },
@@ -2025,34 +2245,35 @@ const DME = {
   },
 
   getIndexFromId: function (ids) {
-    switch(typeof(ids)){
-      case 'number':{
+    switch (typeof ids) {
+      case "number": {
         let targetIndex = -1;
         DME.mapData.towers.forEach((tower, index) => {
           targetIndex = tower.id == ids ? index : targetIndex;
         });
         return targetIndex;
       }
-      case 'object':{
+      case "object": {
         let targetIndexs = [];
         DME.mapData.towers.forEach((tower, index) => {
-          if(ids.includes(tower.id)) targetIndexs.push(index);
+          if (ids.includes(tower.id)) targetIndexs.push(index);
         });
         return targetIndexs;
       }
     }
-    
   },
 
   getIdFromIndex: function (idxs) {
-    switch(typeof(idxs)){
-      case 'number':{
+    switch (typeof idxs) {
+      case "number": {
         return this.mapData.towers[idxs].id;
       }
-      case 'object':{
+      case "object": {
         let targetIds = [];
         let ts = this.mapData.towers;
-        idxs.forEach(idx => {targetIds.push(ts[idx].id)});
+        idxs.forEach((idx) => {
+          targetIds.push(ts[idx].id);
+        });
         return targetIds;
       }
     }
@@ -2086,48 +2307,54 @@ const DME = {
     };
   },
 
-  handleMoveInput: function(direction){
+  handleMoveInput: function (direction) {
     //HERRT
-    switch(true){
-      case this.isKeyPressed.SHIFT:{
-        switch(direction){
-          case 'Up':{
+    switch (true) {
+      case this.isKeyPressed.SHIFT: {
+        switch (direction) {
+          case "Up": {
             this.resizeChunk(0, this.snapRange, { z: true });
             break;
           }
-          case 'Down':{
+          case "Down": {
             this.resizeChunk(0, -this.snapRange, { z: true });
             break;
           }
-          case 'Left':{
+          case "Left": {
             this.resizeChunk(this.snapRange, 0, { z: true });
             break;
           }
-          case 'Right':{
+          case "Right": {
             this.resizeChunk(-this.snapRange, 0, { z: true });
             break;
           }
         }
         break;
       }
-      case this.isKeyPressed.MirrorMode:{
+      case this.isKeyPressed.MirrorMode: {
         //mirror towers
-        let mirrorDir = direction == 'Up' ? 'top' : direction == 'Down' ? 'bottom' : direction.toLowerCase();
+        let mirrorDir =
+          direction == "Up"
+            ? "top"
+            : direction == "Down"
+            ? "bottom"
+            : direction.toLowerCase();
         console.log(`Mirror ${mirrorDir}`);
-        this.mirrorChunk({direction:mirrorDir});
+        this.mirrorChunk({ direction: mirrorDir });
         break;
       }
-      case this.isKeyPressed.RotateMode:{
+      case this.isKeyPressed.RotateMode: {
         //rotate towers
-        let angle = Number(prompt('Enter rotation angle', 90))/180*Math.PI;
-        if(direction == 'Left') angle*=-1;
-        else if(direction != 'Right') return;
+        let angle =
+          (Number(prompt("Enter rotation angle", 90)) / 180) * Math.PI;
+        if (direction == "Left") angle *= -1;
+        else if (direction != "Right") return;
         console.log(`Rotate ${direction} for ${angle} degree`);
         this.isKeyPressed.RotateMode = false;
-        this.rotateChunk({angle:angle});
+        this.rotateChunk({ angle: angle });
         break;
       }
-      default:{
+      default: {
         this.isKeyPressed[`Move${direction}`] = true;
       }
     }
@@ -2142,14 +2369,15 @@ const DME = {
       distance: 0,
       index: o.hovering - 1,
     };
-    if (!o.isChanging) {//if selected but havent started changing yet
+    if (!o.isChanging) {
+      //if selected but havent started changing yet
       cP.distance = Infinity;
       let sp = [];
       for (let h = 0; h <= 1; h += 0.5) {
         for (let w = 0; w <= 1; w += 0.5) {
           sp.push([o.rx + o.rw * w, o.ry + o.rh * h]);
         }
-      }//get all edge points for the resize
+      } //get all edge points for the resize
 
       sp.splice(4, 1);
       sp.forEach((pos, index) => {
@@ -2159,9 +2387,11 @@ const DME = {
           cP.index = index;
         }
       });
-    } else this.resizeChunkByDrag(1);//call function to take in mouse movement
-    let cS = "";//cursor style
-    switch (cP.index) {//index: determining which case of resizing
+    } else this.resizeChunkByDrag(1); //call function to take in mouse movement
+    let cS = ""; //cursor style
+    switch (
+      cP.index //index: determining which case of resizing
+    ) {
       case 0:
       case 7: {
         //top-left/bottom-right
@@ -2250,8 +2480,12 @@ const DME = {
         : mc.snapped.y > this.mapData.height
         ? this.mapData.height
         : mc.snapped.y;
-    document.querySelector('#DME-coords-info-x').innerText = (mc.snapped.x/defly.UNIT_WIDTH).toRounded(2);
-    document.querySelector('#DME-coords-info-y').innerText = (mc.snapped.y/defly.UNIT_WIDTH).toRounded(2);
+    document.querySelector("#DME-coords-info-x").innerText = (
+      mc.snapped.x / defly.UNIT_WIDTH
+    ).toRounded(2);
+    document.querySelector("#DME-coords-info-y").innerText = (
+      mc.snapped.y / defly.UNIT_WIDTH
+    ).toRounded(2);
   },
 
   updateFocusPoint: function () {
@@ -2390,14 +2624,26 @@ const DME = {
       this.mapData.width / mz,
       this.mapData.height / mz
     );
-    if(this.visuals.showMapHalves){
+    if (this.visuals.showMapHalves) {
       ctx.strokeStyle = "#A0A0FF";
-      ctx.lineWidth = 1 + 0.5/mz;
+      ctx.lineWidth = 1 + 0.5 / mz;
       ctx.beginPath();
-      ctx.moveTo(this.relToFsPt.x(-50),this.relToFsPt.y(this.mapData.height/2));
-      ctx.lineTo(this.relToFsPt.x(this.mapData.width+50),this.relToFsPt.y(this.mapData.height/2));
-      ctx.moveTo(this.relToFsPt.x(this.mapData.width/2),this.relToFsPt.y(-50));
-      ctx.lineTo(this.relToFsPt.x(this.mapData.width/2),this.relToFsPt.y(this.mapData.height+50));
+      ctx.moveTo(
+        this.relToFsPt.x(-50),
+        this.relToFsPt.y(this.mapData.height / 2)
+      );
+      ctx.lineTo(
+        this.relToFsPt.x(this.mapData.width + 50),
+        this.relToFsPt.y(this.mapData.height / 2)
+      );
+      ctx.moveTo(
+        this.relToFsPt.x(this.mapData.width / 2),
+        this.relToFsPt.y(-50)
+      );
+      ctx.lineTo(
+        this.relToFsPt.x(this.mapData.width / 2),
+        this.relToFsPt.y(this.mapData.height + 50)
+      );
       ctx.stroke();
     }
 
@@ -2406,6 +2652,33 @@ const DME = {
 
     let wallWidth = defly.WALL_WIDTH / mz;
     let towerWidth = defly.TOWER_WIDTH / mz;
+
+    //draw koth bounds
+    if (this.mapData.koth) {
+      let koth = this.mapData.koth;
+      ctx.fillStyle = "rgba(212,175,55,.5)";
+      let w = (koth[2] ? koth[2] : mc.x) - koth[0],
+        h = (koth[3] ? koth[3] : mc.y) - koth[1];
+      ctx.fillRect(
+        this.relToFsPt.x(koth[0]),
+        this.relToFsPt.y(koth[1]),
+        w / mz,
+        h / mz
+      );
+      if (this.editMode == "KOTH") {
+        let x = koth[4] ? mc.x : koth[0],
+          y = koth[4] ? mc.y : koth[1],
+          w = (koth[4] ? koth[2] : mc.x) - x,
+          h = (koth[4] ? koth[3] : mc.y) - y;
+        ctx.strokeStyle = "rgba(148,122,38,.5)";
+        ctx.strokeRect(
+          this.relToFsPt.x(x),
+          this.relToFsPt.y(y),
+          w / mz,
+          h / mz
+        );
+      }
+    }
 
     //draw areas
     DME.mapData.areas.forEach((area) => {
@@ -2444,7 +2717,7 @@ const DME = {
       let t = this.mapData.towers;
       this.selectedTowers.forEach((index) => {
         let tower = t[index];
-        if(!tower?.isNotTower){
+        if (!tower?.isNotTower) {
           ctx.strokeStyle = defly.colors.standard[tower.color];
           ctx.lineWidth = wallWidth - 4 / mz;
           ctx.beginPath();
@@ -2475,80 +2748,99 @@ const DME = {
         x: this.relToFsPt.x(tower.x),
         y: this.relToFsPt.y(tower.y),
       };
-      if(!tower?.isNotTower){
+      if (!tower?.isNotTower) {
         if (this.selectedTowers.includes(index)) {
           ctx.fillStyle = "rgba(230, 50, 50, 0.6)";
           ctx.beginPath();
           ctx.arc(t.x, t.y, towerWidth + 10, 2 * Math.PI, false);
           ctx.fill();
         }
-        ctx.fillStyle = defly.colors.darkened[tower.color];
+        let colorId = tower?.isKothTower ? false : tower.color;
+        ctx.fillStyle = colorId ? defly.colors.darkened[colorId] : 'rgb(70, 52, 14)';
         ctx.beginPath();
         ctx.arc(t.x, t.y, towerWidth, 2 * Math.PI, false);
         ctx.fill();
         //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
-        ctx.fillStyle = defly.colors.standard[tower.color];
+        ctx.fillStyle = colorId ? defly.colors.standard[colorId] : 'rgb(195,143,39)';
         ctx.beginPath();
         ctx.arc(t.x, t.y, towerWidth - 2 / mz, 2 * Math.PI, false);
         ctx.fill();
 
         //if tower is shielded, draw shield
-        if(tower?.isShielded){
-          ctx.shadowColor = 'black';
+        if (tower?.isShielded) {
+          ctx.shadowColor = "black";
           ctx.strokeStyle = defly.colors.faded[1];
-          ctx.lineWidth = 2/mz;
-          ctx.shadowBlur = 3/mz;
+          ctx.lineWidth = 2 / mz;
+          ctx.shadowBlur = 3 / mz;
           ctx.beginPath();
-          ctx.arc(t.x, t.y, towerWidth + 2/mz, 2 * Math.PI, false);
+          ctx.arc(t.x, t.y, towerWidth + 2 / mz, 2 * Math.PI, false);
           ctx.stroke();
           ctx.shadowBlur = 0;
+        } 
+        if(!colorId) {
+          let w = defly.TOWER_WIDTH / mz;
+          ctx.drawImage(
+            defly.images.koth_crown,
+            t.x - w,
+            t.y - w,
+            w * 2,
+            w * 2
+          );
         }
       } else {
         //not a tower: either spawn or bomb
-        let bombRadius = 6*defly.UNIT_WIDTH/mz, sS = 4.5*defly.UNIT_WIDTH/mz, tS = defly.TOWER_WIDTH/mz;
+        let bombRadius = (6 * defly.UNIT_WIDTH) / mz,
+          sS = (4.5 * defly.UNIT_WIDTH) / mz,
+          tS = defly.TOWER_WIDTH / mz;
 
-        if(tower.id > -3) {
+        if (tower.id > -3) {
           //bomb spot
           let img = defly.images.bombB;
-          if(tower.id == -1) img = defly.images.bombA;
-          ctx.drawImage(img, t.x-bombRadius, t.y-bombRadius, 2*bombRadius, 2*bombRadius);
+          if (tower.id == -1) img = defly.images.bombA;
+          ctx.drawImage(
+            img,
+            t.x - bombRadius,
+            t.y - bombRadius,
+            2 * bombRadius,
+            2 * bombRadius
+          );
         } else {
           //spawn
           let col = tower.id == -3 ? 3 : 2;
           ctx.fillStyle = defly.colors.faded[col];
-          ctx.fillRect(t.x-sS,t.y-sS,2*sS,2*sS);
+          ctx.fillRect(t.x - sS, t.y - sS, 2 * sS, 2 * sS);
           //triangle, based on spawn rotation
           ctx.fillStyle = defly.colors.standard[col];
           ctx.beginPath();
-          switch(tower.rotation){
-            case 0:{
-              ctx.moveTo(t.x-tS,t.y);
-              ctx.lineTo(t.x+tS,t.y-tS);
-              ctx.lineTo(t.x+tS,t.y+tS);
+          switch (tower.rotation) {
+            case 0: {
+              ctx.moveTo(t.x - tS, t.y);
+              ctx.lineTo(t.x + tS, t.y - tS);
+              ctx.lineTo(t.x + tS, t.y + tS);
               break;
             }
-            case 1:{
-              ctx.moveTo(t.x+tS,t.y);
-              ctx.lineTo(t.x-tS,t.y-tS);
-              ctx.lineTo(t.x-tS,t.y+tS);
+            case 1: {
+              ctx.moveTo(t.x + tS, t.y);
+              ctx.lineTo(t.x - tS, t.y - tS);
+              ctx.lineTo(t.x - tS, t.y + tS);
               break;
             }
-            case 2:{
-              ctx.moveTo(t.x,t.y-tS);
-              ctx.lineTo(t.x-tS,t.y+tS);
-              ctx.lineTo(t.x+tS,t.y+tS);
+            case 2: {
+              ctx.moveTo(t.x, t.y - tS);
+              ctx.lineTo(t.x - tS, t.y + tS);
+              ctx.lineTo(t.x + tS, t.y + tS);
               break;
             }
-            case 3:{
-              ctx.moveTo(t.x,t.y+tS);
-              ctx.lineTo(t.x-tS,t.y-tS);
-              ctx.lineTo(t.x+tS,t.y-tS);
+            case 3: {
+              ctx.moveTo(t.x, t.y + tS);
+              ctx.lineTo(t.x - tS, t.y - tS);
+              ctx.lineTo(t.x + tS, t.y - tS);
               break;
             }
           }
           ctx.closePath();
           ctx.fill();
-            //l, r, o, u
+          //l, r, o, u
         }
 
         if (this.selectedTowers.includes(index)) {
@@ -2610,6 +2902,261 @@ const DME = {
     }
   },
 
+  handleInput: function (type, e) {
+    switch (type) {
+      case "mousedown": {
+        switch (this.editMode) {
+          case "building": {
+            switch (e.button) {
+              case 0: {
+                if (this.chunckOptions.hovering) {
+                  this.resizeChunkByDrag(0);
+                } else this.selectTower();
+                break;
+              }
+              case 1: {
+                this.selectChunk(0);
+                break;
+              }
+              case 2: {
+                if (!this.chunckOptions.hovering) this.placeTower();
+                break;
+              }
+            }
+            break;
+          }
+          case "KOTH": {
+            if (e.button == 0 || e.button == 2) {
+              this.handleKothInput(this.mapData.koth[4] ? 1 : 2);
+            }
+            break;
+          }
+        }
+        break;
+      }
+      case "mouseup": {
+        switch (this.editMode) {
+          case "building": {
+            switch (e.button) {
+              case 0: {
+                if (this.chunckOptions.isChanging) {
+                  this.resizeChunkByDrag(2);
+                }
+                break;
+              }
+              case 1: {
+                this.selectChunk(1);
+                break;
+              }
+              case 2: {
+                break;
+              }
+            }
+          }
+        }
+        break;
+      }
+      case "wheel": {
+        //zoom value realtive to mouse sensitivity
+        let v = e.deltaY / 1250;
+        DME.mapZoom *= v > 0 ? 1.02 + v : 1 / (1.02 - v);
+
+        //update focus point relative to mouse coords
+        let fpDelta = {
+          x:
+            this.mouseCoords.relative.x -
+            (this.focusPoint.x +
+              (this.mouseCoords.real.x - this.focusOffset.x) * this.mapZoom),
+          y:
+            this.mouseCoords.relative.y -
+            (this.focusPoint.y +
+              (this.mouseCoords.real.y - this.focusOffset.y) * this.mapZoom),
+        };
+        this.focusPoint.x += fpDelta.x;
+        this.focusPoint.y += fpDelta.y;
+        this.updateChunkOptions();
+        break;
+      }
+      case "mousemove": {
+        this.updateMouse(e.clientX, e.clientY);
+        break;
+      }
+      case "keydown": {
+        //console.log(e.key.toLocaleUpperCase());
+        //ignore hotkeys if a menu is open
+        if (this.openMenu) return;
+        switch (e.key.toLocaleUpperCase()) {
+          case this.hotkeys.Control: {
+            this.isKeyPressed.CONTROL = true;
+            break;
+          }
+          case this.hotkeys.Shift: {
+            this.isKeyPressed.SHIFT = true;
+            break;
+          }
+          case this.hotkeys.Enter: {
+            this.isKeyPressed.ENTER = true;
+            break;
+          }
+          case this.hotkeys.toggleSnap1:
+          case this.hotkeys.toggleSnap2: {
+            let c = document.querySelector(
+              "#DME-toggle-snapping-checkbox"
+            ).checked;
+            document.querySelector("#DME-toggle-snapping-checkbox").checked =
+              !c;
+            this.snapping = !c;
+            break;
+          }
+          case this.hotkeys.toggleMirrorMode1:
+          case this.hotkeys.toggleMirrorMode2: {
+            this.isKeyPressed.MirrorMode = true;
+            break;
+          }
+          case this.hotkeys.toggleRotateMode1:
+          case this.hotkeys.toggleRotateMode2: {
+            this.isKeyPressed.RotateMode = true;
+            break;
+          }
+          case this.hotkeys.Delete1:
+          case this.hotkeys.Delete2: {
+            this.deleteTowers();
+            break;
+          }
+          case this.hotkeys.shadeArea1:
+          case this.hotkeys.shadeArea2: {
+            console.log("Looking for Area to enshade...");
+            this.placeArea();
+            break;
+          }
+          case this.hotkeys.shieldTower1:
+          case this.hotkeys.shieldTower2: {
+            this.shieldTowers();
+            break;
+          }
+          case this.hotkeys.placeBombA1:
+          case this.hotkeys.placeBombA2: {
+            this.placeSpecial(1);
+            break;
+          }
+          case this.hotkeys.placeBombB1:
+          case this.hotkeys.placeBombB2: {
+            this.placeSpecial(2);
+            break;
+          }
+          case this.hotkeys.placSpawnRed1:
+          case this.hotkeys.placSpawnRed2: {
+            this.placeSpecial(3);
+            break;
+          }
+          case this.hotkeys.placSpawnBlue1:
+          case this.hotkeys.placSpawnBlue2: {
+            this.placeSpecial(4);
+            break;
+          }
+          case this.hotkeys.MoveUp1:
+          case this.hotkeys.MoveUp2: {
+            /*if (e.shiftKey) this.resizeChunk(0, this.snapRange, { z: true });
+          else this.isKeyPressed.MoveUp = true;*/
+            this.handleMoveInput("Up");
+            break;
+          }
+          case this.hotkeys.MoveDown1:
+          case this.hotkeys.MoveDown2: {
+            this.handleMoveInput("Down");
+            break;
+          }
+          case this.hotkeys.MoveLeft1:
+          case this.hotkeys.MoveLeft2: {
+            this.handleMoveInput("Left");
+            break;
+          }
+          case this.hotkeys.MoveRight1:
+          case this.hotkeys.MoveRight2: {
+            this.handleMoveInput("Right");
+            break;
+          }
+          case this.hotkeys.copyChunk1:
+          case this.hotkeys.copyChunk2: {
+            if (e.ctrlKey) this.copyChunk();
+            break;
+          }
+          case this.hotkeys.pasteChunk1:
+          case this.hotkeys.pasteChunk2: {
+            if (e.ctrlKey) this.pasteChunk();
+            break;
+          }
+          case "ESCAPE": {
+            this.selectedTowers = [];
+            this.updateChunkOptions();
+          }
+        }
+        break;
+      }
+      case "keyup": {
+        switch (e.key.toLocaleUpperCase()) {
+          case this.hotkeys.Control: {
+            this.isKeyPressed.CONTROL = false;
+            break;
+          }
+          case this.hotkeys.Shift: {
+            this.isKeyPressed.SHIFT = false;
+            break;
+          }
+          case this.hotkeys.Enter: {
+            this.isKeyPressed.ENTER = false;
+            break;
+          }
+          case this.hotkeys.toggleSnap1:
+          case this.hotkeys.toggleSnap2: {
+            break;
+          }
+          case this.hotkeys.toggleMirrorMode1:
+          case this.hotkeys.toggleMirrorMode2: {
+            this.isKeyPressed.MirrorMode = false;
+            break;
+          }
+          case this.hotkeys.toggleRotateMode1:
+          case this.hotkeys.toggleRotateMode2: {
+            this.isKeyPressed.RotateMode = false;
+            break;
+          }
+          case this.hotkeys.MoveUp1:
+          case this.hotkeys.MoveUp2: {
+            this.isKeyPressed.MoveUp = false;
+            break;
+          }
+          case this.hotkeys.MoveDown1:
+          case this.hotkeys.MoveDown2: {
+            this.isKeyPressed.MoveDown = false;
+            break;
+          }
+          case this.hotkeys.MoveLeft1:
+          case this.hotkeys.MoveLeft2: {
+            this.isKeyPressed.MoveLeft = false;
+            break;
+          }
+          case this.hotkeys.MoveRight1:
+          case this.hotkeys.MoveRight2: {
+            this.isKeyPressed.MoveRight = false;
+            break;
+          }
+          case this.hotkeys.undoAction1:
+          case this.hotkeys.undoAction2: {
+            if (e.ctrlKey) this.modifyLastAction(0);
+            break;
+          }
+          case this.hotkeys.redoAction1:
+          case this.hotkeys.redoAction2: {
+            if (e.ctrlKey) this.modifyLastAction(1);
+            break;
+          }
+        }
+        break;
+      }
+    }
+  },
+
   config: function () {
     if (hasLocalStorage) {
       if (!localStorage.getItem("DMEhotkeys")) {
@@ -2629,10 +3176,7 @@ const DME = {
         }
       });
       if (!localStorage.getItem("DMEauto-saved-map")) {
-        localStorage.setItem(
-          "DMEauto-saved-map",
-          "210,120|||||"
-        );
+        localStorage.setItem("DMEauto-saved-map", "210,120|||||");
       } else {
         DME.loadMap(localStorage.getItem("DMEauto-saved-map"), "compact");
       }
@@ -2642,240 +3186,32 @@ const DME = {
       }
     }
     this.focusPoint = {
-      x: this.mapData.width/2,
-      y: this.mapData.height/2,
-    }
+      x: this.mapData.width / 2,
+      y: this.mapData.height / 2,
+    };
     /**/ //local storage not needed rn
     canvas.classList.remove("hidden");
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+
     canvas.addEventListener("mousedown", (e) => {
-      switch (e.button) {
-        case 0: {
-          if (this.chunckOptions.hovering) {
-            this.resizeChunkByDrag(0);
-          } else this.selectTower();
-          break;
-        }
-        case 1: {
-          this.selectChunk(0);
-          break;
-        }
-        case 2: {
-          if (!this.chunckOptions.hovering) this.placeTower();
-          break;
-        }
-      }
+      this.handleInput("mousedown", e);
     });
     canvas.addEventListener("mouseup", (e) => {
-      switch (e.button) {
-        case 0: {
-          if (this.chunckOptions.isChanging) {
-            this.resizeChunkByDrag(2);
-          }
-          break;
-        }
-        case 1: {
-          this.selectChunk(1);
-          break;
-        }
-        case 2: {
-          break;
-        }
-      }
+      this.handleInput("mouseup", e);
     });
     canvas.addEventListener("wheel", (e) => {
-      //zoom value realtive to mouse sensitivity
-      let v = e.deltaY / 1250;
-      DME.mapZoom *= v > 0 ? 1.02 + v : 1 / (1.02 - v);
-
-      //update focus point relative to mouse coords
-      let fpDelta = {
-        x:
-          this.mouseCoords.relative.x -
-          (this.focusPoint.x +
-            (this.mouseCoords.real.x - this.focusOffset.x) * this.mapZoom),
-        y:
-          this.mouseCoords.relative.y -
-          (this.focusPoint.y +
-            (this.mouseCoords.real.y - this.focusOffset.y) * this.mapZoom),
-      };
-      this.focusPoint.x += fpDelta.x;
-      this.focusPoint.y += fpDelta.y;
-      this.updateChunkOptions();
+      this.handleInput("wheel", e);
     });
     canvas.addEventListener("mousemove", (e) => {
-      this.updateMouse(e.clientX, e.clientY);
+      this.handleInput("mousemove", e);
     });
+
     document.addEventListener("keydown", (e) => {
-      //console.log(e.key.toLocaleUpperCase());
-      //ignore hotkeys if a menu is open
-      if (this.openMenu) return;
-      switch (e.key.toLocaleUpperCase()) {
-        case this.hotkeys.Control: {
-          this.isKeyPressed.CONTROL = true;
-          break;
-        }
-        case this.hotkeys.Shift: {
-          this.isKeyPressed.SHIFT = true;
-          break;
-        }
-        case this.hotkeys.Enter: {
-          this.isKeyPressed.ENTER = true;
-          break;
-        }
-        case this.hotkeys.toggleSnap1:
-        case this.hotkeys.toggleSnap2: {
-          let c = document.querySelector(
-            "#DME-toggle-snapping-checkbox"
-          ).checked;
-          document.querySelector("#DME-toggle-snapping-checkbox").checked = !c;
-          this.snapping = !c;
-          break;
-        }
-        case this.hotkeys.toggleMirrorMode1:
-        case this.hotkeys.toggleMirrorMode2: {
-          this.isKeyPressed.MirrorMode = true;
-          break;
-        }
-        case this.hotkeys.toggleRotateMode1:
-        case this.hotkeys.toggleRotateMode2: {
-          this.isKeyPressed.RotateMode = true;
-          break;
-        }
-        case this.hotkeys.Delete1:
-        case this.hotkeys.Delete2: {
-          this.deleteTowers();
-          break;
-        }
-        case this.hotkeys.shadeArea1:
-        case this.hotkeys.shadeArea2: {
-          console.log("Looking for Area to enshade...");
-          this.placeArea();
-          break;
-        }
-        case this.hotkeys.shieldTower1:
-        case this.hotkeys.shieldTower2: {
-          this.shieldTowers();
-          break;
-        }
-        case this.hotkeys.placeBombA1:
-        case this.hotkeys.placeBombA2: {
-          this.placeSpecial(1);
-          break;
-        }
-        case this.hotkeys.placeBombB1:
-        case this.hotkeys.placeBombB2: {
-          this.placeSpecial(2);
-          break;
-        }
-        case this.hotkeys.placSpawnRed1:
-        case this.hotkeys.placSpawnRed2: {
-          this.placeSpecial(3);
-          break;
-        }
-        case this.hotkeys.placSpawnBlue1:
-        case this.hotkeys.placSpawnBlue2: {
-          this.placeSpecial(4);
-          break;
-        }
-        case this.hotkeys.MoveUp1:
-        case this.hotkeys.MoveUp2: {
-          /*if (e.shiftKey) this.resizeChunk(0, this.snapRange, { z: true });
-          else this.isKeyPressed.MoveUp = true;*/
-          this.handleMoveInput('Up');
-          break;
-        }
-        case this.hotkeys.MoveDown1:
-        case this.hotkeys.MoveDown2: {
-          this.handleMoveInput('Down');
-          break;
-        }
-        case this.hotkeys.MoveLeft1:
-        case this.hotkeys.MoveLeft2: {
-          this.handleMoveInput('Left');
-          break;
-        }
-        case this.hotkeys.MoveRight1:
-        case this.hotkeys.MoveRight2: {
-          this.handleMoveInput('Right');
-          break;
-        }
-        case this.hotkeys.copyChunk1:
-        case this.hotkeys.copyChunk2: {
-          if (e.ctrlKey) this.copyChunk();
-          break;
-        }
-        case this.hotkeys.pasteChunk1:
-        case this.hotkeys.pasteChunk2: {
-          if (e.ctrlKey) this.pasteChunk();
-          break;
-        }
-        case 'ESCAPE':{
-          this.selectedTowers = [];
-          this.updateChunkOptions();
-        }
-      }
+      this.handleInput("keydown", e);
     });
     document.addEventListener("keyup", (e) => {
-      switch (e.key.toLocaleUpperCase()) {
-        case this.hotkeys.Control: {
-          this.isKeyPressed.CONTROL = false;
-          break;
-        }
-        case this.hotkeys.Shift: {
-          this.isKeyPressed.SHIFT = false;
-          break;
-        }
-        case this.hotkeys.Enter: {
-          this.isKeyPressed.ENTER = false;
-          break;
-        }
-        case this.hotkeys.toggleSnap1:
-        case this.hotkeys.toggleSnap2: {
-          break;
-        }
-        case this.hotkeys.toggleMirrorMode1:
-        case this.hotkeys.toggleMirrorMode2: {
-          this.isKeyPressed.MirrorMode = false;
-          break;
-        }
-        case this.hotkeys.toggleRotateMode1:
-        case this.hotkeys.toggleRotateMode2: {
-          this.isKeyPressed.RotateMode = false;
-          break;
-        }
-        case this.hotkeys.MoveUp1:
-        case this.hotkeys.MoveUp2: {
-          this.isKeyPressed.MoveUp = false;
-          break;
-        }
-        case this.hotkeys.MoveDown1:
-        case this.hotkeys.MoveDown2: {
-          this.isKeyPressed.MoveDown = false;
-          break;
-        }
-        case this.hotkeys.MoveLeft1:
-        case this.hotkeys.MoveLeft2: {
-          this.isKeyPressed.MoveLeft = false;
-          break;
-        }
-        case this.hotkeys.MoveRight1:
-        case this.hotkeys.MoveRight2: {
-          this.isKeyPressed.MoveRight = false;
-          break;
-        }
-        case this.hotkeys.undoAction1:
-        case this.hotkeys.undoAction2: {
-          if (e.ctrlKey) this.modifyLastAction(0);
-          break;
-        }
-        case this.hotkeys.redoAction1:
-        case this.hotkeys.redoAction2: {
-          if (e.ctrlKey) this.modifyLastAction(1);
-          break;
-        }
-      }
+      this.handleInput("keyup", e);
     });
     this.updateCanvas();
   },
