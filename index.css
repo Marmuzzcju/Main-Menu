@@ -198,6 +198,33 @@ button {
   font-size: 16px;
 }
 
+#DME-visuals-menu {
+  border-radius: 10px;
+  flex-direction: column;
+  position: fixed;
+  left: 355px;
+  top: 30px;
+  width: 280px;
+  background-color: rgba(10, 10, 10, 0.6);
+  z-index: 11;
+}
+#DME-visuals-menu > div {
+  padding: 2px 0;
+  display: flex;
+  justify-content: space-around;
+}
+#DME-visuals-menu > div > span {
+  color: white;
+  font-size: 18px;
+  width: 200px;
+}
+#DME-visuals-menu > div > button {
+  border-radius: 4px;
+  width: 125px;
+  height: 23.6px;
+  font-size: 16px;
+}
+
 #DME-coords-info {
   position: fixed;
   bottom: 10px;

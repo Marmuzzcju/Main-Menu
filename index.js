@@ -394,6 +394,7 @@ const DME = {
   snapping: false,
 
   openMenu: false,
+  openSubMenu: '',
 
   mapData: {
     width: 210 * defly.UNIT_WIDTH,
@@ -2903,6 +2904,43 @@ const DME = {
       ctx.strokeRect(this.relToFsPt.x(s.x), this.relToFsPt.y(s.y), w, h);
     }
   },
+
+  toggleMenu: function(menu){
+    switch(menu){
+      case 'hotkeys':{
+        let m=document.querySelector('#DME-hotkey-menu'),
+            wasOpen = m.style.display == 'flex';
+        if(!wasOpen && this.openSubMenu != 'hotkeys') {
+          this.toggleMenu(this.openSubMenu);
+          this.openSubMenu = 'hotkeys';
+        } else this.openSubMenu = wasOpen ? '' : 'hotkeys';
+        m.style.display = wasOpen ? 'none' : 'flex';
+        this.openMenu = !wasOpen;
+        if (this.changeKeybind.isChanging) {
+          this.changeKeybind.element.innerText =
+          this.hotkeys[this.changeKeybind.binding];
+          this.changeKeybind.element.style.fontSize = "16px";
+          this.changeKeybind.isChanging = false;
+        }
+        break;
+      }
+      case 'visuals':{
+        let m=document.querySelector('#DME-visuals-menu'),
+            wasOpen = m.style.display == 'flex';
+        if(!wasOpen && this.openSubMenu != 'visuals') {
+          this.toggleMenu(this.openSubMenu);
+          this.openSubMenu = 'visuals';
+        } else this.openSubMenu = wasOpen ? '' : 'visuals';
+        m.style.display = wasOpen ? 'none' : 'flex';
+        this.openMenu = !wasOpen;
+        break;
+      }
+      default:{
+        console.log('unknown menu toggle');
+        break;
+      }
+    }
+     },
 
   handleInput: function (type, e) {
     switch (type) {
