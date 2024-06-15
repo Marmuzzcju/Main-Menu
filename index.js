@@ -339,6 +339,16 @@ const DME = {
     toggleMirrorMode2: "",
     toggleRotateMode1: "R",
     toggleRotateMode2: "",
+    placeTower1: "Right Click",
+    placeTower2: "",
+    selectTower1: "Left Click",
+    selectTower2: "",
+    selectArea1: "Middle Click",
+    selectArea2: "",
+    zoomOut1: 'Scroll Down',
+    zoomOut2: '-',
+    zoomIn1: 'Scroll Up',
+    zoomIn2: '+',
   },
   changeKeybind: {
     isChanging: false,
@@ -380,9 +390,9 @@ const DME = {
     showBackgroundImage: true,
     backgroundImage: new Image(),
     keepBackgroundImageRatio: false,
-    grid_BGC: '#eeeeee',
-    map_BGC: '#e0e0e0',
-    grid_lineC: '#999999',
+    grid_BGC: "#eeeeee",
+    map_BGC: "#e0e0e0",
+    grid_lineC: "#999999",
     grid_line_width: 1,
   },
 
@@ -400,8 +410,8 @@ const DME = {
   snapRange: 2 * defly.UNIT_WIDTH,
   snapping: false,
 
-  openMenu: false,
-  openSubMenu: '',
+  blockInput: false,
+  openSubMenu: "",
 
   mapData: {
     width: 210 * defly.UNIT_WIDTH,
@@ -821,7 +831,13 @@ const DME = {
     let kothIds = [];
     this.mapData.towers.forEach((t) => {
       let k = this.mapData.koth;
-      if (t.x >= k[0] && t.x <= k[2] && t.y >= k[1] && t.y <= k[3] && t.id > 0) {
+      if (
+        t.x >= k[0] &&
+        t.x <= k[2] &&
+        t.y >= k[1] &&
+        t.y <= k[3] &&
+        t.id > 0
+      ) {
         t.isKothTower = true;
       } else t.isKothTower = false;
       if (t.isKothTower) {
@@ -2296,6 +2312,7 @@ const DME = {
         this.hotkeys[this.changeKeybind.binding];
       this.changeKeybind.element.style.fontSize = "16px";
     }
+    this.blockInput = true;
     this.changeKeybind.isChanging = true;
     this.changeKeybind.binding = key;
     this.changeKeybind.element = document.querySelector(`#DME-ch-${key}`);
@@ -2308,13 +2325,28 @@ const DME = {
       }
       let newBind = event.key.toUpperCase();
       newBind = newBind == "ESCAPE" ? "" : newBind;
+      assignNewKeybind(newBind);
+      return;
+    };
+    onmousedown = function (event) {
+      if (!DME.changeKeybind.isChanging) {
+        return;
+      }
+      let mKeys = ["Left Click", "Middle Click", "Right Click"];
+      let newBind = mKeys?.[event.button] ? mKeys[event.button] : `Button ${event.button}`;
+      newBind = newBind == "ESCAPE" ? "" : newBind;
+      assignNewKeybind(newBind);
+      return;
+    };
+    function assignNewKeybind(newBind) {
       DME.changeKeybind.element.innerText = newBind;
       DME.changeKeybind.element.style.fontSize = "16px";
       //markDoubleKeys();
       DME.changeKeybind.isChanging = false;
       DME.hotkeys[DME.changeKeybind.binding] = newBind;
+      DME.blockInput = false;
       return;
-    };
+    }
   },
 
   handleMoveInput: function (direction) {
@@ -2518,6 +2550,27 @@ const DME = {
     }
   },
 
+  updateMapZoom: function(zoom) {
+    //zoom value realtive to mouse sensitivity
+    let v = zoom / 1250;
+    DME.mapZoom *= v > 0 ? 1.02 + v : 1 / (1.02 - v);
+
+    //update focus point relative to mouse coords
+    let fpDelta = {
+      x:
+        this.mouseCoords.relative.x -
+        (this.focusPoint.x +
+          (this.mouseCoords.real.x - this.focusOffset.x) * this.mapZoom),
+      y:
+        this.mouseCoords.relative.y -
+        (this.focusPoint.y +
+          (this.mouseCoords.real.y - this.focusOffset.y) * this.mapZoom),
+    };
+    this.focusPoint.x += fpDelta.x;
+    this.focusPoint.y += fpDelta.y;
+    this.updateChunkOptions();
+  },
+
   //will be called once upon starting chunck resize
   updateChunkOptions: function () {
     if (this.selectedTowers.length > 1) {
@@ -2612,21 +2665,33 @@ const DME = {
       this.mapData.width / mz,
       this.mapData.height / mz
     );
-    if(this.visuals.showBackgroundImage && this.visuals.backgroundImage.src) {
-      if(this.visuals.keepBackgroundImageRatio){
+    if (this.visuals.showBackgroundImage && this.visuals.backgroundImage.src) {
+      if (this.visuals.keepBackgroundImageRatio) {
         let img = this.visuals.backgroundImage,
-            imgWidthRatio = img.width/img.height,
-            mapWidthRatio = this.mapData.width/this.mapData.height;
-        let scale = imgWidthRatio > mapWidthRatio ? img.width/this.mapData.width : img.height/this.mapData.height;
-        ctx.drawImage(this.visuals.backgroundImage,
-                      this.relToFsPt.x((this.mapData.width - img.width / scale) / 2), this.relToFsPt.y((this.mapData.height - img.height / scale) / 2),
-                      img.width / mz / scale, img.height / mz / scale);
-        
+          imgWidthRatio = img.width / img.height,
+          mapWidthRatio = this.mapData.width / this.mapData.height;
+        let scale =
+          imgWidthRatio > mapWidthRatio
+            ? img.width / this.mapData.width
+            : img.height / this.mapData.height;
+        ctx.drawImage(
+          this.visuals.backgroundImage,
+          this.relToFsPt.x((this.mapData.width - img.width / scale) / 2),
+          this.relToFsPt.y((this.mapData.height - img.height / scale) / 2),
+          img.width / mz / scale,
+          img.height / mz / scale
+        );
       } else {
-        ctx.drawImage(this.visuals.backgroundImage, this.relToFsPt.x(0), this.relToFsPt.y(0), this.mapData.width / mz, this.mapData.height / mz);
+        ctx.drawImage(
+          this.visuals.backgroundImage,
+          this.relToFsPt.x(0),
+          this.relToFsPt.y(0),
+          this.mapData.width / mz,
+          this.mapData.height / mz
+        );
       }
     }
-    if(Number(this.visuals.grid_line_width)){
+    if (Number(this.visuals.grid_line_width)) {
       ctx.strokeStyle = this.visuals.grid_lineC;
       ctx.beginPath();
       ctx.lineWidth = this.visuals.grid_line_width / mz;
@@ -2782,12 +2847,16 @@ const DME = {
           ctx.fill();
         }
         let colorId = tower?.isKothTower ? false : tower.color;
-        ctx.fillStyle = colorId ? defly.colors.darkened[colorId] : 'rgb(70, 52, 14)';
+        ctx.fillStyle = colorId
+          ? defly.colors.darkened[colorId]
+          : "rgb(70, 52, 14)";
         ctx.beginPath();
         ctx.arc(t.x, t.y, towerWidth, 2 * Math.PI, false);
         ctx.fill();
         //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
-        ctx.fillStyle = colorId ? defly.colors.standard[colorId] : 'rgb(195,143,39)';
+        ctx.fillStyle = colorId
+          ? defly.colors.standard[colorId]
+          : "rgb(195,143,39)";
         ctx.beginPath();
         ctx.arc(t.x, t.y, towerWidth - 2 / mz, 2 * Math.PI, false);
         ctx.fill();
@@ -2802,8 +2871,8 @@ const DME = {
           ctx.arc(t.x, t.y, towerWidth + 2 / mz, 2 * Math.PI, false);
           ctx.stroke();
           ctx.shadowBlur = 0;
-        } 
-        if(!colorId) {
+        }
+        if (!colorId) {
           let w = defly.TOWER_WIDTH / mz;
           ctx.drawImage(
             defly.images.koth_crown,
@@ -2928,103 +2997,229 @@ const DME = {
     }
   },
 
-  toggleMenu: function(menu){
-    switch(menu){
-      case 'hotkeys':{
-        let m=document.querySelector('#DME-hotkey-menu'),
-            wasOpen = m.style.display == 'flex';
-        if(!wasOpen && this.openSubMenu != 'hotkeys') {
+  toggleMenu: function (menu) {
+    switch (menu) {
+      case "hotkeys": {
+        let m = document.querySelector("#DME-hotkey-menu"),
+          wasOpen = m.style.display == "flex";
+        if (!wasOpen && this.openSubMenu != "hotkeys") {
           this.toggleMenu(this.openSubMenu);
-          this.openSubMenu = 'hotkeys';
-        } else this.openSubMenu = wasOpen ? '' : 'hotkeys';
-        m.style.display = wasOpen ? 'none' : 'flex';
-        this.openMenu = !wasOpen;
+          this.openSubMenu = "hotkeys";
+        } else this.openSubMenu = wasOpen ? "" : "hotkeys";
+        m.style.display = wasOpen ? "none" : "flex";
         if (this.changeKeybind.isChanging) {
           this.changeKeybind.element.innerText =
-          this.hotkeys[this.changeKeybind.binding];
+            this.hotkeys[this.changeKeybind.binding];
           this.changeKeybind.element.style.fontSize = "16px";
           this.changeKeybind.isChanging = false;
         }
         break;
       }
-      case 'visuals':{
-        let m=document.querySelector('#DME-visuals-menu'),
-            wasOpen = m.style.display == 'flex';
-        if(!wasOpen && this.openSubMenu != 'visuals') {
+      case "visuals": {
+        let m = document.querySelector("#DME-visuals-menu"),
+          wasOpen = m.style.display == "flex";
+        if (!wasOpen && this.openSubMenu != "visuals") {
           this.toggleMenu(this.openSubMenu);
-          this.openSubMenu = 'visuals';
-        } else this.openSubMenu = wasOpen ? '' : 'visuals';
-        m.style.display = wasOpen ? 'none' : 'flex';
-        this.openMenu = !wasOpen;
+          this.openSubMenu = "visuals";
+        } else this.openSubMenu = wasOpen ? "" : "visuals";
+        m.style.display = wasOpen ? "none" : "flex";
         break;
       }
-      default:{
-        console.log('unknown menu toggle');
+      default: {
+        console.log("unknown menu toggle");
         break;
       }
     }
   },
 
-  loadBackgroundImage: function(input){
+  loadBackgroundImage: function (input) {
     if (input.files && input.files[0]) {
       let reader = new FileReader();
 
-      reader.onload = function(e) {
-          DME.visuals.backgroundImage.src = e.target.result;
-      }
+      reader.onload = function (e) {
+        DME.visuals.backgroundImage.src = e.target.result;
+      };
 
       reader.readAsDataURL(input.files[0]);
-  }
+    }
   },
 
-  applyColorPreset: function(preset){
-    switch(preset){
-      case 'light':{
-        this.visuals.grid_BGC = '#eeeeee';
-        this.visuals.map_BGC = '#e0e0e0';
-        this.visuals.grid_lineC = '#999999';
+  applyColorPreset: function (preset) {
+    switch (preset) {
+      case "light": {
+        this.visuals.grid_BGC = "#eeeeee";
+        this.visuals.map_BGC = "#e0e0e0";
+        this.visuals.grid_lineC = "#999999";
         break;
       }
-      case 'medium':{
-        this.visuals.grid_BGC = '#888888';
-        this.visuals.map_BGC = '#808080';
-        this.visuals.grid_lineC = '#505050';
+      case "medium": {
+        this.visuals.grid_BGC = "#888888";
+        this.visuals.map_BGC = "#808080";
+        this.visuals.grid_lineC = "#505050";
         break;
       }
-      case 'dark':{
-        this.visuals.grid_BGC = '#000000';
-        this.visuals.map_BGC = '#010101';
-        this.visuals.grid_lineC = '#e4e4e4';
+      case "dark": {
+        this.visuals.grid_BGC = "#000000";
+        this.visuals.map_BGC = "#010101";
+        this.visuals.grid_lineC = "#e4e4e4";
         break;
       }
     }
   },
 
-  handleInput: function (type, e) {
+  handleInput: function (type, input, extra) {
+    if(this.blockInput) return;
     switch (type) {
-      case "mousedown": {
+      case "mousemove": {
+        this.updateMouse(input.clientX, input.clientY);
+        break;
+      }
+      case "button_down": {
+        //console.log(e.key.toLocaleUpperCase());
+        //ignore hotkeys if a menu is open
+
         switch (this.editMode) {
           case "building": {
-            switch (e.button) {
-              case 0: {
+            switch (input) {
+              case this.hotkeys.zoomOut1:
+              case this.hotkeys.zoomOut2: {
+                if(!extra) extra = 100;
+                this.updateMapZoom(extra);
+                break;
+              }
+              case this.hotkeys.zoomIn1:
+              case this.hotkeys.zoomIn2: {
+                if(!extra) extra = -100;
+                this.updateMapZoom(extra);
+                break;
+              }
+              case this.hotkeys.selectTower1:
+              case this.hotkeys.selectTower2: {
                 if (this.chunckOptions.hovering) {
                   this.resizeChunkByDrag(0);
                 } else this.selectTower();
                 break;
               }
-              case 1: {
-                this.selectChunk(0);
+              case this.hotkeys.selectArea1:
+              case this.hotkeys.selectArea2: {
+                if(!this.selectingChunk.isSelecting) this.selectChunk(0);
                 break;
               }
-              case 2: {
+              case this.hotkeys.placeTower1:
+              case this.hotkeys.placeTower2: {
                 if (!this.chunckOptions.hovering) this.placeTower();
                 break;
+              }
+              case this.hotkeys.Control: {
+                this.isKeyPressed.CONTROL = true;
+                break;
+              }
+              case this.hotkeys.Shift: {
+                this.isKeyPressed.SHIFT = true;
+                break;
+              }
+              case this.hotkeys.Enter: {
+                this.isKeyPressed.ENTER = true;
+                break;
+              }
+              case this.hotkeys.toggleSnap1:
+              case this.hotkeys.toggleSnap2: {
+                let c = document.querySelector(
+                  "#DME-toggle-snapping-checkbox"
+                ).checked;
+                document.querySelector(
+                  "#DME-toggle-snapping-checkbox"
+                ).checked = !c;
+                this.snapping = !c;
+                break;
+              }
+              case this.hotkeys.toggleMirrorMode1:
+              case this.hotkeys.toggleMirrorMode2: {
+                this.isKeyPressed.MirrorMode = true;
+                break;
+              }
+              case this.hotkeys.toggleRotateMode1:
+              case this.hotkeys.toggleRotateMode2: {
+                this.isKeyPressed.RotateMode = true;
+                break;
+              }
+              case this.hotkeys.Delete1:
+              case this.hotkeys.Delete2: {
+                this.deleteTowers();
+                break;
+              }
+              case this.hotkeys.shadeArea1:
+              case this.hotkeys.shadeArea2: {
+                console.log("Looking for Area to enshade...");
+                this.placeArea();
+                break;
+              }
+              case this.hotkeys.shieldTower1:
+              case this.hotkeys.shieldTower2: {
+                this.shieldTowers();
+                break;
+              }
+              case this.hotkeys.placeBombA1:
+              case this.hotkeys.placeBombA2: {
+                this.placeSpecial(1);
+                break;
+              }
+              case this.hotkeys.placeBombB1:
+              case this.hotkeys.placeBombB2: {
+                this.placeSpecial(2);
+                break;
+              }
+              case this.hotkeys.placSpawnRed1:
+              case this.hotkeys.placSpawnRed2: {
+                this.placeSpecial(3);
+                break;
+              }
+              case this.hotkeys.placSpawnBlue1:
+              case this.hotkeys.placSpawnBlue2: {
+                this.placeSpecial(4);
+                break;
+              }
+              case this.hotkeys.MoveUp1:
+              case this.hotkeys.MoveUp2: {
+                /*if (e.shiftKey) this.resizeChunk(0, this.snapRange, { z: true });
+          else this.isKeyPressed.MoveUp = true;*/
+                this.handleMoveInput("Up");
+                break;
+              }
+              case this.hotkeys.MoveDown1:
+              case this.hotkeys.MoveDown2: {
+                this.handleMoveInput("Down");
+                break;
+              }
+              case this.hotkeys.MoveLeft1:
+              case this.hotkeys.MoveLeft2: {
+                this.handleMoveInput("Left");
+                break;
+              }
+              case this.hotkeys.MoveRight1:
+              case this.hotkeys.MoveRight2: {
+                this.handleMoveInput("Right");
+                break;
+              }
+              case this.hotkeys.copyChunk1:
+              case this.hotkeys.copyChunk2: {
+                if (e.ctrlKey) this.copyChunk();
+                break;
+              }
+              case this.hotkeys.pasteChunk1:
+              case this.hotkeys.pasteChunk2: {
+                if (e.ctrlKey) this.pasteChunk();
+                break;
+              }
+              case "ESCAPE": {
+                this.selectedTowers = [];
+                this.updateChunkOptions();
               }
             }
             break;
           }
           case "KOTH": {
-            if (e.button == 0 || e.button == 2) {
+            if (["Left Click", "Right Click"].includes(input)) {
               this.handleKothInput(this.mapData.koth[4] ? 1 : 2);
             }
             break;
@@ -3032,222 +3227,80 @@ const DME = {
         }
         break;
       }
-      case "mouseup": {
+      case "button_up": {
         switch (this.editMode) {
           case "building": {
-            switch (e.button) {
-              case 0: {
+            switch (input) {
+              /*case "Left Click":*/
+              case this.hotkeys.selectTower1:
+              case this.hotkeys.selectTower2: {
                 if (this.chunckOptions.isChanging) {
                   this.resizeChunkByDrag(2);
                 }
                 break;
               }
-              case 1: {
+              case this.hotkeys.selectArea1:
+              case this.hotkeys.selectArea2: {
                 this.selectChunk(1);
                 break;
               }
-              case 2: {
+              case this.hotkeys.Control: {
+                this.isKeyPressed.CONTROL = false;
+                break;
+              }
+              case this.hotkeys.Shift: {
+                this.isKeyPressed.SHIFT = false;
+                break;
+              }
+              case this.hotkeys.Enter: {
+                this.isKeyPressed.ENTER = false;
+                break;
+              }
+              case this.hotkeys.toggleSnap1:
+              case this.hotkeys.toggleSnap2: {
+                break;
+              }
+              case this.hotkeys.toggleMirrorMode1:
+              case this.hotkeys.toggleMirrorMode2: {
+                this.isKeyPressed.MirrorMode = false;
+                break;
+              }
+              case this.hotkeys.toggleRotateMode1:
+              case this.hotkeys.toggleRotateMode2: {
+                this.isKeyPressed.RotateMode = false;
+                break;
+              }
+              case this.hotkeys.MoveUp1:
+              case this.hotkeys.MoveUp2: {
+                this.isKeyPressed.MoveUp = false;
+                break;
+              }
+              case this.hotkeys.MoveDown1:
+              case this.hotkeys.MoveDown2: {
+                this.isKeyPressed.MoveDown = false;
+                break;
+              }
+              case this.hotkeys.MoveLeft1:
+              case this.hotkeys.MoveLeft2: {
+                this.isKeyPressed.MoveLeft = false;
+                break;
+              }
+              case this.hotkeys.MoveRight1:
+              case this.hotkeys.MoveRight2: {
+                this.isKeyPressed.MoveRight = false;
+                break;
+              }
+              case this.hotkeys.undoAction1:
+              case this.hotkeys.undoAction2: {
+                if (e.ctrlKey) this.modifyLastAction(0);
+                break;
+              }
+              case this.hotkeys.redoAction1:
+              case this.hotkeys.redoAction2: {
+                if (e.ctrlKey) this.modifyLastAction(1);
                 break;
               }
             }
-          }
-        }
-        break;
-      }
-      case "wheel": {
-        //zoom value realtive to mouse sensitivity
-        let v = e.deltaY / 1250;
-        DME.mapZoom *= v > 0 ? 1.02 + v : 1 / (1.02 - v);
-
-        //update focus point relative to mouse coords
-        let fpDelta = {
-          x:
-            this.mouseCoords.relative.x -
-            (this.focusPoint.x +
-              (this.mouseCoords.real.x - this.focusOffset.x) * this.mapZoom),
-          y:
-            this.mouseCoords.relative.y -
-            (this.focusPoint.y +
-              (this.mouseCoords.real.y - this.focusOffset.y) * this.mapZoom),
-        };
-        this.focusPoint.x += fpDelta.x;
-        this.focusPoint.y += fpDelta.y;
-        this.updateChunkOptions();
-        break;
-      }
-      case "mousemove": {
-        this.updateMouse(e.clientX, e.clientY);
-        break;
-      }
-      case "keydown": {
-        //console.log(e.key.toLocaleUpperCase());
-        //ignore hotkeys if a menu is open
-        if (this.openMenu) return;
-        switch (e.key.toLocaleUpperCase()) {
-          case this.hotkeys.Control: {
-            this.isKeyPressed.CONTROL = true;
-            break;
-          }
-          case this.hotkeys.Shift: {
-            this.isKeyPressed.SHIFT = true;
-            break;
-          }
-          case this.hotkeys.Enter: {
-            this.isKeyPressed.ENTER = true;
-            break;
-          }
-          case this.hotkeys.toggleSnap1:
-          case this.hotkeys.toggleSnap2: {
-            let c = document.querySelector(
-              "#DME-toggle-snapping-checkbox"
-            ).checked;
-            document.querySelector("#DME-toggle-snapping-checkbox").checked =
-              !c;
-            this.snapping = !c;
-            break;
-          }
-          case this.hotkeys.toggleMirrorMode1:
-          case this.hotkeys.toggleMirrorMode2: {
-            this.isKeyPressed.MirrorMode = true;
-            break;
-          }
-          case this.hotkeys.toggleRotateMode1:
-          case this.hotkeys.toggleRotateMode2: {
-            this.isKeyPressed.RotateMode = true;
-            break;
-          }
-          case this.hotkeys.Delete1:
-          case this.hotkeys.Delete2: {
-            this.deleteTowers();
-            break;
-          }
-          case this.hotkeys.shadeArea1:
-          case this.hotkeys.shadeArea2: {
-            console.log("Looking for Area to enshade...");
-            this.placeArea();
-            break;
-          }
-          case this.hotkeys.shieldTower1:
-          case this.hotkeys.shieldTower2: {
-            this.shieldTowers();
-            break;
-          }
-          case this.hotkeys.placeBombA1:
-          case this.hotkeys.placeBombA2: {
-            this.placeSpecial(1);
-            break;
-          }
-          case this.hotkeys.placeBombB1:
-          case this.hotkeys.placeBombB2: {
-            this.placeSpecial(2);
-            break;
-          }
-          case this.hotkeys.placSpawnRed1:
-          case this.hotkeys.placSpawnRed2: {
-            this.placeSpecial(3);
-            break;
-          }
-          case this.hotkeys.placSpawnBlue1:
-          case this.hotkeys.placSpawnBlue2: {
-            this.placeSpecial(4);
-            break;
-          }
-          case this.hotkeys.MoveUp1:
-          case this.hotkeys.MoveUp2: {
-            /*if (e.shiftKey) this.resizeChunk(0, this.snapRange, { z: true });
-          else this.isKeyPressed.MoveUp = true;*/
-            this.handleMoveInput("Up");
-            break;
-          }
-          case this.hotkeys.MoveDown1:
-          case this.hotkeys.MoveDown2: {
-            this.handleMoveInput("Down");
-            break;
-          }
-          case this.hotkeys.MoveLeft1:
-          case this.hotkeys.MoveLeft2: {
-            this.handleMoveInput("Left");
-            break;
-          }
-          case this.hotkeys.MoveRight1:
-          case this.hotkeys.MoveRight2: {
-            this.handleMoveInput("Right");
-            break;
-          }
-          case this.hotkeys.copyChunk1:
-          case this.hotkeys.copyChunk2: {
-            if (e.ctrlKey) this.copyChunk();
-            break;
-          }
-          case this.hotkeys.pasteChunk1:
-          case this.hotkeys.pasteChunk2: {
-            if (e.ctrlKey) this.pasteChunk();
-            break;
-          }
-          case "ESCAPE": {
-            this.selectedTowers = [];
-            this.updateChunkOptions();
-          }
-        }
-        break;
-      }
-      case "keyup": {
-        switch (e.key.toLocaleUpperCase()) {
-          case this.hotkeys.Control: {
-            this.isKeyPressed.CONTROL = false;
-            break;
-          }
-          case this.hotkeys.Shift: {
-            this.isKeyPressed.SHIFT = false;
-            break;
-          }
-          case this.hotkeys.Enter: {
-            this.isKeyPressed.ENTER = false;
-            break;
-          }
-          case this.hotkeys.toggleSnap1:
-          case this.hotkeys.toggleSnap2: {
-            break;
-          }
-          case this.hotkeys.toggleMirrorMode1:
-          case this.hotkeys.toggleMirrorMode2: {
-            this.isKeyPressed.MirrorMode = false;
-            break;
-          }
-          case this.hotkeys.toggleRotateMode1:
-          case this.hotkeys.toggleRotateMode2: {
-            this.isKeyPressed.RotateMode = false;
-            break;
-          }
-          case this.hotkeys.MoveUp1:
-          case this.hotkeys.MoveUp2: {
-            this.isKeyPressed.MoveUp = false;
-            break;
-          }
-          case this.hotkeys.MoveDown1:
-          case this.hotkeys.MoveDown2: {
-            this.isKeyPressed.MoveDown = false;
-            break;
-          }
-          case this.hotkeys.MoveLeft1:
-          case this.hotkeys.MoveLeft2: {
-            this.isKeyPressed.MoveLeft = false;
-            break;
-          }
-          case this.hotkeys.MoveRight1:
-          case this.hotkeys.MoveRight2: {
-            this.isKeyPressed.MoveRight = false;
-            break;
-          }
-          case this.hotkeys.undoAction1:
-          case this.hotkeys.undoAction2: {
-            if (e.ctrlKey) this.modifyLastAction(0);
-            break;
-          }
-          case this.hotkeys.redoAction1:
-          case this.hotkeys.redoAction2: {
-            if (e.ctrlKey) this.modifyLastAction(1);
-            break;
           }
         }
         break;
@@ -3293,27 +3346,34 @@ const DME = {
     canvas.height = window.innerHeight;
 
     canvas.addEventListener("mousedown", (e) => {
-      this.handleInput("mousedown", e);
+      let mKeys = ["Left Click", "Middle Click", "Right Click"];
+      DME.handleInput('button_down', mKeys?.[e.button] ? mKeys[e.button] : `Button ${e.button}`
+      );
     });
     canvas.addEventListener("mouseup", (e) => {
-      this.handleInput("mouseup", e);
+      let mKeys = ["Left Click", "Middle Click", "Right Click"];
+      this.handleInput(
+        "button_up",
+        mKeys?.[e.button] ? mKeys[e.button] : `Button ${e.button}`
+      );
     });
     canvas.addEventListener("wheel", (e) => {
-      this.handleInput("wheel", e);
+      this.handleInput("button_down", e.deltaY > 0 ? 'Scroll Down' : 'Scroll Up', e.deltaY);
     });
     canvas.addEventListener("mousemove", (e) => {
       this.handleInput("mousemove", e);
     });
 
     document.addEventListener("keydown", (e) => {
-      this.handleInput("keydown", e);
+      this.handleInput("button_down", e.key.toLocaleUpperCase());
     });
     document.addEventListener("keyup", (e) => {
-      this.handleInput("keyup", e);
+      this.handleInput("button_up", e.key.toLocaleUpperCase());
     });
 
     //update menu (such as "Enable XY" -> "Upadate XY" if XY already exists)
-    if(this.mapData.koth) document.querySelector("#DME-edit-KOTH").innerText = "Edit KOTH bounds";
+    if (this.mapData.koth)
+      document.querySelector("#DME-edit-KOTH").innerText = "Edit KOTH bounds";
 
     this.updateCanvas();
   },
