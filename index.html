@@ -165,17 +165,21 @@
         <div style="display:grid;grid-template-areas:'head head head close''sub sub sub sub';padding-bottom:8px;"><div style="grid-area:head;color:white;font-size:22px;">Visuals</div><div style="grid-area:sub;color:white;font-size:12px;">toggle visual guides</div>
         <button onclick="DME.toggleMenu('visuals');" style="grid-area:close;width:70px;">Close</button></div>
         <div>
-          <span style="padding: 0px 3px 0px 10px;font-size: 17px;">Show Map Halves:</span>
+          <span>Show Map Halves:</span>
           <input type="checkbox" id="DME-toggle-visuals-map-halves" class="clickable" onchange="DME.visuals.showMapHalves = this.checked;" checked>
         </div>
         <div>
-          <span style="padding: 0px 3px 0px 10px;font-size: 17px;">Show KOTH Bounds:</span>
+          <span>Show KOTH Bounds:</span>
           <input type="checkbox" id="DME-toggle-visuals-koth-bounds" class="clickable" onchange="DME.visuals.showKothBounds = this.checked;" checked>
         </div>
         <div>
-          <span style="padding: 0px 3px 0px 10px;font-size: 17px;">Show Tower Shields:</span>
+          <span>Show Tower Shields:</span>
           <input type="checkbox" id="DME-toggle-visuals-tower-shields" class="clickable" onchange="DME.visuals.showTowerShields = this.checked;" checked>
         </div>
+        <div><span>Grid Background Color:</span><input id="DME-edit-visuals-GBGC" type="color" value="#eeeeee" oninput="DME.visuals.grid_BGC = this.value;"></div>
+        <div><span>Grid Line Color:</span><input id="DME-edit-visuals-GLC" type="color" value="#999999" oninput="DME.visuals.grid_lineC = this.value;"></div>
+        <div><span>Map Background Color:</span><input id="DME-edit-visuals-MBGC" type="color" value="#e0e0e0" oninput="DME.visuals.map_BGC = this.value;"></div>
+        <div><span>Grid Line Width:</span><input id="DME-edit-visuals-GLW" type="number" min="0" step=".25" value="1" oninput="DME.visuals.grid_line_width = this.value;"></div>
       </div>
       <div id="DME-coords-info" style="text-align: right;">
         X: <span id="DME-coords-info-x">0</span>

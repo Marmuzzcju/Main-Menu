@@ -217,6 +217,20 @@ button {
   color: white;
   font-size: 18px;
   width: 200px;
+  padding: 0px 3px 0px 10px;
+  font-size: 17px;
+}
+#DME-visuals-menu input[type='color'] {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background-color: rgba(200,200,200,.3);
+}
+#DME-visuals-menu input[type='number'] {
+  width: 40px;
+  height: 20px;
+  padding: 0;
+  background-color: rgba(200,200,200,.3);
 }
 #DME-visuals-menu > div > button {
   border-radius: 4px;

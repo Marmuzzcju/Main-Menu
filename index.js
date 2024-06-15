@@ -377,6 +377,10 @@ const DME = {
     showMapHalves: true,
     showKothBounds: true,
     showTowerShields: true,
+    grid_BGC: '#eeeeee',
+    map_BGC: '#e0e0e0',
+    grid_lineC: '#999999',
+    grid_line_width: 1,
   },
 
   scrollingSpeed: 10,
@@ -2592,33 +2596,35 @@ const DME = {
   draw: function () {
     //clear canvas
     //ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#E0E0E0";
+    ctx.fillStyle = this.visuals.map_BGC;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     let mz = this.mapZoom;
 
     //draw map background
-    ctx.fillStyle = "#EEEEEE";
+    ctx.fillStyle = this.visuals.grid_BGC;
     ctx.fillRect(
       this.relToFsPt.x(0),
       this.relToFsPt.y(0),
       this.mapData.width / mz,
       this.mapData.height / mz
     );
-    ctx.strokeStyle = "#999";
-    ctx.beginPath();
-    ctx.lineWidth = 1 / mz;
-    let w = this.mapData.width;
-    let h = this.mapData.height;
-    for (c = defly.GRID_WIDTH; c < w; c += defly.GRID_WIDTH) {
-      ctx.moveTo(this.relToFsPt.x(c), this.relToFsPt.y(0));
-      ctx.lineTo(this.relToFsPt.x(c), this.relToFsPt.y(h));
+    if(Number(this.visuals.grid_line_width)){
+      ctx.strokeStyle = this.visuals.grid_lineC;
+      ctx.beginPath();
+      ctx.lineWidth = this.visuals.grid_line_width / mz;
+      let w = this.mapData.width;
+      let h = this.mapData.height;
+      for (c = defly.GRID_WIDTH; c < w; c += defly.GRID_WIDTH) {
+        ctx.moveTo(this.relToFsPt.x(c), this.relToFsPt.y(0));
+        ctx.lineTo(this.relToFsPt.x(c), this.relToFsPt.y(h));
+      }
+      for (c = defly.GRID_WIDTH; c < h; c += defly.GRID_WIDTH) {
+        ctx.moveTo(this.relToFsPt.x(0), this.relToFsPt.y(c));
+        ctx.lineTo(this.relToFsPt.x(w), this.relToFsPt.y(c));
+      }
+      ctx.stroke();
     }
-    for (c = defly.GRID_WIDTH; c < h; c += defly.GRID_WIDTH) {
-      ctx.moveTo(this.relToFsPt.x(0), this.relToFsPt.y(c));
-      ctx.lineTo(this.relToFsPt.x(w), this.relToFsPt.y(c));
-    }
-    ctx.stroke();
     ctx.strokeStyle = "#000";
     ctx.lineWidth = 1 + 1 / mz;
     ctx.strokeRect(
