@@ -377,6 +377,9 @@ const DME = {
     showMapHalves: true,
     showKothBounds: true,
     showTowerShields: true,
+    showBackgroundImage: true,
+    backgroundImage: new Image(),
+    keepBackgroundImageRatio: false,
     grid_BGC: '#eeeeee',
     map_BGC: '#e0e0e0',
     grid_lineC: '#999999',
@@ -2609,6 +2612,20 @@ const DME = {
       this.mapData.width / mz,
       this.mapData.height / mz
     );
+    if(this.visuals.showBackgroundImage && this.visuals.backgroundImage.src) {
+      if(this.visuals.keepBackgroundImageRatio){
+        let img = this.visuals.backgroundImage,
+            imgWidthRatio = img.width/img.height,
+            mapWidthRatio = this.mapData.width/this.mapData.height;
+        let scale = imgWidthRatio > mapWidthRatio ? img.width/this.mapData.width : img.height/this.mapData.height;
+        ctx.drawImage(this.visuals.backgroundImage,
+                      this.relToFsPt.x((this.mapData.width - img.width / scale) / 2), this.relToFsPt.y((this.mapData.height - img.height / scale) / 2),
+                      img.width / mz / scale, img.height / mz / scale);
+        
+      } else {
+        ctx.drawImage(this.visuals.backgroundImage, this.relToFsPt.x(0), this.relToFsPt.y(0), this.mapData.width / mz, this.mapData.height / mz);
+      }
+    }
     if(Number(this.visuals.grid_line_width)){
       ctx.strokeStyle = this.visuals.grid_lineC;
       ctx.beginPath();
@@ -2625,7 +2642,7 @@ const DME = {
       }
       ctx.stroke();
     }
-    ctx.strokeStyle = "#000";
+    ctx.strokeStyle = this.visuals.grid_lineC;
     ctx.lineWidth = 1 + 1 / mz;
     ctx.strokeRect(
       this.relToFsPt.x(0),
@@ -2946,7 +2963,42 @@ const DME = {
         break;
       }
     }
-     },
+  },
+
+  loadBackgroundImage: function(input){
+    if (input.files && input.files[0]) {
+      let reader = new FileReader();
+
+      reader.onload = function(e) {
+          DME.visuals.backgroundImage.src = e.target.result;
+      }
+
+      reader.readAsDataURL(input.files[0]);
+  }
+  },
+
+  applyColorPreset: function(preset){
+    switch(preset){
+      case 'light':{
+        this.visuals.grid_BGC = '#eeeeee';
+        this.visuals.map_BGC = '#e0e0e0';
+        this.visuals.grid_lineC = '#999999';
+        break;
+      }
+      case 'medium':{
+        this.visuals.grid_BGC = '#888888';
+        this.visuals.map_BGC = '#808080';
+        this.visuals.grid_lineC = '#505050';
+        break;
+      }
+      case 'dark':{
+        this.visuals.grid_BGC = '#000000';
+        this.visuals.map_BGC = '#010101';
+        this.visuals.grid_lineC = '#e4e4e4';
+        break;
+      }
+    }
+  },
 
   handleInput: function (type, e) {
     switch (type) {
