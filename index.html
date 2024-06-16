@@ -165,37 +165,38 @@
         <div><span>Place Bomb B</span><button onclick="DME.changeKeybind('placeBombB1');" id="DME-ch-placeBombB1">2</button><button onclick="DME.changeKeybind('placeBombB2');" id="DME-ch-placeBombB2"></button></div>
         <div><span>Place Red Spawn</span><button onclick="DME.changeKeybind('placeSpawnRed1');" id="DME-ch-placeSpawnRed1">3</button><button onclick="DME.changeKeybind('placeSpawnRed2');" id="DME-ch-placeSpawnRed2"></button></div>
         <div><span>Place Blue Spawn</span><button onclick="DME.changeKeybind('placeSpawnBlue1');" id="DME-ch-placeSpawnBlue1">4</button><button onclick="DME.changeKeybind('placeSpawnBlue2');" id="DME-ch-placeSpawnBlue2"></button></div>
-        <div><span>Zoom In</span><button id="DME-ch-zoomIn1">Scroll Up</button><button onclick="DME.changeKeybind('zoomIn2');" id="DME-ch-zoomIn2">+</button></div>
-        <div><span>Zoom Out</span><button id="DME-ch-zoomOut1">Scroll Down</button><button onclick="DME.changeKeybind('zoomOut2');" id="DME-ch-zoomOut2">-</button></div>
+        <div><span>Zoom In</span><button style="background-color: grey;" id="DME-ch-zoomIn1">Scroll Up</button><button onclick="DME.changeKeybind('zoomIn2');" id="DME-ch-zoomIn2">+</button></div>
+        <div><span>Zoom Out</span><button style="background-color: grey;" id="DME-ch-zoomOut1">Scroll Down</button><button onclick="DME.changeKeybind('zoomOut2');" id="DME-ch-zoomOut2">-</button></div>
       </div>
       <div id="DME-visuals-menu" style="display: none;">
         <div style="display:grid;grid-template-areas:'head head head close''sub sub sub sub';padding-bottom:8px;"><div style="grid-area:head;color:white;font-size:22px;">Visuals</div><div style="grid-area:sub;color:white;font-size:12px;">toggle visual guides</div>
         <button onclick="DME.toggleMenu('visuals');" style="grid-area:close;width:70px;">Close</button></div>
         <div>
           <span>Show Map Halves:</span>
-          <input type="checkbox" id="DME-toggle-visuals-map-halves" class="clickable" onchange="DME.visuals.showMapHalves = this.checked;" checked>
+          <input type="checkbox" id="DME-toggle-visuals-showMapHalves" class="clickable" onchange="DME.visuals.showMapHalves = this.checked;" checked>
         </div>
         <div>
           <span>Show KOTH Bounds:</span>
-          <input type="checkbox" id="DME-toggle-visuals-koth-bounds" class="clickable" onchange="DME.visuals.showKothBounds = this.checked;" checked>
+          <input type="checkbox" id="DME-toggle-visuals-showKothBounds" class="clickable" onchange="DME.visuals.showKothBounds = this.checked;" checked>
         </div>
         <div>
           <span>Show Tower Shields:</span>
-          <input type="checkbox" id="DME-toggle-visuals-tower-shields" class="clickable" onchange="DME.visuals.showTowerShields = this.checked;" checked>
+          <input type="checkbox" id="DME-toggle-visuals-showTowerShields" class="clickable" onchange="DME.visuals.showTowerShields = this.checked;" checked>
         </div>
         <div>
           <span>Show Background Image:</span>
-          <input type="checkbox" id="DME-toggle-visuals-background-image" class="clickable" onchange="DME.visuals.showBackgroundImage = this.checked;" checked>
+          <input type="checkbox" id="DME-toggle-visuals-showBackgroundImage" class="clickable" onchange="DME.visuals.showBackgroundImage = this.checked;" checked>
         </div>
         <div>
           <span>Keep image ratio:</span>
-          <input type="checkbox" id="DME-toggle-visuals-background-image-ration" class="clickable" onchange="DME.visuals.keepBackgroundImageRatio = this.checked;">
+          <input type="checkbox" id="DME-toggle-visuals-keepBackgroundImageRatio" class="clickable" onchange="DME.visuals.keepBackgroundImageRatio = this.checked;">
         </div>
-        <div><span>Grid Background Color:</span><input id="DME-edit-visuals-GBGC" type="color" value="#eeeeee" oninput="DME.visuals.grid_BGC = this.value;"></div>
-        <div><span>Grid Line Color:</span><input id="DME-edit-visuals-GLC" type="color" value="#999999" oninput="DME.visuals.grid_lineC = this.value;"></div>
-        <div><span>Map Background Color:</span><input id="DME-edit-visuals-MBGC" type="color" value="#e0e0e0" oninput="DME.visuals.map_BGC = this.value;"></div>
-        <div><span>Presets:</span><select id="DME-edit-visuals-C-preset" class="clickable" onchange="DME.applyColorPreset(this.value)"><option value="light">Light</option><option value="medium">Medium</option><option value="dark">Dark</option></select></div>
-        <div><span>Grid Line Width:</span><input id="DME-edit-visuals-GLW" type="number" min="0" step=".25" value="1" oninput="DME.visuals.grid_line_width = this.value;" onfocus='DME.blockInput=true;' onblur='DME.blockInput=false;'></div>
+        <div><span>Grid Background Color:</span><input id="DME-edit-visuals-grid_BGC" type="color" value="#eeeeee" oninput="DME.visuals.grid_BGC = this.value;"></div>
+        <div><span>Grid Line Color:</span><input id="DME-edit-visuals-grid_lineC" type="color" value="#999999" oninput="DME.visuals.grid_lineC = this.value;"></div>
+        <div><span>Map Background Color:</span><input id="DME-edit-visuals-map_BGC" type="color" value="#e0e0e0" oninput="DME.visuals.map_BGC = this.value;"></div>
+        <div><span>Save to preset:</span><button id="DME-edit-visuals-save-preset" class="clickable" onclick="DME.saveColorPreset()">Save</button></div>
+        <div><span>Presets:</span><select id="DME-edit-visuals-C-preset" class="clickable" onchange="DME.applyColorPreset(this.value)"><option value="light">Light</option><option value="medium">Medium</option><option value="dark">Dark</option><option value="custom" disabled>Custom</option></select></div>
+        <div><span>Grid Line Width:</span><input id="DME-edit-visuals-grid_line_width" type="number" min="0" step=".25" value="1" oninput="DME.visuals.grid_line_width = this.value;" onfocus='DME.blockInput=true;' onblur='DME.blockInput=false;'></div>
       </div>
       <div id="DME-coords-info" style="text-align: right;">
         X: <span id="DME-coords-info-x">0</span>

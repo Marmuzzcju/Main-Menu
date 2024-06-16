@@ -122,6 +122,9 @@ window.onbeforeunload = () => {
           DME.generateMapFile("compact")
         );
         localStorage.setItem("DMEhotkeys", JSON.stringify(DME.hotkeys));
+        //don't save background image - too heavy load, unnecessary & breaks image loading
+        delete DME.visuals.backgroundImage;
+        localStorage.setItem("DME-visuals", JSON.stringify(DME.visuals));
         break;
       }
     }
@@ -393,6 +396,12 @@ const DME = {
     grid_BGC: "#eeeeee",
     map_BGC: "#e0e0e0",
     grid_lineC: "#999999",
+    custom_preset: {
+      hasBeenSet: false,
+      grid_BGC: "#000",
+      map_BGC: "#000",
+      grid_lineC: "#000",
+    },
     grid_line_width: 1,
   },
 
@@ -3044,6 +3053,17 @@ const DME = {
     }
   },
 
+  saveColorPreset: function (){
+    console.log('saving preset...');
+    let preset = this.visuals.custom_preset,
+        colors = document.querySelectorAll("#DME-visuals-menu input[type='color']");
+    preset.hasBeenSet = true;
+    preset.grid_BGC = colors[0].value;
+    preset.grid_lineC = colors[1].value;
+    preset.map_BGC = colors[2].value;
+    document.querySelectorAll('#DME-edit-visuals-C-preset option')[3].removeAttribute('disabled');
+  },
+
   applyColorPreset: function (preset) {
     switch (preset) {
       case "light": {
@@ -3062,6 +3082,12 @@ const DME = {
         this.visuals.grid_BGC = "#000000";
         this.visuals.map_BGC = "#010101";
         this.visuals.grid_lineC = "#e4e4e4";
+        break;
+      }
+      case 'custom': {
+        this.visuals.grid_BGC = this.visuals.custom_preset.grid_BGC;
+        this.visuals.map_BGC = this.visuals.custom_preset.map_BGC;
+        this.visuals.grid_lineC = this.visuals.custom_preset.grid_lineC;
         break;
       }
     }
@@ -3318,6 +3344,32 @@ const DME = {
         Object.entries(storedHotkeys).forEach((key) => {
           DME.hotkeys[key[0]] = key[1];
         });
+      }
+      if (!localStorage.getItem('DME-visuals')) {
+        localStorage.setItem('DME-visuals', JSON.stringify(DME.visuals));
+      } else {
+        let visuals = JSON.parse(localStorage.getItem('DME-visuals'));
+        Object.entries(visuals).forEach((key) => {
+          if(key[0] != 'backgroundImage') DME.visuals[key[0]] = key[1];
+        });
+        Array.from(document.querySelectorAll("#DME-visuals-menu input[type='checkbox'")).forEach(checkbox => {
+          let val = DME.visuals?.[checkbox.id.replace("DME-toggle-visuals-", "")];
+          if (val != undefined) {
+            if(val){
+              checkbox.setAttribute('checked', true);
+            } else {
+              checkbox?.removeAttribute?.('checked');
+            }
+          }
+        });
+        Array.from(document.querySelectorAll("#DME-visuals-menu input[type='color'")).forEach(colorInp => {
+          let val = DME.visuals?.[colorInp.id.replace("DME-edit-visuals-", "")];
+          if (val) {
+            colorInp.value = val;
+          }
+        });
+        if(DME.visuals.custom_preset.hasBeenSet) document.querySelectorAll('#DME-edit-visuals-C-preset option')[3].removeAttribute('disabled');
+        document.querySelector('#DME-edit-visuals-grid_line_width').value = DME.visuals.grid_line_width;
       }
       Array.from(
         document.querySelectorAll("#DME-hotkey-menu > div > button")
