@@ -1801,10 +1801,12 @@ const DME = {
           switch (identifier) {
             case "MAP_WIDTH": {
               this.mapData.width = newMapData[position + 1] * defly.UNIT_WIDTH;
+              document.querySelector('#DME-input-map-width').value = newMapData[position + 1];
               break;
             }
             case "MAP_HEIGHT": {
               this.mapData.height = newMapData[position + 1] * defly.UNIT_WIDTH;
+              document.querySelector('#DME-input-map-height').value = newMapData[position + 1];
               break;
             }
             case "KOTH": {
