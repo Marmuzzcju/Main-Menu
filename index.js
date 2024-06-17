@@ -426,6 +426,7 @@ const DME = {
     width: 210 * defly.UNIT_WIDTH,
     height: 120 * defly.UNIT_WIDTH,
     koth: false,
+    shape: 0,
     towers: [], //{x : xPosition, y : yPosition, color : color, id : uniqueTowerId} || + isShaded : bool, isNotTower : number
     walls: [], //{from : {x : xPosition, y : yPosition, id : towerId}, to : {x : xPosition, y : yPosition, id : towerId}, color : wallColor}
     areas: [], //{length : amountOfNodesInThatArea, color : areaColor(defined by first node's color), nodes : [{x : nodeXposition, y : nodeYposition, id : nodeTowerId}]}
@@ -1744,6 +1745,63 @@ const DME = {
     }
   },
 
+  updateMapSize: function(spec, value){
+    this.mapData[spec] = value*defly.UNIT_WIDTH;
+    let notSpec = spec == 'width' ? 'height' : 'width';
+    switch(this.mapData.shape){
+      case 0:{
+        //rectangle
+        break;
+      }
+      case 1:{
+        //hexagon
+        if(spec == 'width') {
+          this.mapData.height = Number(this.mapData.width)*Math.sin(Math.PI/3);
+          let hI = document.querySelector('#DME-input-map-height');
+          hI.value = Number(this.mapData.height)/defly.UNIT_WIDTH;
+        } else {
+          this.mapData.width = Number(this.mapData.height)/Math.sin(Math.PI/3);
+          let hI = document.querySelector('#DME-input-map-width');
+          hI.value = Number(this.mapData.width)/defly.UNIT_WIDTH;
+        }
+        break;
+      }
+      case 2:{
+        //circle
+        this.mapData[notSpec] = Number(this.mapData[spec]);
+        let hI = document.querySelector(`#DME-input-map-${notSpec}`);
+        hI.value = Number(this.mapData[notSpec])/defly.UNIT_WIDTH;
+        break;
+      }
+    }
+  },
+
+  switchMapShape: function(){
+    this.mapData.shape = ++this.mapData.shape%3;
+    switch(this.mapData.shape) {
+      case 0:{
+        //rectangle
+        //document.querySelector('#DME-input-map-height').removeAttribute('disabled');
+        break;
+      }
+      case 1:{
+        //hexagon
+        this.mapData.height = Number(this.mapData.width)*Math.sin(Math.PI/3);
+        let hI = document.querySelector('#DME-input-map-height');
+        hI.value = Number(this.mapData.height)/defly.UNIT_WIDTH;
+        //hI.setAttribute('disabled', 1);
+        break;
+      }
+      case 2:{
+        //circle
+        this.mapData.height = Number(this.mapData.width);
+        let hI = document.querySelector('#DME-input-map-height');
+        hI.value = Number(this.mapData.height)/defly.UNIT_WIDTH;
+        //hI.setAttribute('disabled', 1);
+      }
+    }
+  },
+
   loadFile: function (input) {
     let file = input.files[0];
     let reader = new FileReader();
@@ -2536,18 +2594,43 @@ const DME = {
       mc.snapped.x = xOffset - (xOffset % this.snapRange);
       mc.snapped.y = yOffset - (yOffset % this.snapRange);
     } else mc.snapped = structuredClone(mc.relative);
-    mc.snapped.x =
-      mc.snapped.x < 0
-        ? 0
-        : mc.snapped.x > this.mapData.width
-        ? this.mapData.width
-        : mc.snapped.x;
-    mc.snapped.y =
-      mc.snapped.y < 0
-        ? 0
-        : mc.snapped.y > this.mapData.height
-        ? this.mapData.height
-        : mc.snapped.y;
+    //hold snapped position inside map bounds
+    switch(this.mapData.shape){
+      case 1://temporarly for push
+      case 2:
+      case 0:{
+        //rectangle
+        mc.snapped.x =
+          mc.snapped.x < 0
+            ? 0
+            : mc.snapped.x > this.mapData.width
+            ? this.mapData.width
+          : mc.snapped.x;
+        mc.snapped.y =
+          mc.snapped.y < 0
+            ? 0
+            : mc.snapped.y > this.mapData.height
+            ? this.mapData.height
+            : mc.snapped.y;
+        break;
+      }
+      case 1:{
+        //hexagon
+        break;
+      }
+      case 2:{
+        //circle
+        let mx = mc.snapped.x,
+            my = mc.snapped.y,
+            radious = this.mapData.width/2,
+            e = ((mx-radious)**2+(my-radious)**2)**.5 / radious;
+        if(e > 1) {
+          mc.snapped.x = mx/2 + mx/e;
+          mc.snapped.y = my/2 + my/e;
+        }
+        break;
+      }
+    }
     document.querySelector("#DME-coords-info-x").innerText = (
       mc.snapped.x / defly.UNIT_WIDTH
     ).toRounded(2);
@@ -2735,12 +2818,42 @@ const DME = {
     }
     ctx.strokeStyle = this.visuals.grid_lineC;
     ctx.lineWidth = 1 + 1 / mz;
-    ctx.strokeRect(
-      this.relToFsPt.x(0),
-      this.relToFsPt.y(0),
-      this.mapData.width / mz,
-      this.mapData.height / mz
-    );
+    switch(this.mapData.shape){
+      case 0:{
+        //rectangle
+        ctx.strokeRect(
+          this.relToFsPt.x(0),
+          this.relToFsPt.y(0),
+          this.mapData.width / mz,
+          this.mapData.height / mz
+        );
+        break;
+      }
+      case 1:{
+        //haxagon
+        ctx.beginPath();
+        let w = this.mapData.width,
+            h = this.mapData.height;
+        ctx.moveTo(this.relToFsPt.x(w/4),this.relToFsPt.y(0));
+        ctx.lineTo(this.relToFsPt.x(w*3/4),this.relToFsPt.y(0));
+        ctx.lineTo(this.relToFsPt.x(w),this.relToFsPt.y(h/2));
+        ctx.lineTo(this.relToFsPt.x(w*3/4),this.relToFsPt.y(h));
+        ctx.lineTo(this.relToFsPt.x(w/4),this.relToFsPt.y(h));
+        ctx.lineTo(this.relToFsPt.x(0),this.relToFsPt.y(h/2));
+        ctx.closePath();
+        ctx.stroke();
+        break;
+      }
+      case 2:{
+        //circle
+        let w = this.mapData.width,
+            h = this.mapData.height;
+        ctx.beginPath();
+        ctx.arc(this.relToFsPt.x(w/2), this.relToFsPt.y(h/2), w/2/mz, 2 * Math.PI, false);
+        ctx.stroke();
+        break;
+      }
+    }
     if (this.visuals.showMapHalves) {
       ctx.strokeStyle = "#A0A0FF";
       ctx.lineWidth = 1 + 0.5 / mz;
