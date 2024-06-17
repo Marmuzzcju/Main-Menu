@@ -320,6 +320,16 @@ button {
   margin: 1px 8px;
   /* background-color: rgba(100, 100, 250, 01); */
 }
+.fatButtonRight {
+  font-size: 18px;
+  width: 137px !important;
+  margin: 1px 1px 1px 8px;
+}
+.fatButtonLeft {
+  font-size: 18px;
+  width: 137px !important;
+  margin: 1px 0px;
+}
 
 /*#empty {
   position: fixed;

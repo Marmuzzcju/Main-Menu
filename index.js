@@ -841,6 +841,7 @@ const DME = {
     this.mapData.towers.forEach((t) => {
       let k = this.mapData.koth;
       if (
+        k &&
         t.x >= k[0] &&
         t.x <= k[2] &&
         t.y >= k[1] &&
@@ -1723,9 +1724,22 @@ const DME = {
           this.mapData.koth[1] = this.mapData.koth[3];
           this.mapData.koth[3] = t;
         }
+        let t = document.querySelector('#DME-edit-KOTH');
+        t.classList.remove('fatButton');
+        t.classList.add('fatButtonRight');
+        document.querySelector('#DME-remove-KOTH').classList.remove('hidden');
         this.editMode = "building";
         this.updateKothTowers();
         break;
+      }
+      case -1: {
+        this.mapData.koth = false;
+        let t = document.querySelector('#DME-edit-KOTH');
+        t.classList.remove('fatButtonRight');
+        t.classList.add('fatButton');
+        document.querySelector('#DME-remove-KOTH').classList.add('hidden');
+        this.editMode = "building";
+        this.updateKothTowers();
       }
     }
   },
