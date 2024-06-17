@@ -1383,7 +1383,7 @@ const DME = {
   selectTower: function () {
     let mc = this.mouseCoords.relative;
     let [x, y] = [mc.x, mc.y];
-    if (this.isKeyPressed.SHIFT) {
+    if (this.isKeyPressed.SHIFT && this.isKeyPressed.CONTROL) {
       this.selectedTowers = [];
       this.mapData.towers.forEach((t, index) => {
         this.selectedTowers.push(index);
@@ -1422,7 +1422,7 @@ const DME = {
           console.log(
             `Selecting from ${this.selectingChunk.origin.x}, ${this.selectingChunk.origin.y} to ${x}, ${y}`
           );
-          if (this.isKeyPressed.SHIFT) {
+          if (this.isKeyPressed.SHIFT && this.isKeyPressed.CONTROL) {
             this.selectTower(); //will exit after checking shift pressed & selecting all towers
             return;
           }
@@ -3246,12 +3246,12 @@ const DME = {
               }
               case this.hotkeys.copyChunk1:
               case this.hotkeys.copyChunk2: {
-                if (e.ctrlKey) this.copyChunk();
+                if (this.isKeyPressed.CONTROL) this.copyChunk();
                 break;
               }
               case this.hotkeys.pasteChunk1:
               case this.hotkeys.pasteChunk2: {
-                if (e.ctrlKey) this.pasteChunk();
+                if (this.isKeyPressed.CONTROL) this.pasteChunk();
                 break;
               }
               case "ESCAPE": {
@@ -3335,12 +3335,12 @@ const DME = {
               }
               case this.hotkeys.undoAction1:
               case this.hotkeys.undoAction2: {
-                if (e.ctrlKey) this.modifyLastAction(0);
+                if (this.isKeyPressed.CONTROL) this.modifyLastAction(0);
                 break;
               }
               case this.hotkeys.redoAction1:
               case this.hotkeys.redoAction2: {
-                if (e.ctrlKey) this.modifyLastAction(1);
+                if (this.isKeyPressed.CONTROL) this.modifyLastAction(1);
                 break;
               }
             }
