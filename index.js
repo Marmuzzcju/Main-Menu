@@ -1793,6 +1793,7 @@ const DME = {
     this.mapData.areas = [];
     this.selectedTowers = [];
     this.highestId = 1;
+    this.handleKothInput(-1);
     switch (dataType) {
       case "defly": {
         let newMapData = mapFile.split(/\s+/);
