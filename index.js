@@ -1778,6 +1778,7 @@ const DME = {
         break;
       }
     }
+    this.updateMouseCoords();
   },
 
   switchMapShape: function(){
