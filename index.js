@@ -3260,6 +3260,9 @@ const DME = {
         break;
       }
     }
+    document.querySelector('#DME-edit-visuals-grid_BGC').value = this.visuals.grid_BGC;
+    document.querySelector('#DME-edit-visuals-map_BGC').value = this.visuals.map_BGC;
+    document.querySelector('#DME-edit-visuals-grid_lineC').value = this.visuals.grid_lineC;
   },
 
   handleInput: function (type, input, extra) {
