@@ -1767,6 +1767,7 @@ const DME = {
           let hI = document.querySelector('#DME-input-map-width');
           hI.value = Number(this.mapData.width)/defly.UNIT_WIDTH;
         }
+        this.updateHexBounds();
         break;
       }
       case 2:{
