@@ -405,6 +405,8 @@ const DME = {
     grid_line_width: 1,
   },
 
+  test:[],
+
   scrollingSpeed: 10,
   focusPoint: {
     x: 500,
@@ -427,6 +429,7 @@ const DME = {
     height: 120 * defly.UNIT_WIDTH,
     koth: false,
     shape: 0,
+    bounds: [], //stores corner positions of hex maps
     towers: [], //{x : xPosition, y : yPosition, color : color, id : uniqueTowerId} || + isShaded : bool, isNotTower : number
     walls: [], //{from : {x : xPosition, y : yPosition, id : towerId}, to : {x : xPosition, y : yPosition, id : towerId}, color : wallColor}
     areas: [], //{length : amountOfNodesInThatArea, color : areaColor(defined by first node's color), nodes : [{x : nodeXposition, y : nodeYposition, id : nodeTowerId}]}
@@ -1790,6 +1793,9 @@ const DME = {
         let hI = document.querySelector('#DME-input-map-height');
         hI.value = Number(this.mapData.height)/defly.UNIT_WIDTH;
         //hI.setAttribute('disabled', 1);
+
+        this.updateHexBounds();
+
         break;
       }
       case 2:{
@@ -1799,6 +1805,19 @@ const DME = {
         hI.value = Number(this.mapData.height)/defly.UNIT_WIDTH;
         //hI.setAttribute('disabled', 1);
       }
+    }
+  },
+  updateHexBounds: function(){
+    this.mapData.bounds = [];
+    let cX = this.mapData.width/2,
+        cY = this.mapData.height/2;
+        //radious = cX
+    for(c=-0.5;c<5.5;c++){
+      //check whether position is outside hex map bounds
+      let sX = Math.sin(c/3*Math.PI) * cX + cX,
+          sY = Math.cos(c/3*Math.PI) * cX + cY;
+      this.mapData.bounds.push(sX);
+      this.mapData.bounds.push(sY);
     }
   },
 
@@ -2596,8 +2615,6 @@ const DME = {
     } else mc.snapped = structuredClone(mc.relative);
     //hold snapped position inside map bounds
     switch(this.mapData.shape){
-      case 1://temporarly for push
-      case 2:
       case 0:{
         //rectangle
         mc.snapped.x =
@@ -2616,17 +2633,37 @@ const DME = {
       }
       case 1:{
         //hexagon
+        let cX = this.mapData.width/2,
+            cY = this.mapData.height/2,
+            mX = mc.snapped.x,
+            mY = mc.snapped.y;
+            bounds = this.mapData.bounds;
+            //radious = cX
+        for(c=0;c<6;c++){
+          //check whether position is outside hex map bounds
+          if(this.isIntersecting(mX,mY,cX,cY,bounds[c*2],bounds[1+c*2],bounds[(2+c*2)%12],bounds[(3+c*2)%12])){
+            let [sin, cos] = [Math.sin(Math.PI/3*c), Math.cos(Math.PI/3*c)],
+                [x, y] = [mX-cX, mY-cY];
+            let xC = x * cos - y * sin + .5*cX,
+                fraction = (xC > cX ? cX : xC < 0 ? 0 : xC) / cX,
+                deltaX = bounds[(2+c*2)%12] - bounds[c*2],
+                deltaY = bounds[(3+c*2)%12] - bounds[1+c*2];
+            mc.snapped.x = bounds[c*2] + deltaX * fraction;
+            mc.snapped.y = bounds[1+c*2] + deltaY * fraction;
+            break;
+          }
+        }
         break;
       }
       case 2:{
         //circle
-        let mx = mc.snapped.x,
-            my = mc.snapped.y,
-            radious = this.mapData.width/2,
-            e = ((mx-radious)**2+(my-radious)**2)**.5 / radious;
+        let radious = this.mapData.width/2,
+            xDif = mc.snapped.x - radious,
+            yDif = mc.snapped.y - radious,
+            e = (xDif**2+yDif**2)**.5 / radious;
         if(e > 1) {
-          mc.snapped.x = mx/2 + mx/e;
-          mc.snapped.y = my/2 + my/e;
+          mc.snapped.x = radious + xDif/e;
+          mc.snapped.y = radious + yDif/e;
         }
         break;
       }
