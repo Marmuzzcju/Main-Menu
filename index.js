@@ -202,8 +202,8 @@ function updateFOV() {
         x: w / 2,
         y: h / 2,
       };
-      canvas.width = w;
-      canvas.height = h;
+      canvas.width = w * DME.visuals.quality;
+      canvas.height = h * DME.visuals.quality;
       break;
     }
   }
@@ -403,6 +403,7 @@ const DME = {
       grid_lineC: "#000",
     },
     grid_line_width: 1,
+    quality: 1,
   },
 
   test:[],
@@ -1823,6 +1824,15 @@ const DME = {
     }
   },
 
+  changeQuality: function(newQuality) {
+    let btns = document.querySelectorAll(`#DME-visuals-menu-quality-buttons > button`);
+    btns[((1-this.visuals.quality)*5).toFixed(0)].classList.remove('selected');
+    btns[((1-newQuality)*5).toFixed(0)].classList.add('selected');
+    canvas.width *= newQuality / this.visuals.quality;
+    canvas.height *= newQuality / this.visuals.quality;
+    this.visuals.quality = newQuality;
+  },
+
   loadFile: function (input) {
     let file = input.files[0];
     let reader = new FileReader();
@@ -2791,8 +2801,8 @@ const DME = {
   },
 
   relToFsPt: {
-    x: (ogX) => (ogX - DME.focusPoint.x) / DME.mapZoom + DME.focusOffset.x,
-    y: (ogY) => (ogY - DME.focusPoint.y) / DME.mapZoom + DME.focusOffset.y,
+    x: (ogX) => ((ogX - DME.focusPoint.x) / DME.mapZoom + DME.focusOffset.x)*DME.visuals.quality,
+    y: (ogY) => ((ogY - DME.focusPoint.y) / DME.mapZoom + DME.focusOffset.y)*DME.visuals.quality,
     /*x : (ogX) => ogX + DME.focusOffset.x * DME.mapZoom - DME.focusPoint.x,
     y : (ogY) => ogY + DME.focusOffset.y * DME.mapZoom - DME.focusPoint.y,*/
   },
@@ -2803,15 +2813,16 @@ const DME = {
     ctx.fillStyle = this.visuals.map_BGC;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    let mz = this.mapZoom;
+    let mz = this.mapZoom,
+        q = this.visuals.quality;
 
     //draw map background
     ctx.fillStyle = this.visuals.grid_BGC;
     ctx.fillRect(
       this.relToFsPt.x(0),
       this.relToFsPt.y(0),
-      this.mapData.width / mz,
-      this.mapData.height / mz
+      this.mapData.width / mz * q,
+      this.mapData.height / mz * q
     );
     if (this.visuals.showBackgroundImage && this.visuals.backgroundImage.src) {
       if (this.visuals.keepBackgroundImageRatio) {
@@ -2826,23 +2837,23 @@ const DME = {
           this.visuals.backgroundImage,
           this.relToFsPt.x((this.mapData.width - img.width / scale) / 2),
           this.relToFsPt.y((this.mapData.height - img.height / scale) / 2),
-          img.width / mz / scale,
-          img.height / mz / scale
+          img.width / mz / scale * q,
+          img.height / mz / scale * q
         );
       } else {
         ctx.drawImage(
           this.visuals.backgroundImage,
           this.relToFsPt.x(0),
           this.relToFsPt.y(0),
-          this.mapData.width / mz,
-          this.mapData.height / mz
+          this.mapData.width / mz * q,
+          this.mapData.height / mz * q
         );
       }
     }
     if (Number(this.visuals.grid_line_width)) {
       ctx.strokeStyle = this.visuals.grid_lineC;
+      ctx.lineWidth = this.visuals.grid_line_width / mz * q;
       ctx.beginPath();
-      ctx.lineWidth = this.visuals.grid_line_width / mz;
       let w = this.mapData.width;
       let h = this.mapData.height;
       for (c = defly.GRID_WIDTH; c < w; c += defly.GRID_WIDTH) {
@@ -2856,15 +2867,15 @@ const DME = {
       ctx.stroke();
     }
     ctx.strokeStyle = this.visuals.grid_lineC;
-    ctx.lineWidth = 1 + 1 / mz;
+    ctx.lineWidth = (1 + 1 / mz)*q;
     switch(this.mapData.shape){
       case 0:{
         //rectangle
         ctx.strokeRect(
           this.relToFsPt.x(0),
           this.relToFsPt.y(0),
-          this.mapData.width / mz,
-          this.mapData.height / mz
+          this.mapData.width / mz * q,
+          this.mapData.height / mz * q
         );
         break;
       }
@@ -2888,14 +2899,14 @@ const DME = {
         let w = this.mapData.width,
             h = this.mapData.height;
         ctx.beginPath();
-        ctx.arc(this.relToFsPt.x(w/2), this.relToFsPt.y(h/2), w/2/mz, 2 * Math.PI, false);
+        ctx.arc(this.relToFsPt.x(w/2), this.relToFsPt.y(h/2), w/2/mz*q, 2 * Math.PI, false);
         ctx.stroke();
         break;
       }
     }
     if (this.visuals.showMapHalves) {
       ctx.strokeStyle = "#A0A0FF";
-      ctx.lineWidth = 1 + 0.5 / mz;
+      ctx.lineWidth = (1 + 0.5 / mz) * q;
       ctx.beginPath();
       ctx.moveTo(
         this.relToFsPt.x(-50),
@@ -2931,8 +2942,8 @@ const DME = {
       ctx.fillRect(
         this.relToFsPt.x(koth[0]),
         this.relToFsPt.y(koth[1]),
-        w / mz,
-        h / mz
+        w / mz * q,
+        h / mz * q
       );
       if (this.editMode == "KOTH") {
         let x = koth[4] ? mc.x : koth[0],
@@ -2943,8 +2954,8 @@ const DME = {
         ctx.strokeRect(
           this.relToFsPt.x(x),
           this.relToFsPt.y(y),
-          w / mz,
-          h / mz
+          w / mz * q,
+          h / mz * q
         );
       }
     }
@@ -2965,7 +2976,7 @@ const DME = {
 
     //draw walls
     DME.mapData.walls.forEach((wall) => {
-      ctx.lineWidth = wallWidth;
+      ctx.lineWidth = wallWidth * q;
       ctx.strokeStyle = defly.colors.darkened[wall.color];
       ctx.beginPath();
       ctx.moveTo(this.relToFsPt.x(wall.from.x), this.relToFsPt.y(wall.from.y));
@@ -2973,7 +2984,7 @@ const DME = {
       ctx.stroke();
       //draw wall twice, once bit darker to create the darkened edge of the wall
       ctx.strokeStyle = defly.colors.standard[wall.color];
-      ctx.lineWidth = wallWidth - 4 / mz;
+      ctx.lineWidth = (wallWidth - 4 / mz) * q;
       ctx.beginPath();
       ctx.moveTo(this.relToFsPt.x(wall.from.x), this.relToFsPt.y(wall.from.y));
       ctx.lineTo(this.relToFsPt.x(wall.to.x), this.relToFsPt.y(wall.to.y));
@@ -2988,7 +2999,7 @@ const DME = {
         let tower = t[index];
         if (!tower?.isNotTower) {
           ctx.strokeStyle = defly.colors.standard[tower.color];
-          ctx.lineWidth = wallWidth - 4 / mz;
+          ctx.lineWidth = (wallWidth - 4 / mz) * q;
           ctx.beginPath();
           ctx.moveTo(this.relToFsPt.x(tower.x), this.relToFsPt.y(tower.y));
           ctx.lineTo(mcX, mcY);
@@ -2996,10 +3007,10 @@ const DME = {
           let borderLines = calculateParallelLines(
             [mcX, mcY],
             [this.relToFsPt.x(tower.x), this.relToFsPt.y(tower.y)],
-            wallWidth / 2 - 1 / mz
+            (wallWidth / 2 - 1 / mz) * q
           );
           ctx.strokeStyle = defly.colors.darkened[tower.color];
-          ctx.lineWidth = 2 / mz;
+          ctx.lineWidth = (2 / mz) * q;
           ctx.beginPath();
           ctx.moveTo(borderLines.line1[0][0], borderLines.line1[0][1]);
           ctx.lineTo(borderLines.line1[1][0], borderLines.line1[1][1]);
@@ -3021,7 +3032,7 @@ const DME = {
         if (this.selectedTowers.includes(index)) {
           ctx.fillStyle = "rgba(230, 50, 50, 0.6)";
           ctx.beginPath();
-          ctx.arc(t.x, t.y, towerWidth + 10, 2 * Math.PI, false);
+          ctx.arc(t.x, t.y, (towerWidth + 10) * q, 2 * Math.PI, false);
           ctx.fill();
         }
         let colorId = tower?.isKothTower ? false : tower.color;
@@ -3029,29 +3040,29 @@ const DME = {
           ? defly.colors.darkened[colorId]
           : "rgb(70, 52, 14)";
         ctx.beginPath();
-        ctx.arc(t.x, t.y, towerWidth, 2 * Math.PI, false);
+        ctx.arc(t.x, t.y, towerWidth * q, 2 * Math.PI, false);
         ctx.fill();
         //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
         ctx.fillStyle = colorId
           ? defly.colors.standard[colorId]
           : "rgb(195,143,39)";
         ctx.beginPath();
-        ctx.arc(t.x, t.y, towerWidth - 2 / mz, 2 * Math.PI, false);
+        ctx.arc(t.x, t.y, (towerWidth - 2 / mz) * q, 2 * Math.PI, false);
         ctx.fill();
 
         //if tower is shielded, draw shield
         if (tower?.isShielded && this.visuals.showTowerShields) {
           ctx.shadowColor = "black";
           ctx.strokeStyle = defly.colors.faded[1];
-          ctx.lineWidth = 2 / mz;
-          ctx.shadowBlur = 3 / mz;
+          ctx.lineWidth = 2 / mz * q;
+          ctx.shadowBlur = 3 / mz * q;
           ctx.beginPath();
-          ctx.arc(t.x, t.y, towerWidth + 2 / mz, 2 * Math.PI, false);
+          ctx.arc(t.x, t.y, (towerWidth + 2 / mz) * q, 2 * Math.PI, false);
           ctx.stroke();
           ctx.shadowBlur = 0;
         }
         if (!colorId) {
-          let w = defly.TOWER_WIDTH / mz;
+          let w = defly.TOWER_WIDTH / mz * q;
           ctx.drawImage(
             defly.images.koth_crown,
             t.x - w,
@@ -3062,9 +3073,9 @@ const DME = {
         }
       } else {
         //not a tower: either spawn or bomb
-        let bombRadius = (6 * defly.UNIT_WIDTH) / mz,
-          sS = (4.5 * defly.UNIT_WIDTH) / mz,
-          tS = defly.TOWER_WIDTH / mz;
+        let bombRadius = (6 * defly.UNIT_WIDTH) / mz * q,
+          sS = (4.5 * defly.UNIT_WIDTH) / mz * q,
+          tS = defly.TOWER_WIDTH / mz * q;
 
         if (tower.id > -3) {
           //bomb spot
@@ -3118,9 +3129,9 @@ const DME = {
 
         if (this.selectedTowers.includes(index)) {
           ctx.strokeStyle = "rgba(230, 50, 50, 0.6)";
-          ctx.lineWidth = 6;
+          ctx.lineWidth = 6 * q;
           ctx.beginPath();
-          ctx.arc(t.x, t.y, bombRadius + 3, 2 * Math.PI, false);
+          ctx.arc(t.x, t.y, bombRadius + 3 * q, 2 * Math.PI, false);
           ctx.stroke();
         }
       }
@@ -3131,13 +3142,13 @@ const DME = {
       ctx.globalAlpha = 0.5;
       ctx.fillStyle = defly.colors.standard[this.selectedColor];
       ctx.beginPath();
-      ctx.arc(mcX, mcY, towerWidth, 2 * Math.PI, false);
+      ctx.arc(mcX, mcY, towerWidth * q, 2 * Math.PI, false);
       ctx.fill();
       //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
-      ctx.lineWidth = 2 / mz;
+      ctx.lineWidth = 2 / mz * q;
       ctx.strokeStyle = defly.colors.standard[this.selectedColor];
       ctx.beginPath();
-      ctx.arc(mcX, mcY, towerWidth - 1 / mz, 2 * Math.PI, false);
+      ctx.arc(mcX, mcY, (towerWidth - 1 / mz) * q, 2 * Math.PI, false);
       ctx.stroke();
       ctx.globalAlpha = gA;
     }
@@ -3147,11 +3158,11 @@ const DME = {
 
       ctx.strokeStyle = "rgba(170, 90, 30, 0.8)";
       ctx.lineDashOffset = 4;
-      ctx.lineWidth = d.vsw;
+      ctx.lineWidth = d.vsw * q;
       ctx.strokeRect(d.vx, d.vy, d.vw, d.vh);
 
       ctx.lineDashOffset = 0;
-      ctx.lineWidth = d.vsw / 2;
+      ctx.lineWidth = d.vsw / 2 * q;
       let [o, s] = [d.vsr, 2 * d.vsr];
       ctx.strokeRect(d.vx - o, d.vy - o, s, s);
       ctx.strokeRect(d.vx - o + d.vw / 2, d.vy - o, s, s);
@@ -3165,11 +3176,11 @@ const DME = {
 
     if (this.selectingChunk.isSelecting) {
       ctx.strokeStyle = "rgba(230, 130, 40, 0.8)";
-      ctx.lineWidth = 5;
+      ctx.lineWidth = 5 * q;
       ctx.fillStyle = "rgba(230, 130, 40, 0.4)";
       let s = this.selectingChunk.origin;
-      let w = (this.mouseCoords.relative.x - s.x) / mz;
-      let h = (this.mouseCoords.relative.y - s.y) / mz;
+      let w = (this.mouseCoords.relative.x - s.x) / mz * q;
+      let h = (this.mouseCoords.relative.y - s.y) / mz * q;
       ctx.fillRect(this.relToFsPt.x(s.x), this.relToFsPt.y(s.y), w, h);
       ctx.strokeRect(this.relToFsPt.x(s.x), this.relToFsPt.y(s.y), w, h);
     }
@@ -3507,6 +3518,12 @@ const DME = {
   },
 
   config: function () {
+
+    //show canvas
+    canvas.classList.remove("hidden");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
     if (hasLocalStorage) {
       if (!localStorage.getItem("DMEhotkeys")) {
         localStorage.setItem("DMEhotkeys", JSON.stringify(DME.hotkeys));
@@ -3524,6 +3541,9 @@ const DME = {
         Object.entries(visuals).forEach((key) => {
           if(key[0] != 'backgroundImage') DME.visuals[key[0]] = key[1];
         });
+        let q = Number(DME.visuals.quality);
+        DME.visuals.quality = 1;
+        DME.changeQuality(q);
         Array.from(document.querySelectorAll("#DME-visuals-menu input[type='checkbox'")).forEach(checkbox => {
           let val = DME.visuals?.[checkbox.id.replace("DME-toggle-visuals-", "")];
           if (val != undefined) {
@@ -3564,10 +3584,6 @@ const DME = {
       x: this.mapData.width / 2,
       y: this.mapData.height / 2,
     };
-    /**/ //local storage not needed rn
-    canvas.classList.remove("hidden");
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
 
     canvas.addEventListener("mousedown", (e) => {
       let mKeys = ["Left Click", "Middle Click", "Right Click"];

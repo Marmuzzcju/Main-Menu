@@ -167,9 +167,11 @@ button {
   height: auto;
   left: 30px;
   top: 30px;
-  background-color: rgba(10, 10, 10, 0.5);
+  background-color: rgba(10, 10, 10, 0.7);
+  color: rgb(230,230,230);
   border-radius: 10px;
   z-index: 10;
+  color: white;
 }
 
 #DME-hotkey-menu {
@@ -211,7 +213,7 @@ button {
 #DME-visuals-menu > div {
   padding: 2px 0;
   display: flex;
-  justify-content: space-around;
+  justify-content: space-between;
 }
 #DME-visuals-menu > div > span {
   color: white;
@@ -219,6 +221,15 @@ button {
   width: 200px;
   padding: 0px 3px 0px 10px;
   font-size: 17px;
+}
+#DME-visuals-menu > div *:nth-child(2):not(div) {
+  margin-right: 7px;
+}
+#DME-visuals-menu button {
+  width: 38px;
+  font-size: 14px;
+  border-radius: 3px;
+  padding: 0;
 }
 #DME-visuals-menu input[type='color'] {
   width: 20px;
@@ -232,11 +243,15 @@ button {
   padding: 0;
   background-color: rgba(200,200,200,.3);
 }
-#DME-visuals-menu > div > button {
+#DME-visuals-menu-close {
   border-radius: 4px;
   width: 125px;
-  height: 23.6px;
+  height: 23.6px !important;
   font-size: 16px;
+}
+#DME-visuals-menu-quality-buttons button{
+  width: 54px;
+  background-color: rgba(50, 50, 50, 0.6);
 }
 
 #DME-coords-info {
@@ -250,6 +265,8 @@ button {
   position: fixed;
   top: 0;
   left: 0;
+  width: 100%;
+  height: 100%;
   cursor: crosshair;
 }
 
@@ -312,6 +329,10 @@ button {
 }
 .clickable {
   cursor: pointer;
+}
+
+.selected {
+  background-color: #F0F0F0 !important;
 }
 
 .fatButton {
