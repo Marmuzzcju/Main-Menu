@@ -1826,8 +1826,8 @@ const DME = {
 
   changeQuality: function(newQuality) {
     let btns = document.querySelectorAll(`#DME-visuals-menu-quality-buttons > button`);
-    btns[((1-this.visuals.quality)*5).toFixed(0)].classList.remove('selected');
-    btns[((1-newQuality)*5).toFixed(0)].classList.add('selected');
+    btns?.[((1-this.visuals.quality)*5).toFixed(0)]?.classList.remove('selected');
+    btns?.[((1-newQuality)*5).toFixed(0)]?.classList.add('selected');
     canvas.width *= newQuality / this.visuals.quality;
     canvas.height *= newQuality / this.visuals.quality;
     this.visuals.quality = newQuality;
