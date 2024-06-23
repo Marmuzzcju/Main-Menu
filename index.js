@@ -347,7 +347,7 @@ const DME = {
     selectTower1: "Left Click",
     selectTower2: "",
     selectArea1: "Middle Click",
-    selectArea2: "",
+    selectArea2: "META",
     zoomOut1: 'Scroll Down',
     zoomOut2: '-',
     zoomIn1: 'Scroll Up',
@@ -3278,14 +3278,14 @@ const DME = {
 
   handleInput: function (type, input, extra) {
     if(this.blockInput) return;
+    //ignore hotkeys if a menu is open
     switch (type) {
       case "mousemove": {
         this.updateMouse(input.clientX, input.clientY);
         break;
       }
       case "button_down": {
-        //console.log(e.key.toLocaleUpperCase());
-        //ignore hotkeys if a menu is open
+        //console.log(input);
 
         switch (this.editMode) {
           case "building": {
@@ -3598,6 +3598,7 @@ const DME = {
       );
     });
     canvas.addEventListener("wheel", (e) => {
+      e.preventDefault();
       this.handleInput("button_down", e.deltaY > 0 ? 'Scroll Down' : 'Scroll Up', e.deltaY);
     });
     canvas.addEventListener("mousemove", (e) => {
