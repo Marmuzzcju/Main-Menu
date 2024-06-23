@@ -307,7 +307,7 @@ const DME = {
     Shift: "SHIFT",
     Enter: "ENTER",
     Delete1: "DELETE",
-    Delete2: "",
+    Delete2: "BACKSPACE",
     MoveUp1: "W",
     MoveUp2: "ARROWUP",
     MoveDown1: "S",
