@@ -232,19 +232,19 @@ const defly = {
       koth: "rgb(238,175,47)",
     },
     darkened: {
-      1: "rgb(38,38,38)",
-      2: "rgb(31,47,178)",
-      3: "rgb(177,27,27)",
-      4: "rgb(0,64,27)",
-      5: "rgb(178,64,21)",
-      6: "rgb(73,38,128)",
-      7: "rgb(43,107,178)",
-      8: "rgb(12,113,36)",
-      9: "rgb(123,45,178)",
-      10: "rgb(124,178,21)",
-      11: "rgb(178,48,87)",
-      12: "rgb(74,127,0)",
-      13: "rgb(0,178,94)",
+      1: "rgb(53,53,53)",
+      2: "rgb(43,65,179)",
+      3: "rgb(178,37,37)",
+      4: "rgb(0,90,39)",
+      5: "rgb(179,97,29)",
+      6: "rgb(102,53,179)",
+      7: "rgb(60,149,179)",
+      8: "rgb(17,159,22)",
+      9: "rgb(173,62,179)",
+      10: "rgb(173,179,29)",
+      11: "rgb(179,67,122)",
+      12: "rgb(103,178,0)",
+      13: "rgb(0,179,132)",
       14: "rgb(0,0,0)",
       koth: "rgb(167,123,33)",
     },
@@ -810,6 +810,7 @@ const DME = {
         wall.from.y = t1.y;
         wall.to.x = t2.x;
         wall.to.y = t2.y;
+        wall.color = t1?.isKothTower ? 'koth' : t1.color;
       }
     });
   },
@@ -991,6 +992,10 @@ const DME = {
   },
 
   logAction: function (action) {
+
+    //since this function is called anytime selected towers are modified, we can call update tower info here
+    this.updateTowerInfo();
+
     if (this.logState == 0) return;
     console.log(action);
     if (this.logState == 1) {
@@ -1045,6 +1050,12 @@ const DME = {
               } else {
                 this.lastActions.push(action);
               }
+            } else this.lastActions.splice(splicePos, 1, action);
+            break;
+          }
+          case 'color': {
+            if (logNew) {
+              this.lastActions.push(action);
             } else this.lastActions.splice(splicePos, 1, action);
             break;
           }
@@ -1114,6 +1125,21 @@ const DME = {
           case "rotate": {
             this.rotateChunk(actionToModify.properties, actionToModify.idxs);
             break;
+          }
+          case 'color': {
+            let towers = this.mapData.towers,
+                newLoggedData = [];
+            actionToModify.towers.forEach(data => {
+              let t = towers[data.ar];
+              newLoggedData.push({ar:data.ar,color:t.color});
+              t.color = data.color;
+            });
+            this.logAction({
+              action: "modify",
+              type: "color",
+              towers: newLoggedData,
+            });
+            this.updateTowerInfo();
           }
         }
         break;
@@ -1329,7 +1355,9 @@ const DME = {
     origin,
     towersToMod = this.selectedTowers
   ) {
+    if(towersToMod.length < 1) return;
     xDelta =
+      origin?.z ? xDelta :  
       xDelta == 0
         ? 0.0001
         : xDelta == Infinity
@@ -1338,6 +1366,7 @@ const DME = {
         ? -0.5
         : xDelta;
     yDelta =
+      origin?.z ? yDelta :  
       yDelta == 0
         ? 0.0001
         : yDelta == Infinity
@@ -1383,6 +1412,29 @@ const DME = {
         y: yDelta,
       });
     }
+  },
+
+  recolorChunk: function(newColor, targetTowers = this.selectedTowers){
+    let towers = this.mapData.towers,
+        loggedData = [],
+        ids = [];
+    targetTowers.forEach(ar => {
+      let t = towers[ar]
+      loggedData.push({ar:ar,color:t.color});
+      ids.push(t.id);
+      t.color = newColor;
+    });
+    let colorInput = document.querySelector("#DME-towers-info-color-input");
+    colorInput.value = newColor;
+    colorInput.style.backgroundColor = defly.colors.faded[newColor];
+    document.querySelector("#DME-towers-info-color-dropdown").value = newColor;
+    this.updateWalls(ids);
+    this.updateAreas(ids);
+    this.logAction({
+      action: "modify",
+      type: "color",
+      towers: loggedData,
+    });
   },
 
   selectTower: function () {
@@ -2731,6 +2783,10 @@ const DME = {
 
   //will be called once upon starting chunck resize
   updateChunkOptions: function () {
+
+    //since this is called anytime tower selection is changing, we can call update tower info here as well
+    this.updateTowerInfo();
+
     if (this.selectedTowers.length > 1) {
       let mz = this.mapZoom;
       let top = Infinity;
@@ -2800,6 +2856,59 @@ const DME = {
       : (cO.rh + yDelta) / defly.UNIT_WIDTH;
   },
 
+  updateTowerInfo: function(){
+    let parent = document.querySelector('#DME-towers-info');
+    if(this.selectedTowers.length < 1) {
+      parent.style.display = 'none';
+    } else {
+      
+      parent.style.display = 'inline';
+      document.querySelector('#DME-towers-info-counter-value').innerText = this.selectedTowers.length;
+
+      /*if (selectedTowers.length == 1) {
+        document.getElementById("tower-info-pathCalculation").style.display =
+          "inline";
+      } else {
+        document.getElementById("tower-info-pathCalculation").style.display =
+          "none";
+      }*/
+
+      let color = this.mapData.towers[this.selectedTowers[0]].color;
+      let commonColor = true;
+      this.selectedTowers.forEach((ar) => {
+        commonColor = this.mapData.towers[ar].color == color && commonColor;
+      });
+
+      let colorInput = document.querySelector("#DME-towers-info-color-input"),
+          colorDropdown = document.querySelector("#DME-towers-info-color-dropdown");
+      if (commonColor) {
+        colorInput.value = color;
+        colorInput.style.backgroundColor = defly.colors.faded[color];
+        colorDropdown.value = color;
+      } else {
+        colorInput.value = '';
+        colorInput.style.backgroundColor = 'white';
+        colorDropdown.value = '-';
+      }
+      
+      let positionX = document.querySelector('#DME-towers-info-position-x'),
+          positionY = document.querySelector('#DME-towers-info-position-y');
+      if (this.selectedTowers.length == 1) {
+        let t = this.mapData.towers[this.selectedTowers[0]];
+        positionX.innerText = (
+          t.x / defly.UNIT_WIDTH
+        ).toRounded(4);
+        positionY.innerText = (
+          t.y / defly.UNIT_WIDTH
+        ).toRounded(4);
+      } else {
+        positionX.innerText = "-";
+        positionY.innerText = "-";
+      }
+
+    }
+  },
+
   relToFsPt: {
     x: (ogX) => ((ogX - DME.focusPoint.x) / DME.mapZoom + DME.focusOffset.x)*DME.visuals.quality,
     y: (ogY) => ((ogY - DME.focusPoint.y) / DME.mapZoom + DME.focusOffset.y)*DME.visuals.quality,
@@ -2850,8 +2959,8 @@ const DME = {
         );
       }
     }
+    ctx.strokeStyle = this.visuals.grid_lineC;
     if (Number(this.visuals.grid_line_width)) {
-      ctx.strokeStyle = this.visuals.grid_lineC;
       ctx.lineWidth = this.visuals.grid_line_width / mz * q;
       ctx.beginPath();
       let w = this.mapData.width;
@@ -2866,7 +2975,6 @@ const DME = {
       }
       ctx.stroke();
     }
-    ctx.strokeStyle = this.visuals.grid_lineC;
     ctx.lineWidth = (1 + 1 / mz)*q;
     switch(this.mapData.shape){
       case 0:{
@@ -2880,7 +2988,7 @@ const DME = {
         break;
       }
       case 1:{
-        //haxagon
+        //hexagon
         ctx.beginPath();
         let w = this.mapData.width,
             h = this.mapData.height;

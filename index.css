@@ -254,6 +254,21 @@ button {
   background-color: rgba(50, 50, 50, 0.6);
 }
 
+#DME-towers-info {
+  display: none;
+  position: fixed;
+  top: 30px;
+  right: 30px;
+  background-color: rgba(10,10,10,.6);
+  padding: 1px 3px;
+  border-radius: 5px;
+  color: white;
+  text-align: center;
+}
+#DME-towers-info > div {
+  padding: 2px 0px;
+}
+
 #DME-coords-info {
   position: fixed;
   bottom: 10px;
@@ -279,39 +294,6 @@ button {
   outline: 10px solid orange;
   outline-offset: -15px;
   background-color: rgba(200, 200, 200, 0.5);
-}
-
-#DME-STUIR-tl {
-  top:0%;
-  left:0%;
-}
-#DME-STUIR-tm {
-  top:0%;
-  left:calc(50% - 10px);
-}
-#DME-STUIR-tr {
-  top:0%;
-  right:0%;
-}
-#DME-STUIR-ml {
-  top:calc(50% - 10px);
-  left:0%;
-}
-#DME-STUIR-mr {
-  top:calc(50% - 10px);
-  right:0%;
-}
-#DME-STUIR-bl {
-  bottom:0%;
-  left:0%;
-}
-#DME-STUIR-bm {
-  bottom:0%;
-  left:calc(50% - 10px);
-}
-#DME-STUIR-br {
-  bottom:0%;
-  right:0%;
 }
 
 .DME-selected-towers-UI-resize {
@@ -350,6 +332,22 @@ button {
   font-size: 18px;
   width: 137px !important;
   margin: 1px 0px;
+}
+
+.pseudo-button-small {
+  border: 1px solid black;
+  background-color: #fafafa;
+  color: black;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+.pseudo-button-small:hover {
+  background-color: darkgray;
+}
+.pseudo-button-small:active {
+  background-color: white;
+  border: 1px;
 }
 
 /*#empty {
