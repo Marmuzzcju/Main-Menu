@@ -1554,13 +1554,6 @@ const DME = {
         this.mapData.areas.splice(index - counter, 1);
       });
     });
-    this.logAction({
-      action: "delete",
-      type: "towers",
-      towers: loggedTowers,
-      walls: loggedWalls,
-      areas: loggedAreas,
-    });
     let newSelectedTowers = structuredClone(this.selectedTowers);
     newSelectedTowers.sort((a, b) => {
       return a - b;
@@ -1577,6 +1570,13 @@ const DME = {
       newSelectedTowers.splice(idx - c, 1);
     });
     this.selectedTowers = newSelectedTowers;
+    this.logAction({
+      action: "delete",
+      type: "towers",
+      towers: loggedTowers,
+      walls: loggedWalls,
+      areas: loggedAreas,
+    });
     this.updateChunkOptions();
     if (loggedAreas.length) this.updateShields();
   },
