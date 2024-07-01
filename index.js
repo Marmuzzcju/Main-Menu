@@ -817,12 +817,16 @@ const DME = {
 
   updateAreas: function (ids = false) {
     this.mapData.areas.forEach((area) => {
-      area.nodes.forEach((node) => {
+      area.nodes.forEach((node, c) => {
         if (!ids || ids.includes(node.id)) {
           //matching tower id/should get updated
           let relativeTower = this.mapData.towers[this.getIndexFromId(node.id)];
           node.x = relativeTower.x;
           node.y = relativeTower.y;
+          if(!c) {
+            let t1 = this.mapData.towers[this.getIndexFromId(node.id)];
+            area.color = t1?.isKothTower ? 'koth' : t1.color;
+          }
           console.log(`Updating node (${node.id})`);
         }
       });
