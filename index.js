@@ -2140,7 +2140,7 @@ const DME = {
       case "defly": {
         text += `MAP_WIDTH ${d.width / uW}`;
         text += `\nMAP_HEIGHT ${d.height / uW}`;
-        if (d.koth)
+        if (d?.koth.length == 4)
           text += `\nKOTH ${d.koth[0] / uW.toRounded(6)} ${
             d.koth[1] / uW.toRounded(6)
           } ${d.koth[2] / uW.toRounded(6)} ${d.koth[3] / uW.toRounded(6)}`;
@@ -2179,7 +2179,7 @@ const DME = {
         text += `${(d.width / uW).toRounded(2)},${(d.height / uW).toRounded(
           2
         )}|${
-          /*Koth bounds*/ d.koth
+          /*Koth bounds*/ d?.koth.length == 4
             ? `${d.koth[0]},${d.koth[1]},${d.koth[2]},${d.koth[3]}`
             : ""
         }|`;
