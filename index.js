@@ -358,6 +358,7 @@ const DME = {
     binding: "",
     element: "",
   },
+  defaultHotkeys: {},//structuredClone(this.hotkeys),
 
   isKeyPressed: {
     CONTROL: false,
@@ -405,6 +406,7 @@ const DME = {
     grid_line_width: 1,
     quality: 1,
   },
+  defaultVisuals: {},//structuredClone(this.visuals),
 
   test:[],
 
@@ -3341,6 +3343,25 @@ const DME = {
     }
   },
 
+  resetVisualSettings: function(){
+    let visualPreset = structuredClone(this.visuals.custom_preset),
+        quality = this.visuals.quality;
+    this.visuals = JSON.parse(JSON.stringify(this.defaultVisuals));
+    this.visuals.backgroundImage = new Image();
+    this.visuals.custom_preset = visualPreset;
+    this.visuals.quality = quality;
+    let checkboxIds = ['showMapHalves','showKothBounds','showTowerShields','showBackgroundImage','keepBackgroundImageRatio'];
+    checkboxIds.forEach(id => {
+      document.querySelector(`#DME-toggle-visuals-${id}`).checked = this.visuals[id];
+    });
+    let inputIds = ['grid_BGC','grid_lineC','map_BGC','grid_line_width'];
+    inputIds.forEach(id => {
+      document.querySelector(`#DME-edit-visuals-${id}`).value = this.visuals[id];
+    });
+    document.querySelector('#DME-edit-visuals-C-preset').value = 'light';
+    this.changeQuality(1);
+  },
+
   loadBackgroundImage: function (input) {
     if (input.files && input.files[0]) {
       let reader = new FileReader();
@@ -3644,6 +3665,9 @@ const DME = {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
+    DME.defaultHotkeys = structuredClone(DME.hotkeys);
+    DME.defaultVisuals = JSON.parse(JSON.stringify(DME.visuals));
+    DME.defaultVisuals.backgroundImage = new Image();
     if (hasLocalStorage) {
       if (!localStorage.getItem("DMEhotkeys")) {
         localStorage.setItem("DMEhotkeys", JSON.stringify(DME.hotkeys));
@@ -3667,11 +3691,7 @@ const DME = {
         Array.from(document.querySelectorAll("#DME-visuals-menu input[type='checkbox'")).forEach(checkbox => {
           let val = DME.visuals?.[checkbox.id.replace("DME-toggle-visuals-", "")];
           if (val != undefined) {
-            if(val){
-              checkbox.setAttribute('checked', true);
-            } else {
-              checkbox?.removeAttribute?.('checked');
-            }
+            checkbox.checked = !!val;
           }
         });
         Array.from(document.querySelectorAll("#DME-visuals-menu input[type='color'")).forEach(colorInp => {

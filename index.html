@@ -209,6 +209,7 @@
         <div><span>Save to preset:</span><button id="DME-edit-visuals-save-preset" class="clickable" onclick="DME.saveColorPreset()">Save</button></div>
         <div><span>Presets:</span><select id="DME-edit-visuals-C-preset" class="clickable" oninput="DME.applyColorPreset(this.value)"><option value="light">Light</option><option value="medium">Medium</option><option value="dark">Dark</option><option value="custom" disabled>Custom</option></select></div>
         <div><span>Grid Line Width:</span><input id="DME-edit-visuals-grid_line_width" type="number" min="0" step=".25" value="1" oninput="DME.visuals.grid_line_width = this.value;" onfocus='DME.blockInput=true;' onblur='DME.blockInput=false;'></div>
+        <div><button style="margin: 0 0 2px calc(50% - 70px);border-radius: 50px; padding: 2px 6px;" onclick="DME.resetVisualSettings();">Reset Visual Settings</button></div>
       </div>
       <div id="DME-towers-info">
         <div id="DME-towers-info-counter">Selected towers: <span id="DME-towers-info-counter-value">0</span></div>

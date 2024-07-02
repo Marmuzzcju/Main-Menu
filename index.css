@@ -226,10 +226,9 @@ button {
   margin-right: 7px;
 }
 #DME-visuals-menu button {
-  width: 38px;
   font-size: 14px;
   border-radius: 3px;
-  padding: 0;
+  padding: 0px 2px;
 }
 #DME-visuals-menu input[type='color'] {
   width: 20px;
