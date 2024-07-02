@@ -1933,12 +1933,8 @@ const DME = {
     console.log(mapFile);
     console.log(`Loading map - data type: ${dataType}`);
     //only if new map is loaded
-    this.mapData.towers = [];
-    this.mapData.walls = [];
-    this.mapData.areas = [];
-    this.selectedTowers = [];
-    this.highestId = 1;
-    this.handleKothInput(-1);
+    this.clearMap(true);
+
     switch (dataType) {
       case "defly": {
         let newMapData = mapFile.split(/\s+/);
@@ -2130,6 +2126,18 @@ const DME = {
       this.mapData.height / defly.UNIT_WIDTH;
     //enable action logging
     this.logState = 1;
+  },
+
+  clearMap: function(confirmed){
+    if(!confirmed) confirmed = confirm('Are you sure you want to delete this map?');
+    if(confirmed) {
+      this.mapData.towers = [];
+      this.mapData.walls = [];
+      this.mapData.areas = [];
+      this.selectedTowers = [];
+      this.highestId = 1;
+      this.handleKothInput(-1);
+    }
   },
 
   generateMapFile: function (type = "defly") {
