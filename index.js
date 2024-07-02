@@ -3336,11 +3336,28 @@ const DME = {
         m.style.display = wasOpen ? "none" : "flex";
         break;
       }
+      case 'none':{
+        let identifier = ['visuals-menu','hotkey-menu','menu'];
+        identifier.forEach(id => {document.querySelector(`#DME-${id}`).style.display = 'none'});
+        document.querySelector('#DME-show-menu').style.display = 'inline';
+        break;
+      }
       default: {
         console.log("unknown menu toggle");
         break;
       }
     }
+  },
+
+  resetKeybinds: function(){
+    this.hotkeys = structuredClone(this.defaultHotkeys);
+    Object.entries(this.hotkeys).forEach(entrie => {
+      let t = document.querySelector(`#DME-ch-${entrie[0]}`);
+      if(t != undefined) {
+        console.log('Element exists!!');
+        t.innerText = entrie[1];
+      }
+    });
   },
 
   resetVisualSettings: function(){
