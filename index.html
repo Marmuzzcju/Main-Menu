@@ -140,7 +140,7 @@
 			  <button class="fatButton" onclick="DME.toggleMenu('visuals');">Visuals</button> </br>
         <button class="fatButton" onclick="DME.clearMap();">Clear Map</button> </br>
         <input type="file" id="DME-browse-background-image" accept="image/*" onchange="DME.loadBackgroundImage(this)" class="hidden">
-        <button class="fatButton" onclick="document.querySelector('#DME-browse-background-image').click();">Load Background Image</button> </br>
+        <button class="fatButton" onclick="document.querySelector('#DME-browse-background-image').click();">Load Background Image</button>
         <!-- <button class="fatButton" onclick="document.getElementById('distance-overview-table').style.display = 'inline';mapStuff.classList.add('blurred');openMenu=true;">View Distance Table</button> </br> -->
 			  <!-- <button class="fatButton" onclick="testMap();">Test Map</button><a href="https://marmuzzcju.github.io/Defuse-Clone/" target="_blank" id="linkToMapTest" style="display: none;"></a> </br> -->
 		  </div>
@@ -223,6 +223,26 @@
 			  	<span class="pseudo-button-small" onclick="DME.resizeChunk(0, DME.snapRange, { z: true });">&nbsp;+&nbsp;</span>
 			  	<span id="DME-towers-info-position-y">0</span>
 			  	<span class="pseudo-button-small" onclick="DME.resizeChunk(0, -DME.snapRange, { z: true });">&nbsp;-&nbsp;</span>
+        </div>
+        <div id="DME-towers-info-position-1">
+			  	X<sub>∨</sub>: 
+			  	<span class="pseudo-button-small" onclick="DME.resizeChunkFromInfoMenu('x', 'bottom/right', -1);">&nbsp;+&nbsp;</span>
+			  	<span id="DME-towers-info-position-1-x">0</span>
+			  	<span class="pseudo-button-small" onclick="DME.resizeChunkFromInfoMenu('x', 'bottom/right', 1);">&nbsp;-&nbsp;</span>
+			  	&nbsp;&nbsp;Y<sub>∨</sub>: 
+			  	<span class="pseudo-button-small" onclick="DME.resizeChunkFromInfoMenu('y', 'bottom/right', -1);">&nbsp;+&nbsp;</span>
+			  	<span id="DME-towers-info-position-1-y">0</span>
+			  	<span class="pseudo-button-small" onclick="DME.resizeChunkFromInfoMenu('y', 'bottom/right', 1);">&nbsp;-&nbsp;</span>
+        </div>
+        <div id="DME-towers-info-position-2">
+			  	X<sub>∧</sub>: 
+			  	<span class="pseudo-button-small" onclick="DME.resizeChunkFromInfoMenu('x', 'top/left', 1);">&nbsp;+&nbsp;</span>
+			  	<span id="DME-towers-info-position-2-x">0</span>
+			  	<span class="pseudo-button-small" onclick="DME.resizeChunkFromInfoMenu('x', 'top/left', -1);">&nbsp;-&nbsp;</span>
+			  	&nbsp;&nbsp;Y<sub>∧</sub>: 
+			  	<span class="pseudo-button-small" onclick="DME.resizeChunkFromInfoMenu('y', 'top/left', 1);">&nbsp;+&nbsp;</span>
+			  	<span id="DME-towers-info-position-2-y">0</span>
+			  	<span class="pseudo-button-small" onclick="DME.resizeChunkFromInfoMenu('y', 'top/left', -1);">&nbsp;-&nbsp;</span>
         </div>
 			  <div id="DME-towers-info-color">
 				  Color:

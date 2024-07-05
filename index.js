@@ -1353,6 +1353,19 @@ const DME = {
     }
     this.resizeChunk(delta.x, delta.y, origin);
   },
+  resizeChunkFromInfoMenu: function (axis, setSide, value) {
+    let outermostPositions = this.getOuterMostPositionsOfChunk(),
+        origin = {
+          x: setSide == 'top/left' ? outermostPositions.left : outermostPositions.right,
+          y: setSide == 'top/left' ? outermostPositions.top : outermostPositions.bottom,
+        },
+        width = outermostPositions.right - outermostPositions.left,
+        height = outermostPositions.bottom - outermostPositions.top,
+        xDelta = axis == 'x' ? 1 + value * this.snapRange / width : 1,
+        yDelta = axis == 'y' ? 1 + value * this.snapRange / height : 1;
+    console.log(`Resizing -- X Delta: ${xDelta};  Y Delta: ${yDelta};  X Origin: ${origin.x};  Y Origin: ${origin.y}`);
+    this.resizeChunk(xDelta, yDelta, origin);
+  },
   //action here
   //actually resizes the chunk - if 'origin.z=true' then moves around instead
   resizeChunk: function (
@@ -2904,20 +2917,33 @@ const DME = {
         colorInput.style.backgroundColor = 'white';
         colorDropdown.value = '-';
       }
-      
-      let positionX = document.querySelector('#DME-towers-info-position-x'),
-          positionY = document.querySelector('#DME-towers-info-position-y');
       if (this.selectedTowers.length == 1) {
-        let t = this.mapData.towers[this.selectedTowers[0]];
+        let positionX = document.querySelector('#DME-towers-info-position-x'),
+            positionY = document.querySelector('#DME-towers-info-position-y'),
+            t = this.mapData.towers[this.selectedTowers[0]];
         positionX.innerText = (
           t.x / defly.UNIT_WIDTH
         ).toRounded(4);
         positionY.innerText = (
           t.y / defly.UNIT_WIDTH
         ).toRounded(4);
+        document.querySelector('#DME-towers-info-position').style.display = 'block';
+        document.querySelector('#DME-towers-info-position-1').style.display = 'none';
+        document.querySelector('#DME-towers-info-position-2').style.display = 'none';
       } else {
-        positionX.innerText = "-";
-        positionY.innerText = "-";
+        let positionX1 = document.querySelector('#DME-towers-info-position-1-x'),
+            positionY1 = document.querySelector('#DME-towers-info-position-1-y'),
+            positionX2 = document.querySelector('#DME-towers-info-position-2-x'),
+            positionY2 = document.querySelector('#DME-towers-info-position-2-y');
+        document.querySelector('#DME-towers-info-position').style.display = 'none';
+        document.querySelector('#DME-towers-info-position-1').style.display = 'block';
+        document.querySelector('#DME-towers-info-position-2').style.display = 'block';
+        let outermostPositions = this.getOuterMostPositionsOfChunk(),
+            uW = defly.UNIT_WIDTH;
+        positionX1.innerText = (outermostPositions.left/uW).toRounded(4);
+        positionY1.innerText = (outermostPositions.top/uW).toRounded(4);
+        positionX2.innerText = (outermostPositions.right/uW).toRounded(4);
+        positionY2.innerText = (outermostPositions.bottom/uW).toRounded(4);
       }
 
     }
