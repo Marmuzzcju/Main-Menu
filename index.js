@@ -189,7 +189,7 @@ function calculateParallelLines(A, B, offset) {
 //dot functions (DO NOT USE ON EXTERNAL PROJECTS)
 Number.prototype.toRounded = function (decPlaces) {
   if ((this + "1").split(".")[1]?.length > decPlaces + 1)
-    return this.toFixed(decPlaces);
+    return this.toFixed(decPlaces)*1;
   return this;
 };
 
@@ -1361,8 +1361,10 @@ const DME = {
         },
         width = outermostPositions.right - outermostPositions.left,
         height = outermostPositions.bottom - outermostPositions.top,
-        xDelta = axis == 'x' ? 1 + value * this.snapRange / width : 1,
-        yDelta = axis == 'y' ? 1 + value * this.snapRange / height : 1;
+        inputEle = isNaN(value) ? document.querySelector(`#DME-towers-info-position-${value}`) : false;
+        deltaValue = inputEle ? setSide == 'top/left' ? (inputEle.value-inputEle.old_value)*defly.UNIT_WIDTH : (inputEle.old_value-inputEle.value)*defly.UNIT_WIDTH : value,
+        xDelta = axis == 'x' ? 1 + deltaValue / width : 1,
+        yDelta = axis == 'y' ? 1 + deltaValue / height : 1;
     console.log(`Resizing -- X Delta: ${xDelta};  Y Delta: ${yDelta};  X Origin: ${origin.x};  Y Origin: ${origin.y}`);
     this.resizeChunk(xDelta, yDelta, origin);
   },
@@ -2921,10 +2923,16 @@ const DME = {
         let positionX = document.querySelector('#DME-towers-info-position-x'),
             positionY = document.querySelector('#DME-towers-info-position-y'),
             t = this.mapData.towers[this.selectedTowers[0]];
-        positionX.innerText = (
+        positionX.value = (
           t.x / defly.UNIT_WIDTH
         ).toRounded(4);
-        positionY.innerText = (
+        positionX.old_value = (
+          t.x / defly.UNIT_WIDTH
+        ).toRounded(4);
+        positionY.value = (
+          t.y / defly.UNIT_WIDTH
+        ).toRounded(4);
+        positionY.old_value = (
           t.y / defly.UNIT_WIDTH
         ).toRounded(4);
         document.querySelector('#DME-towers-info-position').style.display = 'block';
@@ -2940,10 +2948,14 @@ const DME = {
         document.querySelector('#DME-towers-info-position-2').style.display = 'block';
         let outermostPositions = this.getOuterMostPositionsOfChunk(),
             uW = defly.UNIT_WIDTH;
-        positionX1.innerText = (outermostPositions.left/uW).toRounded(4);
-        positionY1.innerText = (outermostPositions.top/uW).toRounded(4);
-        positionX2.innerText = (outermostPositions.right/uW).toRounded(4);
-        positionY2.innerText = (outermostPositions.bottom/uW).toRounded(4);
+        positionX1.value = (outermostPositions.left/uW).toRounded(4);
+        positionX1.old_value = (outermostPositions.left/uW).toRounded(4);
+        positionY1.value = (outermostPositions.top/uW).toRounded(4);
+        positionY1.old_value = (outermostPositions.top/uW).toRounded(4);
+        positionX2.value = (outermostPositions.right/uW).toRounded(4);
+        positionX2.old_value = (outermostPositions.right/uW).toRounded(4);
+        positionY2.value = (outermostPositions.bottom/uW).toRounded(4);
+        positionY2.old_value = (outermostPositions.bottom/uW).toRounded(4);
       }
 
     }

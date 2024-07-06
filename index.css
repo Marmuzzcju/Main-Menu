@@ -271,8 +271,14 @@ button {
   color: white;
   text-align: center;
 }
+#DME-towers-info > div:nth-last-child(n + 2) input {
+  width: 40px;
+}
 #DME-towers-info > div {
   padding: 2px 0px;
+}
+input[type=number]:not(:hover)::-webkit-inner-spin-button {
+  -webkit-appearance: none;
 }
 
 #DME-coords-info {
