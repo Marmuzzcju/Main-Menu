@@ -141,10 +141,12 @@
         <button class="fatButton" onclick="DME.clearMap();">Clear Map</button> </br>
         <input type="file" id="DME-browse-background-image" accept="image/*" onchange="DME.loadBackgroundImage(this)" class="hidden">
         <button class="fatButton" id="DME-menu-load-background-image" onclick="document.querySelector('#DME-browse-background-image').click();">Load Background Image</button>
-        <button class="fatButtonLeft hidden"  id="DME-menu-remove-background-image"onclick="DME.removeBackgroundImage();">Remove Background Image</button>
+        <button class="fatButtonLeft hidden"  id="DME-menu-remove-background-image"onclick="DME.removeBackgroundImage();">Remove Background Image</button> </br>
+        <button class="fatButton" onclick="DME.exportMapPreview();">Get Map Preview</button>
         <!-- <button class="fatButton" onclick="document.getElementById('distance-overview-table').style.display = 'inline';mapStuff.classList.add('blurred');openMenu=true;">View Distance Table</button> </br> -->
 			  <!-- <button class="fatButton" onclick="testMap();">Test Map</button><a href="https://marmuzzcju.github.io/Defuse-Clone/" target="_blank" id="linkToMapTest" style="display: none;"></a> </br> -->
 		  </div>
+      <canvas id="DME-preview-canvas" style="display: none;"></canvas>
       <div id="DME-hotkey-menu" style="display: none;">
         <div style="display:grid;grid-template-areas:'head head head close''sub sub sub sub';padding-bottom:8px;"><div style="grid-area:head;color:white;font-size:22px;">Keybinds</div><div style="grid-area:sub;color:white;font-size:12px;">Click to change, Esc to unbind</div>
         <button onclick="DME.toggleMenu('hotkeys');" style="grid-area:close;width:70px;">Close</button></div>

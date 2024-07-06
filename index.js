@@ -276,13 +276,11 @@ const defly = {
   images: {
     bombA: new Image(),
     bombB: new Image(),
-    koth_tower: new Image(),
     koth_crown: new Image(),
   },
 };
 defly.images.bombA.src = "images/defly-defuse-bombSpotA.png";
 defly.images.bombB.src = "images/defly-defuse-bombSpotB.png";
-defly.images.koth_tower.src = "images/defuse-koth-tower.png";
 defly.images.koth_crown.src = "images/defuse-koth-crown.svg";
 
 /*
@@ -736,7 +734,6 @@ const DME = {
     let mc = coords ?? this.mouseCoords.snapped,
       idx = this.getIndexFromId(-id);
     if (idx < 0) {
-      //HERE
       if (id < 3)
         DME.mapData.towers.push({
           x: mc.x,
@@ -1707,7 +1704,6 @@ const DME = {
           colNewIds.push(this.highestId);
           this.createTower(x, y, t.color, this.highestId);
         } else {
-          //HERE
           let modif =
             this.getIndexFromId(t.id) == -1
               ? 0
@@ -2290,6 +2286,270 @@ const DME = {
     return copy;
   },
 
+  generateMapPreview: function(){
+    let canvas = document.querySelector('#DME-preview-canvas'),
+        ctx = canvas.getContext('2d');
+        width = this.mapData.width + defly.GRID_WIDTH,
+        height = this.mapData.height + defly.GRID_WIDTH;
+        fract = width/height >= 16/9 ? 1600/width : 900/height,
+        UW = defly.UNIT_WIDTH;
+    width *= fract;
+    height *= fract;
+    canvas.width = width;
+    canvas.height = height;//HERE
+
+    const relToCvs = {
+      x : (val) => (val + UW)*fract,
+      y : (val) => (val + UW)*fract,
+    }
+
+    //clear canvas
+    ctx.fillStyle = this.visuals.map_BGC;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    //draw map background
+    ctx.fillStyle = this.visuals.grid_BGC;
+    ctx.fillRect(
+      relToCvs.x(0),
+      relToCvs.y(0),
+      this.mapData.width * fract,
+      this.mapData.height * fract
+    );
+    if (this.visuals.showBackgroundImage && this.visuals.backgroundImage.src) {
+      if (this.visuals.keepBackgroundImageRatio) {
+        let img = this.visuals.backgroundImage,
+          imgWidthRatio = img.width / img.height,
+          mapWidthRatio = this.mapData.width / this.mapData.height;
+        let scale =
+          imgWidthRatio > mapWidthRatio
+            ? img.width / this.mapData.width
+            : img.height / this.mapData.height;
+        ctx.drawImage(
+          this.visuals.backgroundImage,
+          relToCvs.x((this.mapData.width - img.width / scale) / 2),
+          relToCvs.y((this.mapData.height - img.height / scale) / 2),
+          img.width * fract / scale,
+          img.height * fract / scale
+        );
+      } else {
+        ctx.drawImage(
+          this.visuals.backgroundImage,
+          relToCvs.x(0),
+          relToCvs.y(0),
+          this.mapData.width * fract,
+          this.mapData.height * fract
+        );
+      }
+    }
+    ctx.strokeStyle = this.visuals.grid_lineC;
+    if (Number(this.visuals.grid_line_width)) {
+      ctx.lineWidth = this.visuals.grid_line_width * fract;
+      ctx.beginPath();
+      let w = this.mapData.width;
+      let h = this.mapData.height;
+      for (c = defly.GRID_WIDTH; c < w; c += defly.GRID_WIDTH) {
+        ctx.moveTo(relToCvs.x(c), relToCvs.y(0));
+        ctx.lineTo(relToCvs.x(c), relToCvs.y(h));
+      }
+      for (c = defly.GRID_WIDTH; c < h; c += defly.GRID_WIDTH) {
+        ctx.moveTo(relToCvs.x(0), relToCvs.y(c));
+        ctx.lineTo(relToCvs.x(w), relToCvs.y(c));
+      }
+      ctx.stroke();
+    }
+    ctx.lineWidth = (1 + 1 * fract);
+    switch(this.mapData.shape){
+      case 0:{
+        //rectangle
+        ctx.strokeRect(
+          relToCvs.x(0),
+          relToCvs.y(0),
+          this.mapData.width * fract,
+          this.mapData.height * fract
+        );
+        break;
+      }
+      case 1:{
+        //hexagon
+        ctx.beginPath();
+        let w = this.mapData.width,
+            h = this.mapData.height;
+        ctx.moveTo(relToCvs.x(w/4),relToCvs.y(0));
+        ctx.lineTo(relToCvs.x(w*3/4),relToCvs.y(0));
+        ctx.lineTo(relToCvs.x(w),relToCvs.y(h/2));
+        ctx.lineTo(relToCvs.x(w*3/4),relToCvs.y(h));
+        ctx.lineTo(relToCvs.x(w/4),relToCvs.y(h));
+        ctx.lineTo(relToCvs.x(0),relToCvs.y(h/2));
+        ctx.closePath();
+        ctx.stroke();
+        break;
+      }
+      case 2:{
+        //circle
+        let w = this.mapData.width,
+            h = this.mapData.height;
+        ctx.beginPath();
+        ctx.arc(relToCvs.x(w/2), relToCvs.y(h/2), w/2*fract, 2 * Math.PI, false);
+        ctx.stroke();
+        break;
+      }
+    }
+    let wallWidth = defly.WALL_WIDTH * fract;
+    let towerWidth = defly.TOWER_WIDTH * fract;
+    //draw areas
+    DME.mapData.areas.forEach((area) => {
+      ctx.fillStyle = defly.colors.faded[area.color];
+      ctx.beginPath();
+      ctx.moveTo(
+        relToCvs.x(area.nodes[0].x),
+        relToCvs.y(area.nodes[0].y)
+      );
+      area.nodes.forEach((node) => {
+        ctx.lineTo(relToCvs.x(node.x), relToCvs.y(node.y));
+      });
+      ctx.fill();
+    });
+    //draw walls
+    DME.mapData.walls.forEach((wall) => {
+      ctx.lineWidth = wallWidth;
+      ctx.strokeStyle = defly.colors.darkened[wall.color];
+      ctx.beginPath();
+      ctx.moveTo(relToCvs.x(wall.from.x), relToCvs.y(wall.from.y));
+      ctx.lineTo(relToCvs.x(wall.to.x), relToCvs.y(wall.to.y));
+      ctx.stroke();
+      //draw wall twice, once bit darker to create the darkened edge of the wall
+      ctx.strokeStyle = defly.colors.standard[wall.color];
+      ctx.lineWidth = (wallWidth - 4 * fract);
+      ctx.beginPath();
+      ctx.moveTo(relToCvs.x(wall.from.x), relToCvs.y(wall.from.y));
+      ctx.lineTo(relToCvs.x(wall.to.x), relToCvs.y(wall.to.y));
+      ctx.stroke();
+    });
+    //draw towers
+    DME.mapData.towers.forEach((tower, index) => {
+      let t = {
+        x: relToCvs.x(tower.x),
+        y: relToCvs.y(tower.y),
+      };
+      if (!tower?.isNotTower) {
+        let colorId = tower?.isKothTower ? false : tower.color;
+        ctx.fillStyle = colorId
+          ? defly.colors.darkened[colorId]
+          : "rgb(70, 52, 14)";
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, towerWidth, 2 * Math.PI, false);
+        ctx.fill();
+        //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
+        ctx.fillStyle = colorId
+          ? defly.colors.standard[colorId]
+          : "rgb(195,143,39)";
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, (towerWidth - 2 * fract), 2 * Math.PI, false);
+        ctx.fill();
+
+        //if tower is shielded, draw shield
+        if (tower?.isShielded && this.visuals.showTowerShields) {
+          ctx.shadowColor = "black";
+          ctx.strokeStyle = defly.colors.faded[1];
+          ctx.lineWidth = 2 * fract;
+          ctx.shadowBlur = 3 * fract;
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, (towerWidth + 2 * fract), 2 * Math.PI, false);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+        if (!colorId) {
+          ctx.fillStyle = 'black';
+          ctx.beginPath();
+          ctx.moveTo(t.x - 6.5*fract, t.y+6.5*fract);
+          ctx.lineTo(t.x + 6.5*fract, t.y+6.5*fract);
+          ctx.lineTo(t.x + 9.5*fract, t.y-1.5*fract);
+          ctx.lineTo(t.x + 9*fract, t.y-2*fract);
+          ctx.lineTo(t.x + 6*fract, t.y-.5*fract);
+          ctx.lineTo(t.x + 5.2*fract, t.y-3.6*fract);
+          ctx.lineTo(t.x + 4.3*fract, t.y-3.6*fract);
+          ctx.lineTo(t.x + 2.2*fract, t.y-1.8*fract);
+          ctx.lineTo(t.x + .3*fract, t.y-6.2*fract);
+          ctx.lineTo(t.x - .3*fract, t.y-6.2*fract);
+          ctx.lineTo(t.x - 2.2*fract, t.y-1.8*fract);
+          ctx.lineTo(t.x - 4.3*fract, t.y-3.6*fract);
+          ctx.lineTo(t.x - 5.2*fract, t.y-3.6*fract);
+          ctx.lineTo(t.x - 6*fract, t.y-.5*fract);
+          ctx.lineTo(t.x - 9*fract, t.y-2*fract);
+          ctx.lineTo(t.x - 9.5*fract, t.y-1.5*fract);
+          ctx.lineTo(t.x - 6.5*fract, t.y+6.5*fract);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(t.x + 9.3*fract, t.y-2*fract,1*fract,0,2*Math.PI);
+          ctx.moveTo(t.x + 4.9*fract, t.y-4*fract);
+          ctx.arc(t.x + 4.9*fract, t.y-4*fract,1*fract,0,2*Math.PI);
+          ctx.moveTo(t.x, t.y-6.5*fract);
+          ctx.arc(t.x, t.y-6.5*fract,1*fract,0,2*Math.PI);
+          ctx.moveTo(t.x - 4.9*fract, t.y-4*fract);
+          ctx.arc(t.x - 4.9*fract, t.y-4*fract,1*fract,0,2*Math.PI);
+          ctx.moveTo(t.x - 9.3*fract, t.y-2*fract);
+          ctx.arc(t.x - 9.3*fract, t.y-2*fract,1*fract,0,2*Math.PI);
+          ctx.fill();
+        }
+      } else {
+        //not a tower: either spawn or bomb
+        let bombRadius = (6 * UW) * fract,
+          sS = (4.5 * UW) * fract,
+          tS = defly.TOWER_WIDTH * fract;
+
+        if (tower.id > -3) {
+          //bomb spot
+          ctx.strokeStyle = 'rgba(110,130,250,.5)';
+          ctx.lineWidth = 8*fract;
+          ctx.beginPath();
+          ctx.arc(t.x,t.y,bombRadius-4*fract,0,2*Math.PI,);
+          ctx.stroke();
+          ctx.fillStyle = 'rgba(110,130,250,.5)';
+          ctx.font = `bold ${150*fract}px Verdana`;
+          ctx.fillText(tower.id == -1 ? 'A' : 'B', t.x-58*fract, t.y+54*fract);
+        } else {
+          //spawn
+          let col = tower.id == -3 ? 3 : 2;
+          ctx.fillStyle = defly.colors.faded[col];
+          ctx.fillRect(t.x - sS, t.y - sS, 2 * sS, 2 * sS);
+          //triangle, based on spawn rotation
+          ctx.fillStyle = defly.colors.standard[col];
+          ctx.beginPath();
+          switch (tower.rotation) {
+            case 0: {
+              ctx.moveTo(t.x - tS, t.y);
+              ctx.lineTo(t.x + tS, t.y - tS);
+              ctx.lineTo(t.x + tS, t.y + tS);
+              break;
+            }
+            case 1: {
+              ctx.moveTo(t.x + tS, t.y);
+              ctx.lineTo(t.x - tS, t.y - tS);
+              ctx.lineTo(t.x - tS, t.y + tS);
+              break;
+            }
+            case 2: {
+              ctx.moveTo(t.x, t.y - tS);
+              ctx.lineTo(t.x - tS, t.y + tS);
+              ctx.lineTo(t.x + tS, t.y + tS);
+              break;
+            }
+            case 3: {
+              ctx.moveTo(t.x, t.y + tS);
+              ctx.lineTo(t.x - tS, t.y - tS);
+              ctx.lineTo(t.x + tS, t.y - tS);
+              break;
+            }
+          }
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+    });
+
+
+  },
+
   fixedDec: function (float, maxPlaces) {
     if (!("" + float)?.split(".")[1].length >= maxPlaces) return;
     return float.toFixed(maxPlaces);
@@ -2308,6 +2568,22 @@ const DME = {
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
+  },
+
+  exportMapPreview: function(){
+    this.generateMapPreview();
+
+    let canvas = document.getElementById("DME-preview-canvas");
+    // Convert the canvas to data
+    let image = canvas.toDataURL();
+    // Create a link
+    let aDownloadLink = document.createElement('a');
+    // Add the name of the file to the link
+    aDownloadLink.download = 'map_preview.png';
+    // Attach the data to the link
+    aDownloadLink.href = image;
+    // Get the code to click the download link
+    aDownloadLink.click();
   },
 
   getCentreOfChunk: function (towers = this.selectedTowers) {
@@ -3223,14 +3499,45 @@ const DME = {
           ctx.shadowBlur = 0;
         }
         if (!colorId) {
-          let w = defly.TOWER_WIDTH / mz * q;
+          /*let w = defly.TOWER_WIDTH / mz * q;
           ctx.drawImage(
             defly.images.koth_crown,
-            t.x - w,
+            t.x - w+30/mz,
             t.y - w,
             w * 2,
             w * 2
-          );
+          );*/
+          ctx.fillStyle = 'black';
+          ctx.beginPath();
+          ctx.moveTo(t.x - 6.5/mz, t.y+6.5/mz);
+          ctx.lineTo(t.x + 6.5/mz, t.y+6.5/mz);
+          ctx.lineTo(t.x + 9.5/mz, t.y-1.5/mz);
+          ctx.lineTo(t.x + 9/mz, t.y-2/mz);
+          ctx.lineTo(t.x + 6/mz, t.y-.5/mz);
+          ctx.lineTo(t.x + 5.2/mz, t.y-3.6/mz);
+          ctx.lineTo(t.x + 4.3/mz, t.y-3.6/mz);
+          ctx.lineTo(t.x + 2.2/mz, t.y-1.8/mz);
+          ctx.lineTo(t.x + .3/mz, t.y-6.2/mz);
+          ctx.lineTo(t.x - .3/mz, t.y-6.2/mz);
+          ctx.lineTo(t.x - 2.2/mz, t.y-1.8/mz);
+          ctx.lineTo(t.x - 4.3/mz, t.y-3.6/mz);
+          ctx.lineTo(t.x - 5.2/mz, t.y-3.6/mz);
+          ctx.lineTo(t.x - 6/mz, t.y-.5/mz);
+          ctx.lineTo(t.x - 9/mz, t.y-2/mz);
+          ctx.lineTo(t.x - 9.5/mz, t.y-1.5/mz);
+          ctx.lineTo(t.x - 6.5/mz, t.y+6.5/mz);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(t.x + 9.3/mz, t.y-2/mz,1/mz,0,2*Math.PI);
+          ctx.moveTo(t.x + 4.9/mz, t.y-4/mz);
+          ctx.arc(t.x + 4.9/mz, t.y-4/mz,1/mz,0,2*Math.PI);
+          ctx.moveTo(t.x, t.y-6.5/mz);
+          ctx.arc(t.x, t.y-6.5/mz,1/mz,0,2*Math.PI);
+          ctx.moveTo(t.x - 4.9/mz, t.y-4/mz);
+          ctx.arc(t.x - 4.9/mz, t.y-4/mz,1/mz,0,2*Math.PI);
+          ctx.moveTo(t.x - 9.3/mz, t.y-2/mz);
+          ctx.arc(t.x - 9.3/mz, t.y-2/mz,1/mz,0,2*Math.PI);
+          ctx.fill();
         }
       } else {
         //not a tower: either spawn or bomb
@@ -3240,15 +3547,23 @@ const DME = {
 
         if (tower.id > -3) {
           //bomb spot
-          let img = defly.images.bombB;
+          /*let img = defly.images.bombB;
           if (tower.id == -1) img = defly.images.bombA;
           ctx.drawImage(
             img,
-            t.x - bombRadius,
+            t.x - bombRadius-12*defly.UNIT_WIDTH/mz,
             t.y - bombRadius,
             2 * bombRadius,
             2 * bombRadius
-          );
+          );*/
+          ctx.strokeStyle = 'rgba(110,130,250,.5)';
+          ctx.lineWidth = 8/mz;
+          ctx.beginPath();
+          ctx.arc(t.x,t.y,bombRadius-4/mz,0,2*Math.PI,);
+          ctx.stroke();
+          ctx.fillStyle = 'rgba(110,130,250,.5)';
+          ctx.font = `bold ${150/mz}px Verdana`;
+          ctx.fillText(tower.id == -1 ? 'A' : 'B', t.x-58/mz, t.y+54/mz);
         } else {
           //spawn
           let col = tower.id == -3 ? 3 : 2;
