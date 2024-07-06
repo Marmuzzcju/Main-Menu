@@ -430,7 +430,7 @@ const DME = {
   mapData: {
     width: 210 * defly.UNIT_WIDTH,
     height: 120 * defly.UNIT_WIDTH,
-    koth: false,
+    koth: [],
     shape: 0,
     bounds: [], //stores corner positions of hex maps
     towers: [], //{x : xPosition, y : yPosition, color : color, id : uniqueTowerId} || + isShaded : bool, isNotTower : number
@@ -1771,9 +1771,7 @@ const DME = {
     switch (step) {
       case 0: {
         this.editMode = "KOTH";
-        if (!this.mapData.koth) {
-          document.querySelector("#DME-edit-KOTH").innerText =
-            "Edit KOTH bounds";
+        if (!this.mapData.koth.length) {
           this.mapData.koth = [];
         }
         this.mapData.koth[4] = true;
@@ -1787,6 +1785,8 @@ const DME = {
           //update tower visuals
           this.updateKothTowers();
         }
+        document.querySelector("#DME-edit-KOTH").innerText =
+          "Edit KOTH bounds";
         break;
       }
       case 2: {
@@ -1811,10 +1811,11 @@ const DME = {
         break;
       }
       case -1: {
-        this.mapData.koth = false;
+        this.mapData.koth = [];
         let t = document.querySelector('#DME-edit-KOTH');
         t.classList.remove('fatButtonRight');
         t.classList.add('fatButton');
+        t.innerText = "Add KOTH bounds";
         document.querySelector('#DME-remove-KOTH').classList.add('hidden');
         this.editMode = "building";
         this.updateKothTowers();
@@ -2165,7 +2166,7 @@ const DME = {
       case "defly": {
         text += `MAP_WIDTH ${d.width / uW}`;
         text += `\nMAP_HEIGHT ${d.height / uW}`;
-        if (d?.koth.length == 4)
+        if (d?.koth.length >= 4)
           text += `\nKOTH ${d.koth[0] / uW.toRounded(6)} ${
             d.koth[1] / uW.toRounded(6)
           } ${d.koth[2] / uW.toRounded(6)} ${d.koth[3] / uW.toRounded(6)}`;
@@ -2204,7 +2205,7 @@ const DME = {
         text += `${(d.width / uW).toRounded(2)},${(d.height / uW).toRounded(
           2
         )}|${
-          /*Koth bounds*/ d?.koth.length == 4
+          /*Koth bounds*/ d?.koth.length >= 4
             ? `${d.koth[0]},${d.koth[1]},${d.koth[2]},${d.koth[3]}`
             : ""
         }|`;
@@ -3094,7 +3095,7 @@ const DME = {
     let towerWidth = defly.TOWER_WIDTH / mz;
 
     //draw koth bounds
-    if (this.mapData.koth && this.visuals.showKothBounds) {
+    if (this.mapData.koth.length && this.visuals.showKothBounds) {
       let koth = this.mapData.koth;
       ctx.fillStyle = "rgba(212,175,55,.5)";
       let w = (koth[2] ? koth[2] : mc.x) - koth[0],
@@ -3417,16 +3418,46 @@ const DME = {
     this.changeQuality(1);
   },
 
-  loadBackgroundImage: function (input) {
-    if (input.files && input.files[0]) {
+  handleFileDrop: function(ev){
+    let input = ev.dataTransfer.files[0];
+    switch(input.type.split('/')[0]){
+        case 'text':{
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                DME.loadMap(e.target.result);
+            }
+            reader.readAsText(input);
+            break;
+        }
+        case 'image':{
+            this.loadBackgroundImage(ev.dataTransfer);
+            break;
+        }
+    }
+  },
+
+  loadBackgroundImage: function (input, forcedAccept) {
+    if ((input.files && input.files[0]) || forcedAccept) {
       let reader = new FileReader();
 
       reader.onload = function (e) {
         DME.visuals.backgroundImage.src = e.target.result;
+        let t = document.querySelector('#DME-menu-load-background-image');
+        t.classList.remove('fatButton');
+        t.classList.add('fatButtonRight');
+        document.querySelector('#DME-menu-remove-background-image').classList.remove('hidden');
       };
 
       reader.readAsDataURL(input.files[0]);
     }
+  },
+
+  removeBackgroundImage: function () {
+    DME.visuals.backgroundImage = new Image();
+    let t = document.querySelector('#DME-menu-load-background-image');
+    t.classList.remove('fatButtonRight');
+    t.classList.add('fatButton');
+    document.querySelector('#DME-menu-remove-background-image').classList.add('hidden');
   },
 
   saveColorPreset: function (){
@@ -3808,7 +3839,7 @@ const DME = {
     });
 
     //update menu (such as "Enable XY" -> "Upadate XY" if XY already exists)
-    if (this.mapData.koth)
+    if (this.mapData.koth.length)
       document.querySelector("#DME-edit-KOTH").innerText = "Edit KOTH bounds";
 
     this.updateCanvas();
