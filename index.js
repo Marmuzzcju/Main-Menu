@@ -4141,15 +4141,15 @@ const DME = {
                 this.selectChunk(1);
                 break;
               }
-              case this.hotkeys.Control: {
+              case "CONTROL": {
                 this.isKeyPressed.CONTROL = false;
                 break;
               }
-              case this.hotkeys.Shift: {
+              case "SHIFT": {
                 this.isKeyPressed.SHIFT = false;
                 break;
               }
-              case this.hotkeys.Enter: {
+              case "ENTER": {
                 this.isKeyPressed.ENTER = false;
                 break;
               }
