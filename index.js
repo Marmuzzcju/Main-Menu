@@ -3867,7 +3867,7 @@ const DME = {
 
   handleFileDrop: function (ev) {
     let input = ev.dataTransfer.files[0];
-    switch (input.type.split("/")[0]) {
+    switch (input?.type.split("/")[0]) {
       case "text": {
         let reader = new FileReader();
         reader.onload = function (e) {
@@ -3879,6 +3879,10 @@ const DME = {
       case "image": {
         this.loadBackgroundImage(ev.dataTransfer);
         break;
+      }
+      default:{
+        console.log('Unknown file type: File ignored');
+        return;
       }
     }
   },
