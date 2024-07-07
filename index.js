@@ -301,9 +301,9 @@ let test = {
 
 const DME = {
   hotkeys: {
-    Control: "CONTROL",
+    /*Control: "CONTROL",
     Shift: "SHIFT",
-    Enter: "ENTER",
+    Enter: "ENTER",*/
     Delete1: "DELETE",
     Delete2: "BACKSPACE",
     MoveUp1: "W",
@@ -332,10 +332,10 @@ const DME = {
     placeBombA2: "",
     placeBombB1: "2",
     placeBombB2: "",
-    placSpawnRed1: "3",
-    placSpawnRed2: "",
-    placSpawnBlue1: "4",
-    placSpawnBlue2: "",
+    placeSpawnRed1: "3",
+    placeSpawnRed2: "",
+    placeSpawnBlue1: "4",
+    placeSpawnBlue2: "",
     toggleMirrorMode1: "M",
     toggleMirrorMode2: "",
     toggleRotateMode1: "R",
@@ -2813,12 +2813,42 @@ const DME = {
       let newBind = newBindValue == 'ESCAPE' ? '' : DME.specialKeyInputs.hasOwnProperty(newBindValue) ? DME.specialKeyInputs[newBindValue] : newBindValue;
       DME.changeKeybind.element.innerText = newBind;
       DME.changeKeybind.element.style.fontSize = "16px";
-      //markDoubleKeys();
       DME.changeKeybind.isChanging = false;
       DME.hotkeys[DME.changeKeybind.binding] = newBind;
       DME.blockInput = false;
+      DME.markDoubledKeybinds();
       return;
     }
+  },
+  markDoubledKeybinds: function(){
+    let markedKeys = [],
+        nonMarkedKeys = [],
+        doubledKeys = [],
+        hotkeyClone = [];
+        idsClone = [];
+    Object.entries(DME.hotkeys).forEach((key, idx) => {
+      hotkeyClone.push(key[1]);
+      idsClone.push(key[0]);
+    });
+    let l = hotkeyClone.length;
+    for(let c=0;c<l;c++){
+      let key = hotkeyClone[0];
+      let id = idsClone[0];
+      hotkeyClone.shift();
+      idsClone.shift();
+      if(key == '') continue;
+      if(hotkeyClone.includes(key) || doubledKeys.includes(key)) {
+        markedKeys.push(id);
+        doubledKeys.push(key);
+      } else nonMarkedKeys.push(id);
+    }
+    markedKeys.forEach(key => {
+      document.querySelector(`#DME-ch-${key}`).style.color = 'red';
+    });
+    nonMarkedKeys.forEach(key => {
+      document.querySelector(`#DME-ch-${key}`).style.color = 'black';
+    });
+
   },
 
   handleMoveInput: function (direction) {
@@ -3861,15 +3891,15 @@ const DME = {
                 if (!this.chunckOptions.hovering) this.placeTower();
                 break;
               }
-              case this.hotkeys.Control: {
+              case 'CONTROL': {
                 this.isKeyPressed.CONTROL = true;
                 break;
               }
-              case this.hotkeys.Shift: {
+              case 'SHIFT': {
                 this.isKeyPressed.SHIFT = true;
                 break;
               }
-              case this.hotkeys.Enter: {
+              case 'ENTER': {
                 this.isKeyPressed.ENTER = true;
                 break;
               }
@@ -3920,13 +3950,13 @@ const DME = {
                 this.placeSpecial(2);
                 break;
               }
-              case this.hotkeys.placSpawnRed1:
-              case this.hotkeys.placSpawnRed2: {
+              case this.hotkeys.placeSpawnRed1:
+              case this.hotkeys.placeSpawnRed2: {
                 this.placeSpecial(3);
                 break;
               }
-              case this.hotkeys.placSpawnBlue1:
-              case this.hotkeys.placSpawnBlue2: {
+              case this.hotkeys.placeSpawnBlue1:
+              case this.hotkeys.placeSpawnBlue2: {
                 this.placeSpecial(4);
                 break;
               }
@@ -4125,6 +4155,8 @@ const DME = {
         localStorage.setItem("DMEsaved-map-list", JSON.stringify(["Empty"]));
       }
     }
+    this.markDoubledKeybinds();
+
     this.focusPoint = {
       x: this.mapData.width / 2,
       y: this.mapData.height / 2,
