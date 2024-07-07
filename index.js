@@ -3,6 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
+const version = '1.37b';
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -4218,13 +4219,14 @@ const DME = {
     DME.defaultVisuals = JSON.parse(JSON.stringify(DME.visuals));
     DME.defaultVisuals.backgroundImage = new Image();
     if (hasLocalStorage) {
+      localStorage.setItem('Last loaded version', version);
       if (!localStorage.getItem("DMEhotkeys")) {
         localStorage.setItem("DMEhotkeys", JSON.stringify(DME.hotkeys));
       } else {
         let storedHotkeys = JSON.parse(localStorage.getItem("DMEhotkeys"));
         console.log(storedHotkeys);
         Object.entries(storedHotkeys).forEach((key) => {
-          DME.hotkeys[key[0]] = key[1];
+          if(DME.hasOwnProperty(key[0])) DME.hotkeys[key[0]] = key[1];
         });
       }
       if (!localStorage.getItem("DME-visuals")) {
