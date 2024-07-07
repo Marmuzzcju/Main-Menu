@@ -341,7 +341,7 @@ const DME = {
     toggleRotateMode1: "R",
     toggleRotateMode2: "",
     placeTower1: "Right Click",
-    placeTower2: "",
+    placeTower2: "SPACE",
     selectTower1: "Left Click",
     selectTower2: "",
     selectArea1: "Middle Click",
@@ -357,6 +357,7 @@ const DME = {
     element: "",
   },
   defaultHotkeys: {},//structuredClone(this.hotkeys),
+  specialKeyInputs: {},
 
   isKeyPressed: {
     CONTROL: false,
@@ -2796,9 +2797,7 @@ const DME = {
       if (!DME.changeKeybind.isChanging) {
         return;
       }
-      let newBind = event.key.toUpperCase();
-      newBind = newBind == "ESCAPE" ? "" : newBind;
-      assignNewKeybind(newBind);
+      assignNewKeybind(event.key.toUpperCase());
       return;
     };
     onmousedown = function (event) {
@@ -2807,11 +2806,11 @@ const DME = {
       }
       let mKeys = ["Left Click", "Middle Click", "Right Click"];
       let newBind = mKeys?.[event.button] ? mKeys[event.button] : `Button ${event.button}`;
-      newBind = newBind == "ESCAPE" ? "" : newBind;
       assignNewKeybind(newBind);
       return;
     };
-    function assignNewKeybind(newBind) {
+    function assignNewKeybind(newBindValue) {
+      let newBind = newBindValue == 'ESCAPE' ? '' : DME.specialKeyInputs.hasOwnProperty(newBindValue) ? DME.specialKeyInputs[newBindValue] : newBindValue;
       DME.changeKeybind.element.innerText = newBind;
       DME.changeKeybind.element.style.fontSize = "16px";
       //markDoubleKeys();
@@ -3821,6 +3820,7 @@ const DME = {
   handleInput: function (type, input, extra) {
     if(this.blockInput) return;
     //ignore hotkeys if a menu is open
+    let modifiedInput = this.specialKeyInputs.hasOwnProperty(input) ? this.specialKeyInputs[input] : input;
     switch (type) {
       case "mousemove": {
         this.updateMouse(input.clientX, input.clientY);
@@ -3831,7 +3831,7 @@ const DME = {
 
         switch (this.editMode) {
           case "building": {
-            switch (input) {
+            switch (modifiedInput) {
               case this.hotkeys.zoomOut1:
               case this.hotkeys.zoomOut2: {
                 if(!extra) extra = 100;
@@ -3970,7 +3970,7 @@ const DME = {
             break;
           }
           case "KOTH": {
-            if (["Left Click", "Right Click"].includes(input)) {
+            if (["Left Click", "Right Click"].includes(modifiedInput)) {
               this.handleKothInput(this.mapData.koth[4] ? 1 : 2);
             }
             break;
@@ -3981,7 +3981,7 @@ const DME = {
       case "button_up": {
         switch (this.editMode) {
           case "building": {
-            switch (input) {
+            switch (modifiedInput) {
               /*case "Left Click":*/
               case this.hotkeys.selectTower1:
               case this.hotkeys.selectTower2: {
@@ -4065,6 +4065,10 @@ const DME = {
     canvas.classList.remove("hidden");
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+
+    //set up specialKeyInput values as they cannot be assigned as normally
+    this.specialKeyInputs = {};
+    this.specialKeyInputs[' '] = 'SPACE';
 
     DME.defaultHotkeys = structuredClone(DME.hotkeys);
     DME.defaultVisuals = JSON.parse(JSON.stringify(DME.visuals));
