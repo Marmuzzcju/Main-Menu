@@ -189,7 +189,7 @@ function calculateParallelLines(A, B, offset) {
 //dot functions (DO NOT USE ON EXTERNAL PROJECTS)
 Number.prototype.toRounded = function (decPlaces) {
   if ((this + "1").split(".")[1]?.length > decPlaces + 1)
-    return this.toFixed(decPlaces)*1;
+    return this.toFixed(decPlaces) * 1;
   return this;
 };
 
@@ -346,17 +346,17 @@ const DME = {
     selectTower2: "",
     selectArea1: "Middle Click",
     selectArea2: "META",
-    zoomOut1: 'Scroll Down',
-    zoomOut2: '-',
-    zoomIn1: 'Scroll Up',
-    zoomIn2: '+',
+    zoomOut1: "Scroll Down",
+    zoomOut2: "-",
+    zoomIn1: "Scroll Up",
+    zoomIn2: "+",
   },
   changeKeybind: {
     isChanging: false,
     binding: "",
     element: "",
   },
-  defaultHotkeys: {},//structuredClone(this.hotkeys),
+  defaultHotkeys: {}, //structuredClone(this.hotkeys),
   specialKeyInputs: {},
 
   isKeyPressed: {
@@ -391,6 +391,7 @@ const DME = {
     showKothBounds: true,
     showTowerShields: true,
     showBackgroundImage: true,
+    useDeflyImages: false,
     backgroundImage: new Image(),
     keepBackgroundImageRatio: false,
     grid_BGC: "#eeeeee",
@@ -405,9 +406,9 @@ const DME = {
     grid_line_width: 1,
     quality: 1,
   },
-  defaultVisuals: {},//structuredClone(this.visuals),
+  defaultVisuals: {}, //structuredClone(this.visuals),
 
-  test:[],
+  test: [],
 
   scrollingSpeed: 10,
   focusPoint: {
@@ -810,7 +811,7 @@ const DME = {
         wall.from.y = t1.y;
         wall.to.x = t2.x;
         wall.to.y = t2.y;
-        wall.color = t1?.isKothTower ? 'koth' : t1.color;
+        wall.color = t1?.isKothTower ? "koth" : t1.color;
       }
     });
   },
@@ -823,9 +824,9 @@ const DME = {
           let relativeTower = this.mapData.towers[this.getIndexFromId(node.id)];
           node.x = relativeTower.x;
           node.y = relativeTower.y;
-          if(!c) {
+          if (!c) {
             let t1 = this.mapData.towers[this.getIndexFromId(node.id)];
-            area.color = t1?.isKothTower ? 'koth' : t1.color;
+            area.color = t1?.isKothTower ? "koth" : t1.color;
           }
           console.log(`Updating node (${node.id})`);
         }
@@ -996,7 +997,6 @@ const DME = {
   },
 
   logAction: function (action) {
-
     //since this function is called anytime selected towers are modified, we can call update tower info here
     this.updateTowerInfo();
 
@@ -1057,7 +1057,7 @@ const DME = {
             } else this.lastActions.splice(splicePos, 1, action);
             break;
           }
-          case 'color': {
+          case "color": {
             if (logNew) {
               this.lastActions.push(action);
             } else this.lastActions.splice(splicePos, 1, action);
@@ -1130,12 +1130,12 @@ const DME = {
             this.rotateChunk(actionToModify.properties, actionToModify.idxs);
             break;
           }
-          case 'color': {
+          case "color": {
             let towers = this.mapData.towers,
-                newLoggedData = [];
-            actionToModify.towers.forEach(data => {
+              newLoggedData = [];
+            actionToModify.towers.forEach((data) => {
               let t = towers[data.ar];
-              newLoggedData.push({ar:data.ar,color:t.color});
+              newLoggedData.push({ ar: data.ar, color: t.color });
               t.color = data.color;
             });
             this.logAction({
@@ -1353,17 +1353,31 @@ const DME = {
   },
   resizeChunkFromInfoMenu: function (axis, setSide, value) {
     let outermostPositions = this.getOuterMostPositionsOfChunk(),
-        origin = {
-          x: setSide == 'top/left' ? outermostPositions.left : outermostPositions.right,
-          y: setSide == 'top/left' ? outermostPositions.top : outermostPositions.bottom,
-        },
-        width = outermostPositions.right - outermostPositions.left,
-        height = outermostPositions.bottom - outermostPositions.top,
-        inputEle = isNaN(value) ? document.querySelector(`#DME-towers-info-position-${value}`) : false;
-        deltaValue = inputEle ? setSide == 'top/left' ? (inputEle.value-inputEle.old_value)*defly.UNIT_WIDTH : (inputEle.old_value-inputEle.value)*defly.UNIT_WIDTH : value,
-        xDelta = axis == 'x' ? 1 + deltaValue / width : 1,
-        yDelta = axis == 'y' ? 1 + deltaValue / height : 1;
-    console.log(`Resizing -- X Delta: ${xDelta};  Y Delta: ${yDelta};  X Origin: ${origin.x};  Y Origin: ${origin.y}`);
+      origin = {
+        x:
+          setSide == "top/left"
+            ? outermostPositions.left
+            : outermostPositions.right,
+        y:
+          setSide == "top/left"
+            ? outermostPositions.top
+            : outermostPositions.bottom,
+      },
+      width = outermostPositions.right - outermostPositions.left,
+      height = outermostPositions.bottom - outermostPositions.top,
+      inputEle = isNaN(value)
+        ? document.querySelector(`#DME-towers-info-position-${value}`)
+        : false;
+    (deltaValue = inputEle
+      ? setSide == "top/left"
+        ? (inputEle.value - inputEle.old_value) * defly.UNIT_WIDTH
+        : (inputEle.old_value - inputEle.value) * defly.UNIT_WIDTH
+      : value),
+      (xDelta = axis == "x" ? 1 + deltaValue / width : 1),
+      (yDelta = axis == "y" ? 1 + deltaValue / height : 1);
+    console.log(
+      `Resizing -- X Delta: ${xDelta};  Y Delta: ${yDelta};  X Origin: ${origin.x};  Y Origin: ${origin.y}`
+    );
     this.resizeChunk(xDelta, yDelta, origin);
   },
   //action here
@@ -1374,25 +1388,25 @@ const DME = {
     origin,
     towersToMod = this.selectedTowers
   ) {
-    if(towersToMod.length < 1) return;
-    xDelta =
-      origin?.z ? xDelta :  
-      xDelta == 0
-        ? 0.0001
-        : xDelta == Infinity
-        ? 0.5
-        : xDelta == -Infinity
-        ? -0.5
-        : xDelta;
-    yDelta =
-      origin?.z ? yDelta :  
-      yDelta == 0
-        ? 0.0001
-        : yDelta == Infinity
-        ? 0.5
-        : yDelta == -Infinity
-        ? -0.5
-        : yDelta;
+    if (towersToMod.length < 1) return;
+    xDelta = origin?.z
+      ? xDelta
+      : xDelta == 0
+      ? 0.0001
+      : xDelta == Infinity
+      ? 0.5
+      : xDelta == -Infinity
+      ? -0.5
+      : xDelta;
+    yDelta = origin?.z
+      ? yDelta
+      : yDelta == 0
+      ? 0.0001
+      : yDelta == Infinity
+      ? 0.5
+      : yDelta == -Infinity
+      ? -0.5
+      : yDelta;
     let s = !origin?.z;
     let loggedIds = [];
     towersToMod.forEach((towerIndex) => {
@@ -1433,13 +1447,13 @@ const DME = {
     }
   },
 
-  recolorChunk: function(newColor, targetTowers = this.selectedTowers){
+  recolorChunk: function (newColor, targetTowers = this.selectedTowers) {
     let towers = this.mapData.towers,
-        loggedData = [],
-        ids = [];
-    targetTowers.forEach(ar => {
-      let t = towers[ar]
-      loggedData.push({ar:ar,color:t.color});
+      loggedData = [],
+      ids = [];
+    targetTowers.forEach((ar) => {
+      let t = towers[ar];
+      loggedData.push({ ar: ar, color: t.color });
       ids.push(t.id);
       t.color = newColor;
     });
@@ -1782,8 +1796,7 @@ const DME = {
           //update tower visuals
           this.updateKothTowers();
         }
-        document.querySelector("#DME-edit-KOTH").innerText =
-          "Edit KOTH bounds";
+        document.querySelector("#DME-edit-KOTH").innerText = "Edit KOTH bounds";
         break;
       }
       case 2: {
@@ -1799,106 +1812,113 @@ const DME = {
           this.mapData.koth[1] = this.mapData.koth[3];
           this.mapData.koth[3] = t;
         }
-        let t = document.querySelector('#DME-edit-KOTH');
-        t.classList.remove('fatButton');
-        t.classList.add('fatButtonRight');
-        document.querySelector('#DME-remove-KOTH').classList.remove('hidden');
+        let t = document.querySelector("#DME-edit-KOTH");
+        t.classList.remove("fatButton");
+        t.classList.add("fatButtonRight");
+        document.querySelector("#DME-remove-KOTH").classList.remove("hidden");
         this.editMode = "building";
         this.updateKothTowers();
         break;
       }
       case -1: {
         this.mapData.koth = [];
-        let t = document.querySelector('#DME-edit-KOTH');
-        t.classList.remove('fatButtonRight');
-        t.classList.add('fatButton');
+        let t = document.querySelector("#DME-edit-KOTH");
+        t.classList.remove("fatButtonRight");
+        t.classList.add("fatButton");
         t.innerText = "Add KOTH bounds";
-        document.querySelector('#DME-remove-KOTH').classList.add('hidden');
+        document.querySelector("#DME-remove-KOTH").classList.add("hidden");
         this.editMode = "building";
         this.updateKothTowers();
       }
     }
   },
 
-  updateMapSize: function(spec, value){
-    this.mapData[spec] = value*defly.UNIT_WIDTH;
-    let notSpec = spec == 'width' ? 'height' : 'width';
-    switch(this.mapData.shape){
-      case 0:{
+  updateMapSize: function (spec, value) {
+    this.mapData[spec] = value * defly.UNIT_WIDTH;
+    let notSpec = spec == "width" ? "height" : "width";
+    switch (this.mapData.shape) {
+      case 0: {
         //rectangle
         break;
       }
-      case 1:{
+      case 1: {
         //hexagon
-        if(spec == 'width') {
-          this.mapData.height = Number(this.mapData.width)*Math.sin(Math.PI/3);
-          let hI = document.querySelector('#DME-input-map-height');
-          hI.value = Number(this.mapData.height)/defly.UNIT_WIDTH;
+        if (spec == "width") {
+          this.mapData.height =
+            Number(this.mapData.width) * Math.sin(Math.PI / 3);
+          let hI = document.querySelector("#DME-input-map-height");
+          hI.value = Number(this.mapData.height) / defly.UNIT_WIDTH;
         } else {
-          this.mapData.width = Number(this.mapData.height)/Math.sin(Math.PI/3);
-          let hI = document.querySelector('#DME-input-map-width');
-          hI.value = Number(this.mapData.width)/defly.UNIT_WIDTH;
+          this.mapData.width =
+            Number(this.mapData.height) / Math.sin(Math.PI / 3);
+          let hI = document.querySelector("#DME-input-map-width");
+          hI.value = Number(this.mapData.width) / defly.UNIT_WIDTH;
         }
         this.updateHexBounds();
         break;
       }
-      case 2:{
+      case 2: {
         //circle
         this.mapData[notSpec] = Number(this.mapData[spec]);
         let hI = document.querySelector(`#DME-input-map-${notSpec}`);
-        hI.value = Number(this.mapData[notSpec])/defly.UNIT_WIDTH;
+        hI.value = Number(this.mapData[notSpec]) / defly.UNIT_WIDTH;
         break;
       }
     }
     this.updateMouseCoords();
   },
 
-  switchMapShape: function(){
-    this.mapData.shape = ++this.mapData.shape%3;
-    switch(this.mapData.shape) {
-      case 0:{
+  switchMapShape: function () {
+    this.mapData.shape = ++this.mapData.shape % 3;
+    switch (this.mapData.shape) {
+      case 0: {
         //rectangle
         //document.querySelector('#DME-input-map-height').removeAttribute('disabled');
         break;
       }
-      case 1:{
+      case 1: {
         //hexagon
-        this.mapData.height = Number(this.mapData.width)*Math.sin(Math.PI/3);
-        let hI = document.querySelector('#DME-input-map-height');
-        hI.value = Number(this.mapData.height)/defly.UNIT_WIDTH;
+        this.mapData.height =
+          Number(this.mapData.width) * Math.sin(Math.PI / 3);
+        let hI = document.querySelector("#DME-input-map-height");
+        hI.value = Number(this.mapData.height) / defly.UNIT_WIDTH;
         //hI.setAttribute('disabled', 1);
 
         this.updateHexBounds();
 
         break;
       }
-      case 2:{
+      case 2: {
         //circle
         this.mapData.height = Number(this.mapData.width);
-        let hI = document.querySelector('#DME-input-map-height');
-        hI.value = Number(this.mapData.height)/defly.UNIT_WIDTH;
+        let hI = document.querySelector("#DME-input-map-height");
+        hI.value = Number(this.mapData.height) / defly.UNIT_WIDTH;
         //hI.setAttribute('disabled', 1);
       }
     }
   },
-  updateHexBounds: function(){
+  updateHexBounds: function () {
     this.mapData.bounds = [];
-    let cX = this.mapData.width/2,
-        cY = this.mapData.height/2;
-        //radious = cX
-    for(c=-0.5;c<5.5;c++){
+    let cX = this.mapData.width / 2,
+      cY = this.mapData.height / 2;
+    //radious = cX
+    for (c = -0.5; c < 5.5; c++) {
       //check whether position is outside hex map bounds
-      let sX = Math.sin(c/3*Math.PI) * cX + cX,
-          sY = Math.cos(c/3*Math.PI) * cX + cY;
+      let sX = Math.sin((c / 3) * Math.PI) * cX + cX,
+        sY = Math.cos((c / 3) * Math.PI) * cX + cY;
       this.mapData.bounds.push(sX);
       this.mapData.bounds.push(sY);
     }
   },
 
-  changeQuality: function(newQuality) {
-    let btns = document.querySelectorAll(`#DME-visuals-menu-quality-buttons > button`);
-    btns?.[((1-this.visuals.quality)*5).toFixed(0)]?.classList.remove('selected');
-    btns?.[((1-newQuality)*5).toFixed(0)]?.classList.add('selected');
+  changeQuality: function (newQuality) {
+    let btns = document.querySelectorAll(
+      `#DME-visuals-menu-quality-buttons > button`
+    );
+    btns?.[((1 - this.visuals.quality) * 5).toFixed(0)]?.classList.remove(
+      "selected"
+    );
+    btns?.[((1 - newQuality) * 5).toFixed(0)]?.classList.add("selected");
     canvas.width *= newQuality / this.visuals.quality;
     canvas.height *= newQuality / this.visuals.quality;
     this.visuals.quality = newQuality;
@@ -1957,12 +1977,14 @@ const DME = {
           switch (identifier) {
             case "MAP_WIDTH": {
               this.mapData.width = newMapData[position + 1] * defly.UNIT_WIDTH;
-              document.querySelector('#DME-input-map-width').value = newMapData[position + 1];
+              document.querySelector("#DME-input-map-width").value =
+                newMapData[position + 1];
               break;
             }
             case "MAP_HEIGHT": {
               this.mapData.height = newMapData[position + 1] * defly.UNIT_WIDTH;
-              document.querySelector('#DME-input-map-height').value = newMapData[position + 1];
+              document.querySelector("#DME-input-map-height").value =
+                newMapData[position + 1];
               break;
             }
             case "KOTH": {
@@ -2143,9 +2165,10 @@ const DME = {
     this.logState = 1;
   },
 
-  clearMap: function(confirmed){
-    if(!confirmed) confirmed = confirm('Are you sure you want to delete this map?');
-    if(confirmed) {
+  clearMap: function (confirmed) {
+    if (!confirmed)
+      confirmed = confirm("Are you sure you want to delete this map?");
+    if (confirmed) {
       this.mapData.towers = [];
       this.mapData.walls = [];
       this.mapData.areas = [];
@@ -2287,22 +2310,22 @@ const DME = {
     return copy;
   },
 
-  generateMapPreview: function(){
-    let canvas = document.querySelector('#DME-preview-canvas'),
-        ctx = canvas.getContext('2d');
-        width = this.mapData.width + defly.GRID_WIDTH,
-        height = this.mapData.height + defly.GRID_WIDTH;
-        fract = width/height >= 16/9 ? 1600/width : 900/height,
-        UW = defly.UNIT_WIDTH;
+  generateMapPreview: function () {
+    let canvas = document.querySelector("#DME-preview-canvas"),
+      ctx = canvas.getContext("2d");
+    (width = this.mapData.width + defly.GRID_WIDTH),
+      (height = this.mapData.height + defly.GRID_WIDTH);
+    (fract = width / height >= 16 / 9 ? 1600 / width : 900 / height),
+      (UW = defly.UNIT_WIDTH);
     width *= fract;
     height *= fract;
     canvas.width = width;
-    canvas.height = height;//HERE
+    canvas.height = height; //HERE
 
     const relToCvs = {
-      x : (val) => (val + UW)*fract,
-      y : (val) => (val + UW)*fract,
-    }
+      x: (val) => (val + UW) * fract,
+      y: (val) => (val + UW) * fract,
+    };
 
     //clear canvas
     ctx.fillStyle = this.visuals.map_BGC;
@@ -2329,8 +2352,8 @@ const DME = {
           this.visuals.backgroundImage,
           relToCvs.x((this.mapData.width - img.width / scale) / 2),
           relToCvs.y((this.mapData.height - img.height / scale) / 2),
-          img.width * fract / scale,
-          img.height * fract / scale
+          (img.width * fract) / scale,
+          (img.height * fract) / scale
         );
       } else {
         ctx.drawImage(
@@ -2358,9 +2381,9 @@ const DME = {
       }
       ctx.stroke();
     }
-    ctx.lineWidth = (1 + 1 * fract);
-    switch(this.mapData.shape){
-      case 0:{
+    ctx.lineWidth = 1 + 1 * fract;
+    switch (this.mapData.shape) {
+      case 0: {
         //rectangle
         ctx.strokeRect(
           relToCvs.x(0),
@@ -2370,27 +2393,33 @@ const DME = {
         );
         break;
       }
-      case 1:{
+      case 1: {
         //hexagon
         ctx.beginPath();
         let w = this.mapData.width,
-            h = this.mapData.height;
-        ctx.moveTo(relToCvs.x(w/4),relToCvs.y(0));
-        ctx.lineTo(relToCvs.x(w*3/4),relToCvs.y(0));
-        ctx.lineTo(relToCvs.x(w),relToCvs.y(h/2));
-        ctx.lineTo(relToCvs.x(w*3/4),relToCvs.y(h));
-        ctx.lineTo(relToCvs.x(w/4),relToCvs.y(h));
-        ctx.lineTo(relToCvs.x(0),relToCvs.y(h/2));
+          h = this.mapData.height;
+        ctx.moveTo(relToCvs.x(w / 4), relToCvs.y(0));
+        ctx.lineTo(relToCvs.x((w * 3) / 4), relToCvs.y(0));
+        ctx.lineTo(relToCvs.x(w), relToCvs.y(h / 2));
+        ctx.lineTo(relToCvs.x((w * 3) / 4), relToCvs.y(h));
+        ctx.lineTo(relToCvs.x(w / 4), relToCvs.y(h));
+        ctx.lineTo(relToCvs.x(0), relToCvs.y(h / 2));
         ctx.closePath();
         ctx.stroke();
         break;
       }
-      case 2:{
+      case 2: {
         //circle
         let w = this.mapData.width,
-            h = this.mapData.height;
+          h = this.mapData.height;
         ctx.beginPath();
-        ctx.arc(relToCvs.x(w/2), relToCvs.y(h/2), w/2*fract, 2 * Math.PI, false);
+        ctx.arc(
+          relToCvs.x(w / 2),
+          relToCvs.y(h / 2),
+          (w / 2) * fract,
+          2 * Math.PI,
+          false
+        );
         ctx.stroke();
         break;
       }
@@ -2401,10 +2430,7 @@ const DME = {
     DME.mapData.areas.forEach((area) => {
       ctx.fillStyle = defly.colors.faded[area.color];
       ctx.beginPath();
-      ctx.moveTo(
-        relToCvs.x(area.nodes[0].x),
-        relToCvs.y(area.nodes[0].y)
-      );
+      ctx.moveTo(relToCvs.x(area.nodes[0].x), relToCvs.y(area.nodes[0].y));
       area.nodes.forEach((node) => {
         ctx.lineTo(relToCvs.x(node.x), relToCvs.y(node.y));
       });
@@ -2420,7 +2446,7 @@ const DME = {
       ctx.stroke();
       //draw wall twice, once bit darker to create the darkened edge of the wall
       ctx.strokeStyle = defly.colors.standard[wall.color];
-      ctx.lineWidth = (wallWidth - 4 * fract);
+      ctx.lineWidth = wallWidth - 4 * fract;
       ctx.beginPath();
       ctx.moveTo(relToCvs.x(wall.from.x), relToCvs.y(wall.from.y));
       ctx.lineTo(relToCvs.x(wall.to.x), relToCvs.y(wall.to.y));
@@ -2445,7 +2471,7 @@ const DME = {
           ? defly.colors.standard[colorId]
           : "rgb(195,143,39)";
         ctx.beginPath();
-        ctx.arc(t.x, t.y, (towerWidth - 2 * fract), 2 * Math.PI, false);
+        ctx.arc(t.x, t.y, towerWidth - 2 * fract, 2 * Math.PI, false);
         ctx.fill();
 
         //if tower is shielded, draw shield
@@ -2455,59 +2481,87 @@ const DME = {
           ctx.lineWidth = 2 * fract;
           ctx.shadowBlur = 3 * fract;
           ctx.beginPath();
-          ctx.arc(t.x, t.y, (towerWidth + 2 * fract), 2 * Math.PI, false);
+          ctx.arc(t.x, t.y, towerWidth + 2 * fract, 2 * Math.PI, false);
           ctx.stroke();
           ctx.shadowBlur = 0;
         }
         if (!colorId) {
-          ctx.fillStyle = 'black';
+          ctx.fillStyle = "black";
           ctx.beginPath();
-          ctx.moveTo(t.x - 6.5*fract, t.y+6.5*fract);
-          ctx.lineTo(t.x + 6.5*fract, t.y+6.5*fract);
-          ctx.lineTo(t.x + 9.5*fract, t.y-1.5*fract);
-          ctx.lineTo(t.x + 9*fract, t.y-2*fract);
-          ctx.lineTo(t.x + 6*fract, t.y-.5*fract);
-          ctx.lineTo(t.x + 5.2*fract, t.y-3.6*fract);
-          ctx.lineTo(t.x + 4.3*fract, t.y-3.6*fract);
-          ctx.lineTo(t.x + 2.2*fract, t.y-1.8*fract);
-          ctx.lineTo(t.x + .3*fract, t.y-6.2*fract);
-          ctx.lineTo(t.x - .3*fract, t.y-6.2*fract);
-          ctx.lineTo(t.x - 2.2*fract, t.y-1.8*fract);
-          ctx.lineTo(t.x - 4.3*fract, t.y-3.6*fract);
-          ctx.lineTo(t.x - 5.2*fract, t.y-3.6*fract);
-          ctx.lineTo(t.x - 6*fract, t.y-.5*fract);
-          ctx.lineTo(t.x - 9*fract, t.y-2*fract);
-          ctx.lineTo(t.x - 9.5*fract, t.y-1.5*fract);
-          ctx.lineTo(t.x - 6.5*fract, t.y+6.5*fract);
+          ctx.moveTo(t.x - 6.5 * fract, t.y + 6.5 * fract);
+          ctx.lineTo(t.x + 6.5 * fract, t.y + 6.5 * fract);
+          ctx.lineTo(t.x + 9.5 * fract, t.y - 1.5 * fract);
+          ctx.lineTo(t.x + 9 * fract, t.y - 2 * fract);
+          ctx.lineTo(t.x + 6 * fract, t.y - 0.5 * fract);
+          ctx.lineTo(t.x + 5.2 * fract, t.y - 3.6 * fract);
+          ctx.lineTo(t.x + 4.3 * fract, t.y - 3.6 * fract);
+          ctx.lineTo(t.x + 2.2 * fract, t.y - 1.8 * fract);
+          ctx.lineTo(t.x + 0.3 * fract, t.y - 6.2 * fract);
+          ctx.lineTo(t.x - 0.3 * fract, t.y - 6.2 * fract);
+          ctx.lineTo(t.x - 2.2 * fract, t.y - 1.8 * fract);
+          ctx.lineTo(t.x - 4.3 * fract, t.y - 3.6 * fract);
+          ctx.lineTo(t.x - 5.2 * fract, t.y - 3.6 * fract);
+          ctx.lineTo(t.x - 6 * fract, t.y - 0.5 * fract);
+          ctx.lineTo(t.x - 9 * fract, t.y - 2 * fract);
+          ctx.lineTo(t.x - 9.5 * fract, t.y - 1.5 * fract);
+          ctx.lineTo(t.x - 6.5 * fract, t.y + 6.5 * fract);
           ctx.fill();
           ctx.beginPath();
-          ctx.arc(t.x + 9.3*fract, t.y-2*fract,1*fract,0,2*Math.PI);
-          ctx.moveTo(t.x + 4.9*fract, t.y-4*fract);
-          ctx.arc(t.x + 4.9*fract, t.y-4*fract,1*fract,0,2*Math.PI);
-          ctx.moveTo(t.x, t.y-6.5*fract);
-          ctx.arc(t.x, t.y-6.5*fract,1*fract,0,2*Math.PI);
-          ctx.moveTo(t.x - 4.9*fract, t.y-4*fract);
-          ctx.arc(t.x - 4.9*fract, t.y-4*fract,1*fract,0,2*Math.PI);
-          ctx.moveTo(t.x - 9.3*fract, t.y-2*fract);
-          ctx.arc(t.x - 9.3*fract, t.y-2*fract,1*fract,0,2*Math.PI);
+          ctx.arc(
+            t.x + 9.3 * fract,
+            t.y - 2 * fract,
+            1 * fract,
+            0,
+            2 * Math.PI
+          );
+          ctx.moveTo(t.x + 4.9 * fract, t.y - 4 * fract);
+          ctx.arc(
+            t.x + 4.9 * fract,
+            t.y - 4 * fract,
+            1 * fract,
+            0,
+            2 * Math.PI
+          );
+          ctx.moveTo(t.x, t.y - 6.5 * fract);
+          ctx.arc(t.x, t.y - 6.5 * fract, 1 * fract, 0, 2 * Math.PI);
+          ctx.moveTo(t.x - 4.9 * fract, t.y - 4 * fract);
+          ctx.arc(
+            t.x - 4.9 * fract,
+            t.y - 4 * fract,
+            1 * fract,
+            0,
+            2 * Math.PI
+          );
+          ctx.moveTo(t.x - 9.3 * fract, t.y - 2 * fract);
+          ctx.arc(
+            t.x - 9.3 * fract,
+            t.y - 2 * fract,
+            1 * fract,
+            0,
+            2 * Math.PI
+          );
           ctx.fill();
         }
       } else {
         //not a tower: either spawn or bomb
-        let bombRadius = (6 * UW) * fract,
-          sS = (4.5 * UW) * fract,
+        let bombRadius = 6 * UW * fract,
+          sS = 4.5 * UW * fract,
           tS = defly.TOWER_WIDTH * fract;
 
         if (tower.id > -3) {
           //bomb spot
-          ctx.strokeStyle = 'rgba(110,130,250,.5)';
-          ctx.lineWidth = 8*fract;
+          ctx.strokeStyle = "rgba(110,130,250,.5)";
+          ctx.lineWidth = 8 * fract;
           ctx.beginPath();
-          ctx.arc(t.x,t.y,bombRadius-4*fract,0,2*Math.PI,);
+          ctx.arc(t.x, t.y, bombRadius - 4 * fract, 0, 2 * Math.PI);
           ctx.stroke();
-          ctx.fillStyle = 'rgba(110,130,250,.5)';
-          ctx.font = `bold ${150*fract}px Verdana`;
-          ctx.fillText(tower.id == -1 ? 'A' : 'B', t.x-58*fract, t.y+54*fract);
+          ctx.fillStyle = "rgba(110,130,250,.5)";
+          ctx.font = `bold ${150 * fract}px Verdana`;
+          ctx.fillText(
+            tower.id == -1 ? "A" : "B",
+            t.x - 58 * fract,
+            t.y + 54 * fract
+          );
         } else {
           //spawn
           let col = tower.id == -3 ? 3 : 2;
@@ -2547,8 +2601,6 @@ const DME = {
         }
       }
     });
-
-
   },
 
   fixedDec: function (float, maxPlaces) {
@@ -2571,16 +2623,16 @@ const DME = {
     document.body.removeChild(element);
   },
 
-  exportMapPreview: function(){
+  exportMapPreview: function () {
     this.generateMapPreview();
 
     let canvas = document.getElementById("DME-preview-canvas");
     // Convert the canvas to data
     let image = canvas.toDataURL();
     // Create a link
-    let aDownloadLink = document.createElement('a');
+    let aDownloadLink = document.createElement("a");
     // Add the name of the file to the link
-    aDownloadLink.download = 'map_preview.png';
+    aDownloadLink.download = "map_preview.png";
     // Attach the data to the link
     aDownloadLink.href = image;
     // Get the code to click the download link
@@ -2805,12 +2857,19 @@ const DME = {
         return;
       }
       let mKeys = ["Left Click", "Middle Click", "Right Click"];
-      let newBind = mKeys?.[event.button] ? mKeys[event.button] : `Button ${event.button}`;
+      let newBind = mKeys?.[event.button]
+        ? mKeys[event.button]
+        : `Button ${event.button}`;
       assignNewKeybind(newBind);
       return;
     };
     function assignNewKeybind(newBindValue) {
-      let newBind = newBindValue == 'ESCAPE' ? '' : DME.specialKeyInputs.hasOwnProperty(newBindValue) ? DME.specialKeyInputs[newBindValue] : newBindValue;
+      let newBind =
+        newBindValue == "ESCAPE"
+          ? ""
+          : DME.specialKeyInputs.hasOwnProperty(newBindValue)
+          ? DME.specialKeyInputs[newBindValue]
+          : newBindValue;
       DME.changeKeybind.element.innerText = newBind;
       DME.changeKeybind.element.style.fontSize = "16px";
       DME.changeKeybind.isChanging = false;
@@ -2820,35 +2879,34 @@ const DME = {
       return;
     }
   },
-  markDoubledKeybinds: function(){
+  markDoubledKeybinds: function () {
     let markedKeys = [],
-        nonMarkedKeys = [],
-        doubledKeys = [],
-        hotkeyClone = [];
-        idsClone = [];
+      nonMarkedKeys = [],
+      doubledKeys = [],
+      hotkeyClone = [];
+    idsClone = [];
     Object.entries(DME.hotkeys).forEach((key, idx) => {
       hotkeyClone.push(key[1]);
       idsClone.push(key[0]);
     });
     let l = hotkeyClone.length;
-    for(let c=0;c<l;c++){
+    for (let c = 0; c < l; c++) {
       let key = hotkeyClone[0];
       let id = idsClone[0];
       hotkeyClone.shift();
       idsClone.shift();
-      if(key == '') continue;
-      if(hotkeyClone.includes(key) || doubledKeys.includes(key)) {
+      if (key == "") continue;
+      if (hotkeyClone.includes(key) || doubledKeys.includes(key)) {
         markedKeys.push(id);
         doubledKeys.push(key);
       } else nonMarkedKeys.push(id);
     }
-    markedKeys.forEach(key => {
-      document.querySelector(`#DME-ch-${key}`).style.color = 'red';
+    markedKeys.forEach((key) => {
+      document.querySelector(`#DME-ch-${key}`).style.color = "red";
     });
-    nonMarkedKeys.forEach(key => {
-      document.querySelector(`#DME-ch-${key}`).style.color = 'black';
+    nonMarkedKeys.forEach((key) => {
+      document.querySelector(`#DME-ch-${key}`).style.color = "black";
     });
-
   },
 
   handleMoveInput: function (direction) {
@@ -3013,15 +3071,15 @@ const DME = {
       mc.snapped.y = yOffset - (yOffset % this.snapRange);
     } else mc.snapped = structuredClone(mc.relative);
     //hold snapped position inside map bounds
-    switch(this.mapData.shape){
-      case 0:{
+    switch (this.mapData.shape) {
+      case 0: {
         //rectangle
         mc.snapped.x =
           mc.snapped.x < 0
             ? 0
             : mc.snapped.x > this.mapData.width
             ? this.mapData.width
-          : mc.snapped.x;
+            : mc.snapped.x;
         mc.snapped.y =
           mc.snapped.y < 0
             ? 0
@@ -3030,39 +3088,53 @@ const DME = {
             : mc.snapped.y;
         break;
       }
-      case 1:{
+      case 1: {
         //hexagon
-        let cX = this.mapData.width/2,
-            cY = this.mapData.height/2,
-            mX = mc.snapped.x,
-            mY = mc.snapped.y;
-            bounds = this.mapData.bounds;
-            //radious = cX
-        for(c=0;c<6;c++){
+        let cX = this.mapData.width / 2,
+          cY = this.mapData.height / 2,
+          mX = mc.snapped.x,
+          mY = mc.snapped.y;
+        bounds = this.mapData.bounds;
+        //radious = cX
+        for (c = 0; c < 6; c++) {
           //check whether position is outside hex map bounds
-          if(this.isIntersecting(mX,mY,cX,cY,bounds[c*2],bounds[1+c*2],bounds[(2+c*2)%12],bounds[(3+c*2)%12])){
-            let [sin, cos] = [Math.sin(Math.PI/3*c), Math.cos(Math.PI/3*c)],
-                [x, y] = [mX-cX, mY-cY];
-            let xC = x * cos - y * sin + .5*cX,
-                fraction = (xC > cX ? cX : xC < 0 ? 0 : xC) / cX,
-                deltaX = bounds[(2+c*2)%12] - bounds[c*2],
-                deltaY = bounds[(3+c*2)%12] - bounds[1+c*2];
-            mc.snapped.x = bounds[c*2] + deltaX * fraction;
-            mc.snapped.y = bounds[1+c*2] + deltaY * fraction;
+          if (
+            this.isIntersecting(
+              mX,
+              mY,
+              cX,
+              cY,
+              bounds[c * 2],
+              bounds[1 + c * 2],
+              bounds[(2 + c * 2) % 12],
+              bounds[(3 + c * 2) % 12]
+            )
+          ) {
+            let [sin, cos] = [
+                Math.sin((Math.PI / 3) * c),
+                Math.cos((Math.PI / 3) * c),
+              ],
+              [x, y] = [mX - cX, mY - cY];
+            let xC = x * cos - y * sin + 0.5 * cX,
+              fraction = (xC > cX ? cX : xC < 0 ? 0 : xC) / cX,
+              deltaX = bounds[(2 + c * 2) % 12] - bounds[c * 2],
+              deltaY = bounds[(3 + c * 2) % 12] - bounds[1 + c * 2];
+            mc.snapped.x = bounds[c * 2] + deltaX * fraction;
+            mc.snapped.y = bounds[1 + c * 2] + deltaY * fraction;
             break;
           }
         }
         break;
       }
-      case 2:{
+      case 2: {
         //circle
-        let radious = this.mapData.width/2,
-            xDif = mc.snapped.x - radious,
-            yDif = mc.snapped.y - radious,
-            e = (xDif**2+yDif**2)**.5 / radious;
-        if(e > 1) {
-          mc.snapped.x = radious + xDif/e;
-          mc.snapped.y = radious + yDif/e;
+        let radious = this.mapData.width / 2,
+          xDif = mc.snapped.x - radious,
+          yDif = mc.snapped.y - radious,
+          e = (xDif ** 2 + yDif ** 2) ** 0.5 / radious;
+        if (e > 1) {
+          mc.snapped.x = radious + xDif / e;
+          mc.snapped.y = radious + yDif / e;
         }
         break;
       }
@@ -3095,7 +3167,7 @@ const DME = {
     }
   },
 
-  updateMapZoom: function(zoom) {
+  updateMapZoom: function (zoom) {
     //zoom value realtive to mouse sensitivity
     let v = zoom / 1250;
     DME.mapZoom *= v > 0 ? 1.02 + v : 1 / (1.02 - v);
@@ -3118,7 +3190,6 @@ const DME = {
 
   //will be called once upon starting chunck resize
   updateChunkOptions: function () {
-
     //since this is called anytime tower selection is changing, we can call update tower info here as well
     this.updateTowerInfo();
 
@@ -3191,14 +3262,14 @@ const DME = {
       : (cO.rh + yDelta) / defly.UNIT_WIDTH;
   },
 
-  updateTowerInfo: function(){
-    let parent = document.querySelector('#DME-towers-info');
-    if(this.selectedTowers.length < 1) {
-      parent.style.display = 'none';
+  updateTowerInfo: function () {
+    let parent = document.querySelector("#DME-towers-info");
+    if (this.selectedTowers.length < 1) {
+      parent.style.display = "none";
     } else {
-      
-      parent.style.display = 'inline';
-      document.querySelector('#DME-towers-info-counter-value').innerText = this.selectedTowers.length;
+      parent.style.display = "inline";
+      document.querySelector("#DME-towers-info-counter-value").innerText =
+        this.selectedTowers.length;
 
       /*if (selectedTowers.length == 1) {
         document.getElementById("tower-info-pathCalculation").style.display =
@@ -3215,61 +3286,66 @@ const DME = {
       });
 
       let colorInput = document.querySelector("#DME-towers-info-color-input"),
-          colorDropdown = document.querySelector("#DME-towers-info-color-dropdown");
+        colorDropdown = document.querySelector(
+          "#DME-towers-info-color-dropdown"
+        );
       if (commonColor) {
         colorInput.value = color;
         colorInput.style.backgroundColor = defly.colors.faded[color];
         colorDropdown.value = color;
       } else {
-        colorInput.value = '';
-        colorInput.style.backgroundColor = 'white';
-        colorDropdown.value = '-';
+        colorInput.value = "";
+        colorInput.style.backgroundColor = "white";
+        colorDropdown.value = "-";
       }
       if (this.selectedTowers.length == 1) {
-        let positionX = document.querySelector('#DME-towers-info-position-x'),
-            positionY = document.querySelector('#DME-towers-info-position-y'),
-            t = this.mapData.towers[this.selectedTowers[0]];
-        positionX.value = (
-          t.x / defly.UNIT_WIDTH
-        ).toRounded(4);
-        positionX.old_value = (
-          t.x / defly.UNIT_WIDTH
-        ).toRounded(4);
-        positionY.value = (
-          t.y / defly.UNIT_WIDTH
-        ).toRounded(4);
-        positionY.old_value = (
-          t.y / defly.UNIT_WIDTH
-        ).toRounded(4);
-        document.querySelector('#DME-towers-info-position').style.display = 'block';
-        document.querySelector('#DME-towers-info-position-1').style.display = 'none';
-        document.querySelector('#DME-towers-info-position-2').style.display = 'none';
+        let positionX = document.querySelector("#DME-towers-info-position-x"),
+          positionY = document.querySelector("#DME-towers-info-position-y"),
+          t = this.mapData.towers[this.selectedTowers[0]];
+        positionX.value = (t.x / defly.UNIT_WIDTH).toRounded(4);
+        positionX.old_value = (t.x / defly.UNIT_WIDTH).toRounded(4);
+        positionY.value = (t.y / defly.UNIT_WIDTH).toRounded(4);
+        positionY.old_value = (t.y / defly.UNIT_WIDTH).toRounded(4);
+        document.querySelector("#DME-towers-info-position").style.display =
+          "block";
+        document.querySelector("#DME-towers-info-position-1").style.display =
+          "none";
+        document.querySelector("#DME-towers-info-position-2").style.display =
+          "none";
       } else {
-        let positionX1 = document.querySelector('#DME-towers-info-position-1-x'),
-            positionY1 = document.querySelector('#DME-towers-info-position-1-y'),
-            positionX2 = document.querySelector('#DME-towers-info-position-2-x'),
-            positionY2 = document.querySelector('#DME-towers-info-position-2-y');
-        document.querySelector('#DME-towers-info-position').style.display = 'none';
-        document.querySelector('#DME-towers-info-position-1').style.display = 'block';
-        document.querySelector('#DME-towers-info-position-2').style.display = 'block';
+        let positionX1 = document.querySelector(
+            "#DME-towers-info-position-1-x"
+          ),
+          positionY1 = document.querySelector("#DME-towers-info-position-1-y"),
+          positionX2 = document.querySelector("#DME-towers-info-position-2-x"),
+          positionY2 = document.querySelector("#DME-towers-info-position-2-y");
+        document.querySelector("#DME-towers-info-position").style.display =
+          "none";
+        document.querySelector("#DME-towers-info-position-1").style.display =
+          "block";
+        document.querySelector("#DME-towers-info-position-2").style.display =
+          "block";
         let outermostPositions = this.getOuterMostPositionsOfChunk(),
-            uW = defly.UNIT_WIDTH;
-        positionX1.value = (outermostPositions.left/uW).toRounded(4);
-        positionX1.old_value = (outermostPositions.left/uW).toRounded(4);
-        positionY1.value = (outermostPositions.top/uW).toRounded(4);
-        positionY1.old_value = (outermostPositions.top/uW).toRounded(4);
-        positionX2.value = (outermostPositions.right/uW).toRounded(4);
-        positionX2.old_value = (outermostPositions.right/uW).toRounded(4);
-        positionY2.value = (outermostPositions.bottom/uW).toRounded(4);
-        positionY2.old_value = (outermostPositions.bottom/uW).toRounded(4);
+          uW = defly.UNIT_WIDTH;
+        positionX1.value = (outermostPositions.left / uW).toRounded(4);
+        positionX1.old_value = (outermostPositions.left / uW).toRounded(4);
+        positionY1.value = (outermostPositions.top / uW).toRounded(4);
+        positionY1.old_value = (outermostPositions.top / uW).toRounded(4);
+        positionX2.value = (outermostPositions.right / uW).toRounded(4);
+        positionX2.old_value = (outermostPositions.right / uW).toRounded(4);
+        positionY2.value = (outermostPositions.bottom / uW).toRounded(4);
+        positionY2.old_value = (outermostPositions.bottom / uW).toRounded(4);
       }
-
     }
   },
 
   relToFsPt: {
-    x: (ogX) => ((ogX - DME.focusPoint.x) / DME.mapZoom + DME.focusOffset.x)*DME.visuals.quality,
-    y: (ogY) => ((ogY - DME.focusPoint.y) / DME.mapZoom + DME.focusOffset.y)*DME.visuals.quality,
+    x: (ogX) =>
+      ((ogX - DME.focusPoint.x) / DME.mapZoom + DME.focusOffset.x) *
+      DME.visuals.quality,
+    y: (ogY) =>
+      ((ogY - DME.focusPoint.y) / DME.mapZoom + DME.focusOffset.y) *
+      DME.visuals.quality,
     /*x : (ogX) => ogX + DME.focusOffset.x * DME.mapZoom - DME.focusPoint.x,
     y : (ogY) => ogY + DME.focusOffset.y * DME.mapZoom - DME.focusPoint.y,*/
   },
@@ -3281,15 +3357,15 @@ const DME = {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     let mz = this.mapZoom,
-        q = this.visuals.quality;
+      q = this.visuals.quality;
 
     //draw map background
     ctx.fillStyle = this.visuals.grid_BGC;
     ctx.fillRect(
       this.relToFsPt.x(0),
       this.relToFsPt.y(0),
-      this.mapData.width / mz * q,
-      this.mapData.height / mz * q
+      (this.mapData.width / mz) * q,
+      (this.mapData.height / mz) * q
     );
     if (this.visuals.showBackgroundImage && this.visuals.backgroundImage.src) {
       if (this.visuals.keepBackgroundImageRatio) {
@@ -3304,22 +3380,22 @@ const DME = {
           this.visuals.backgroundImage,
           this.relToFsPt.x((this.mapData.width - img.width / scale) / 2),
           this.relToFsPt.y((this.mapData.height - img.height / scale) / 2),
-          img.width / mz / scale * q,
-          img.height / mz / scale * q
+          (img.width / mz / scale) * q,
+          (img.height / mz / scale) * q
         );
       } else {
         ctx.drawImage(
           this.visuals.backgroundImage,
           this.relToFsPt.x(0),
           this.relToFsPt.y(0),
-          this.mapData.width / mz * q,
-          this.mapData.height / mz * q
+          (this.mapData.width / mz) * q,
+          (this.mapData.height / mz) * q
         );
       }
     }
     ctx.strokeStyle = this.visuals.grid_lineC;
     if (Number(this.visuals.grid_line_width)) {
-      ctx.lineWidth = this.visuals.grid_line_width / mz * q;
+      ctx.lineWidth = (this.visuals.grid_line_width / mz) * q;
       ctx.beginPath();
       let w = this.mapData.width;
       let h = this.mapData.height;
@@ -3333,39 +3409,45 @@ const DME = {
       }
       ctx.stroke();
     }
-    ctx.lineWidth = (1 + 1 / mz)*q;
-    switch(this.mapData.shape){
-      case 0:{
+    ctx.lineWidth = (1 + 1 / mz) * q;
+    switch (this.mapData.shape) {
+      case 0: {
         //rectangle
         ctx.strokeRect(
           this.relToFsPt.x(0),
           this.relToFsPt.y(0),
-          this.mapData.width / mz * q,
-          this.mapData.height / mz * q
+          (this.mapData.width / mz) * q,
+          (this.mapData.height / mz) * q
         );
         break;
       }
-      case 1:{
+      case 1: {
         //hexagon
         ctx.beginPath();
         let w = this.mapData.width,
-            h = this.mapData.height;
-        ctx.moveTo(this.relToFsPt.x(w/4),this.relToFsPt.y(0));
-        ctx.lineTo(this.relToFsPt.x(w*3/4),this.relToFsPt.y(0));
-        ctx.lineTo(this.relToFsPt.x(w),this.relToFsPt.y(h/2));
-        ctx.lineTo(this.relToFsPt.x(w*3/4),this.relToFsPt.y(h));
-        ctx.lineTo(this.relToFsPt.x(w/4),this.relToFsPt.y(h));
-        ctx.lineTo(this.relToFsPt.x(0),this.relToFsPt.y(h/2));
+          h = this.mapData.height;
+        ctx.moveTo(this.relToFsPt.x(w / 4), this.relToFsPt.y(0));
+        ctx.lineTo(this.relToFsPt.x((w * 3) / 4), this.relToFsPt.y(0));
+        ctx.lineTo(this.relToFsPt.x(w), this.relToFsPt.y(h / 2));
+        ctx.lineTo(this.relToFsPt.x((w * 3) / 4), this.relToFsPt.y(h));
+        ctx.lineTo(this.relToFsPt.x(w / 4), this.relToFsPt.y(h));
+        ctx.lineTo(this.relToFsPt.x(0), this.relToFsPt.y(h / 2));
         ctx.closePath();
         ctx.stroke();
         break;
       }
-      case 2:{
+      case 2: {
         //circle
         let w = this.mapData.width,
-            h = this.mapData.height;
+          h = this.mapData.height;
         ctx.beginPath();
-        ctx.arc(this.relToFsPt.x(w/2), this.relToFsPt.y(h/2), w/2/mz*q, 2 * Math.PI, false);
+        ctx.arc(
+          this.relToFsPt.x(w / 2),
+          this.relToFsPt.y(h / 2),
+          (w / 2 / mz) * q,
+          2 * Math.PI,
+          false
+        );
         ctx.stroke();
         break;
       }
@@ -3408,8 +3490,8 @@ const DME = {
       ctx.fillRect(
         this.relToFsPt.x(koth[0]),
         this.relToFsPt.y(koth[1]),
-        w / mz * q,
-        h / mz * q
+        (w / mz) * q,
+        (h / mz) * q
       );
       if (this.editMode == "KOTH") {
         let x = koth[4] ? mc.x : koth[0],
@@ -3420,8 +3502,8 @@ const DME = {
         ctx.strokeRect(
           this.relToFsPt.x(x),
           this.relToFsPt.y(y),
-          w / mz * q,
-          h / mz * q
+          (w / mz) * q,
+          (h / mz) * q
         );
       }
     }
@@ -3520,79 +3602,89 @@ const DME = {
         if (tower?.isShielded && this.visuals.showTowerShields) {
           ctx.shadowColor = "black";
           ctx.strokeStyle = defly.colors.faded[1];
-          ctx.lineWidth = 2 / mz * q;
-          ctx.shadowBlur = 3 / mz * q;
+          ctx.lineWidth = (2 / mz) * q;
+          ctx.shadowBlur = (3 / mz) * q;
           ctx.beginPath();
           ctx.arc(t.x, t.y, (towerWidth + 2 / mz) * q, 2 * Math.PI, false);
           ctx.stroke();
           ctx.shadowBlur = 0;
         }
         if (!colorId) {
-          /*let w = defly.TOWER_WIDTH / mz * q;
-          ctx.drawImage(
-            defly.images.koth_crown,
-            t.x - w+30/mz,
-            t.y - w,
-            w * 2,
-            w * 2
-          );*/
-          ctx.fillStyle = 'black';
-          ctx.beginPath();
-          ctx.moveTo(t.x - 6.5/mz, t.y+6.5/mz);
-          ctx.lineTo(t.x + 6.5/mz, t.y+6.5/mz);
-          ctx.lineTo(t.x + 9.5/mz, t.y-1.5/mz);
-          ctx.lineTo(t.x + 9/mz, t.y-2/mz);
-          ctx.lineTo(t.x + 6/mz, t.y-.5/mz);
-          ctx.lineTo(t.x + 5.2/mz, t.y-3.6/mz);
-          ctx.lineTo(t.x + 4.3/mz, t.y-3.6/mz);
-          ctx.lineTo(t.x + 2.2/mz, t.y-1.8/mz);
-          ctx.lineTo(t.x + .3/mz, t.y-6.2/mz);
-          ctx.lineTo(t.x - .3/mz, t.y-6.2/mz);
-          ctx.lineTo(t.x - 2.2/mz, t.y-1.8/mz);
-          ctx.lineTo(t.x - 4.3/mz, t.y-3.6/mz);
-          ctx.lineTo(t.x - 5.2/mz, t.y-3.6/mz);
-          ctx.lineTo(t.x - 6/mz, t.y-.5/mz);
-          ctx.lineTo(t.x - 9/mz, t.y-2/mz);
-          ctx.lineTo(t.x - 9.5/mz, t.y-1.5/mz);
-          ctx.lineTo(t.x - 6.5/mz, t.y+6.5/mz);
-          ctx.fill();
-          ctx.beginPath();
-          ctx.arc(t.x + 9.3/mz, t.y-2/mz,1/mz,0,2*Math.PI);
-          ctx.moveTo(t.x + 4.9/mz, t.y-4/mz);
-          ctx.arc(t.x + 4.9/mz, t.y-4/mz,1/mz,0,2*Math.PI);
-          ctx.moveTo(t.x, t.y-6.5/mz);
-          ctx.arc(t.x, t.y-6.5/mz,1/mz,0,2*Math.PI);
-          ctx.moveTo(t.x - 4.9/mz, t.y-4/mz);
-          ctx.arc(t.x - 4.9/mz, t.y-4/mz,1/mz,0,2*Math.PI);
-          ctx.moveTo(t.x - 9.3/mz, t.y-2/mz);
-          ctx.arc(t.x - 9.3/mz, t.y-2/mz,1/mz,0,2*Math.PI);
-          ctx.fill();
+          if (this.visuals.useDeflyImages) {
+            let w = (defly.TOWER_WIDTH / mz) * q;
+            ctx.drawImage(
+              defly.images.koth_crown,
+              t.x - w,
+              t.y - w,
+              w * 2,
+              w * 2
+            );
+          } else {
+            ctx.fillStyle = "black";
+            ctx.beginPath();
+            ctx.moveTo(t.x - 6.5 / mz, t.y + 6.5 / mz);
+            ctx.lineTo(t.x + 6.5 / mz, t.y + 6.5 / mz);
+            ctx.lineTo(t.x + 9.5 / mz, t.y - 1.5 / mz);
+            ctx.lineTo(t.x + 9 / mz, t.y - 2 / mz);
+            ctx.lineTo(t.x + 6 / mz, t.y - 0.5 / mz);
+            ctx.lineTo(t.x + 5.2 / mz, t.y - 3.6 / mz);
+            ctx.lineTo(t.x + 4.3 / mz, t.y - 3.6 / mz);
+            ctx.lineTo(t.x + 2.2 / mz, t.y - 1.8 / mz);
+            ctx.lineTo(t.x + 0.3 / mz, t.y - 6.2 / mz);
+            ctx.lineTo(t.x - 0.3 / mz, t.y - 6.2 / mz);
+            ctx.lineTo(t.x - 2.2 / mz, t.y - 1.8 / mz);
+            ctx.lineTo(t.x - 4.3 / mz, t.y - 3.6 / mz);
+            ctx.lineTo(t.x - 5.2 / mz, t.y - 3.6 / mz);
+            ctx.lineTo(t.x - 6 / mz, t.y - 0.5 / mz);
+            ctx.lineTo(t.x - 9 / mz, t.y - 2 / mz);
+            ctx.lineTo(t.x - 9.5 / mz, t.y - 1.5 / mz);
+            ctx.lineTo(t.x - 6.5 / mz, t.y + 6.5 / mz);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(t.x + 9.3 / mz, t.y - 2 / mz, 1 / mz, 0, 2 * Math.PI);
+            ctx.moveTo(t.x + 4.9 / mz, t.y - 4 / mz);
+            ctx.arc(t.x + 4.9 / mz, t.y - 4 / mz, 1 / mz, 0, 2 * Math.PI);
+            ctx.moveTo(t.x, t.y - 6.5 / mz);
+            ctx.arc(t.x, t.y - 6.5 / mz, 1 / mz, 0, 2 * Math.PI);
+            ctx.moveTo(t.x - 4.9 / mz, t.y - 4 / mz);
+            ctx.arc(t.x - 4.9 / mz, t.y - 4 / mz, 1 / mz, 0, 2 * Math.PI);
+            ctx.moveTo(t.x - 9.3 / mz, t.y - 2 / mz);
+            ctx.arc(t.x - 9.3 / mz, t.y - 2 / mz, 1 / mz, 0, 2 * Math.PI);
+            ctx.fill();
+          }
         }
       } else {
         //not a tower: either spawn or bomb
-        let bombRadius = (6 * defly.UNIT_WIDTH) / mz * q,
-          sS = (4.5 * defly.UNIT_WIDTH) / mz * q,
-          tS = defly.TOWER_WIDTH / mz * q;
+        let bombRadius = ((6 * defly.UNIT_WIDTH) / mz) * q,
+          sS = ((4.5 * defly.UNIT_WIDTH) / mz) * q,
+          tS = (defly.TOWER_WIDTH / mz) * q;
 
         if (tower.id > -3) {
           //bomb spot
-          /*let img = defly.images.bombB;
-          if (tower.id == -1) img = defly.images.bombA;
-          ctx.drawImage(
-            img,
-            t.x - bombRadius-12*defly.UNIT_WIDTH/mz,
-            t.y - bombRadius,
-            2 * bombRadius,
-            2 * bombRadius
-          );*/
-          ctx.strokeStyle = 'rgba(110,130,250,.5)';
-          ctx.lineWidth = 8/mz;
-          ctx.beginPath();
-          ctx.arc(t.x,t.y,bombRadius-4/mz,0,2*Math.PI,);
-          ctx.stroke();
-          ctx.fillStyle = 'rgba(110,130,250,.5)';
-          ctx.font = `bold ${150/mz}px Verdana`;
-          ctx.fillText(tower.id == -1 ? 'A' : 'B', t.x-58/mz, t.y+54/mz);
+          if (this.visuals.useDeflyImages) {
+            let img = defly.images.bombB;
+            if (tower.id == -1) img = defly.images.bombA;
+            ctx.drawImage(
+              img,
+              t.x - bombRadius,
+              t.y - bombRadius,
+              2 * bombRadius,
+              2 * bombRadius
+            );
+          } else {
+            ctx.strokeStyle = "rgba(62,94,255,.5)";
+            ctx.lineWidth = 5.8 / mz * q;
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, bombRadius - 2.9 / mz * q, 0, 2 * Math.PI);
+            ctx.stroke();
+            ctx.fillStyle = "rgba(62,94,255,.5)";
+            ctx.font = `bold ${150 / mz * q}px Verdana`;
+            ctx.fillText(
+              tower.id == -1 ? "A" : "B",
+              t.x - 58 / mz * q,
+              t.y + 54 / mz * q
+            );
+          }
         } else {
           //spawn
           let col = tower.id == -3 ? 3 : 2;
@@ -3650,7 +3742,7 @@ const DME = {
       ctx.arc(mcX, mcY, towerWidth * q, 2 * Math.PI, false);
       ctx.fill();
       //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
-      ctx.lineWidth = 2 / mz * q;
+      ctx.lineWidth = (2 / mz) * q;
       ctx.strokeStyle = defly.colors.standard[this.selectedColor];
       ctx.beginPath();
       ctx.arc(mcX, mcY, (towerWidth - 1 / mz) * q, 2 * Math.PI, false);
@@ -3667,7 +3759,7 @@ const DME = {
       ctx.strokeRect(d.vx, d.vy, d.vw, d.vh);
 
       ctx.lineDashOffset = 0;
-      ctx.lineWidth = d.vsw / 2 * q;
+      ctx.lineWidth = (d.vsw / 2) * q;
       let [o, s] = [d.vsr, 2 * d.vsr];
       ctx.strokeRect(d.vx - o, d.vy - o, s, s);
       ctx.strokeRect(d.vx - o + d.vw / 2, d.vy - o, s, s);
@@ -3684,8 +3776,8 @@ const DME = {
       ctx.lineWidth = 5 * q;
       ctx.fillStyle = "rgba(230, 130, 40, 0.4)";
       let s = this.selectingChunk.origin;
-      let w = (this.mouseCoords.relative.x - s.x) / mz * q;
-      let h = (this.mouseCoords.relative.y - s.y) / mz * q;
+      let w = ((this.mouseCoords.relative.x - s.x) / mz) * q;
+      let h = ((this.mouseCoords.relative.y - s.y) / mz) * q;
       ctx.fillRect(this.relToFsPt.x(s.x), this.relToFsPt.y(s.y), w, h);
       ctx.strokeRect(this.relToFsPt.x(s.x), this.relToFsPt.y(s.y), w, h);
     }
@@ -3719,10 +3811,12 @@ const DME = {
         m.style.display = wasOpen ? "none" : "flex";
         break;
       }
-      case 'none':{
-        let identifier = ['visuals-menu','hotkey-menu','menu'];
-        identifier.forEach(id => {document.querySelector(`#DME-${id}`).style.display = 'none'});
-        document.querySelector('#DME-show-menu').style.display = 'inline';
+      case "none": {
+        let identifier = ["visuals-menu", "hotkey-menu", "menu"];
+        identifier.forEach((id) => {
+          document.querySelector(`#DME-${id}`).style.display = "none";
+        });
+        document.querySelector("#DME-show-menu").style.display = "inline";
         break;
       }
       default: {
@@ -3732,51 +3826,59 @@ const DME = {
     }
   },
 
-  resetKeybinds: function(){
+  resetKeybinds: function () {
     this.hotkeys = structuredClone(this.defaultHotkeys);
-    Object.entries(this.hotkeys).forEach(entrie => {
+    Object.entries(this.hotkeys).forEach((entrie) => {
       let t = document.querySelector(`#DME-ch-${entrie[0]}`);
-      if(t != undefined) {
-        console.log('Element exists!!');
+      if (t != undefined) {
+        console.log("Element exists!!");
         t.innerText = entrie[1];
       }
     });
   },
 
-  resetVisualSettings: function(){
+  resetVisualSettings: function () {
     let visualPreset = structuredClone(this.visuals.custom_preset),
-        quality = this.visuals.quality;
+      quality = this.visuals.quality;
     this.visuals = JSON.parse(JSON.stringify(this.defaultVisuals));
     this.visuals.backgroundImage = new Image();
     this.visuals.custom_preset = visualPreset;
     this.visuals.quality = quality;
-    let checkboxIds = ['showMapHalves','showKothBounds','showTowerShields','showBackgroundImage','keepBackgroundImageRatio'];
-    checkboxIds.forEach(id => {
-      document.querySelector(`#DME-toggle-visuals-${id}`).checked = this.visuals[id];
+    let checkboxIds = [
+      "showMapHalves",
+      "showKothBounds",
+      "showTowerShields",
+      "showBackgroundImage",
+      "keepBackgroundImageRatio",
+    ];
+    checkboxIds.forEach((id) => {
+      document.querySelector(`#DME-toggle-visuals-${id}`).checked =
+        this.visuals[id];
     });
-    let inputIds = ['grid_BGC','grid_lineC','map_BGC','grid_line_width'];
-    inputIds.forEach(id => {
-      document.querySelector(`#DME-edit-visuals-${id}`).value = this.visuals[id];
+    let inputIds = ["grid_BGC", "grid_lineC", "map_BGC", "grid_line_width"];
+    inputIds.forEach((id) => {
+      document.querySelector(`#DME-edit-visuals-${id}`).value =
+        this.visuals[id];
     });
-    document.querySelector('#DME-edit-visuals-C-preset').value = 'light';
+    document.querySelector("#DME-edit-visuals-C-preset").value = "light";
     this.changeQuality(1);
   },
 
-  handleFileDrop: function(ev){
+  handleFileDrop: function (ev) {
     let input = ev.dataTransfer.files[0];
-    switch(input.type.split('/')[0]){
-        case 'text':{
-            let reader = new FileReader();
-            reader.onload = function(e) {
-                DME.loadMap(e.target.result);
-            }
-            reader.readAsText(input);
-            break;
-        }
-        case 'image':{
-            this.loadBackgroundImage(ev.dataTransfer);
-            break;
-        }
+    switch (input.type.split("/")[0]) {
+      case "text": {
+        let reader = new FileReader();
+        reader.onload = function (e) {
+          DME.loadMap(e.target.result);
+        };
+        reader.readAsText(input);
+        break;
+      }
+      case "image": {
+        this.loadBackgroundImage(ev.dataTransfer);
+        break;
+      }
     }
   },
 
@@ -3786,10 +3888,12 @@ const DME = {
 
       reader.onload = function (e) {
         DME.visuals.backgroundImage.src = e.target.result;
-        let t = document.querySelector('#DME-menu-load-background-image');
-        t.classList.remove('fatButton');
-        t.classList.add('fatButtonRight');
-        document.querySelector('#DME-menu-remove-background-image').classList.remove('hidden');
+        let t = document.querySelector("#DME-menu-load-background-image");
+        t.classList.remove("fatButton");
+        t.classList.add("fatButtonRight");
+        document
+          .querySelector("#DME-menu-remove-background-image")
+          .classList.remove("hidden");
       };
 
       reader.readAsDataURL(input.files[0]);
@@ -3798,21 +3902,27 @@ const DME = {
 
   removeBackgroundImage: function () {
     DME.visuals.backgroundImage = new Image();
-    let t = document.querySelector('#DME-menu-load-background-image');
-    t.classList.remove('fatButtonRight');
-    t.classList.add('fatButton');
-    document.querySelector('#DME-menu-remove-background-image').classList.add('hidden');
+    let t = document.querySelector("#DME-menu-load-background-image");
+    t.classList.remove("fatButtonRight");
+    t.classList.add("fatButton");
+    document
+      .querySelector("#DME-menu-remove-background-image")
+      .classList.add("hidden");
   },
 
-  saveColorPreset: function (){
-    console.log('saving preset...');
+  saveColorPreset: function () {
+    console.log("saving preset...");
     let preset = this.visuals.custom_preset,
-        colors = document.querySelectorAll("#DME-visuals-menu input[type='color']");
+      colors = document.querySelectorAll(
+        "#DME-visuals-menu input[type='color']"
+      );
     preset.hasBeenSet = true;
     preset.grid_BGC = colors[0].value;
     preset.grid_lineC = colors[1].value;
     preset.map_BGC = colors[2].value;
-    document.querySelectorAll('#DME-edit-visuals-C-preset option')[3].removeAttribute('disabled');
+    document
+      .querySelectorAll("#DME-edit-visuals-C-preset option")[3]
+      .removeAttribute("disabled");
   },
 
   applyColorPreset: function (preset) {
@@ -3835,22 +3945,27 @@ const DME = {
         this.visuals.grid_lineC = "#e4e4e4";
         break;
       }
-      case 'custom': {
+      case "custom": {
         this.visuals.grid_BGC = this.visuals.custom_preset.grid_BGC;
         this.visuals.map_BGC = this.visuals.custom_preset.map_BGC;
         this.visuals.grid_lineC = this.visuals.custom_preset.grid_lineC;
         break;
       }
     }
-    document.querySelector('#DME-edit-visuals-grid_BGC').value = this.visuals.grid_BGC;
-    document.querySelector('#DME-edit-visuals-map_BGC').value = this.visuals.map_BGC;
-    document.querySelector('#DME-edit-visuals-grid_lineC').value = this.visuals.grid_lineC;
+    document.querySelector("#DME-edit-visuals-grid_BGC").value =
+      this.visuals.grid_BGC;
+    document.querySelector("#DME-edit-visuals-map_BGC").value =
+      this.visuals.map_BGC;
+    document.querySelector("#DME-edit-visuals-grid_lineC").value =
+      this.visuals.grid_lineC;
   },
 
   handleInput: function (type, input, extra) {
-    if(this.blockInput) return;
+    if (this.blockInput) return;
     //ignore hotkeys if a menu is open
-    let modifiedInput = this.specialKeyInputs.hasOwnProperty(input) ? this.specialKeyInputs[input] : input;
+    let modifiedInput = this.specialKeyInputs.hasOwnProperty(input)
+      ? this.specialKeyInputs[input]
+      : input;
     switch (type) {
       case "mousemove": {
         this.updateMouse(input.clientX, input.clientY);
@@ -3864,13 +3979,13 @@ const DME = {
             switch (modifiedInput) {
               case this.hotkeys.zoomOut1:
               case this.hotkeys.zoomOut2: {
-                if(!extra) extra = 100;
+                if (!extra) extra = 100;
                 this.updateMapZoom(extra);
                 break;
               }
               case this.hotkeys.zoomIn1:
               case this.hotkeys.zoomIn2: {
-                if(!extra) extra = -100;
+                if (!extra) extra = -100;
                 this.updateMapZoom(extra);
                 break;
               }
@@ -3883,7 +3998,7 @@ const DME = {
               }
               case this.hotkeys.selectArea1:
               case this.hotkeys.selectArea2: {
-                if(!this.selectingChunk.isSelecting) this.selectChunk(0);
+                if (!this.selectingChunk.isSelecting) this.selectChunk(0);
                 break;
               }
               case this.hotkeys.placeTower1:
@@ -3891,15 +4006,15 @@ const DME = {
                 if (!this.chunckOptions.hovering) this.placeTower();
                 break;
               }
-              case 'CONTROL': {
+              case "CONTROL": {
                 this.isKeyPressed.CONTROL = true;
                 break;
               }
-              case 'SHIFT': {
+              case "SHIFT": {
                 this.isKeyPressed.SHIFT = true;
                 break;
               }
-              case 'ENTER': {
+              case "ENTER": {
                 this.isKeyPressed.ENTER = true;
                 break;
               }
@@ -4090,7 +4205,6 @@ const DME = {
   },
 
   config: function () {
-
     //show canvas
     canvas.classList.remove("hidden");
     canvas.width = window.innerWidth;
@@ -4098,7 +4212,7 @@ const DME = {
 
     //set up specialKeyInput values as they cannot be assigned as normally
     this.specialKeyInputs = {};
-    this.specialKeyInputs[' '] = 'SPACE';
+    this.specialKeyInputs[" "] = "SPACE";
 
     DME.defaultHotkeys = structuredClone(DME.hotkeys);
     DME.defaultVisuals = JSON.parse(JSON.stringify(DME.visuals));
@@ -4113,30 +4227,39 @@ const DME = {
           DME.hotkeys[key[0]] = key[1];
         });
       }
-      if (!localStorage.getItem('DME-visuals')) {
-        localStorage.setItem('DME-visuals', JSON.stringify(DME.visuals));
+      if (!localStorage.getItem("DME-visuals")) {
+        localStorage.setItem("DME-visuals", JSON.stringify(DME.visuals));
       } else {
-        let visuals = JSON.parse(localStorage.getItem('DME-visuals'));
+        let visuals = JSON.parse(localStorage.getItem("DME-visuals"));
         Object.entries(visuals).forEach((key) => {
-          if(key[0] != 'backgroundImage') DME.visuals[key[0]] = key[1];
+          if (key[0] != "backgroundImage") DME.visuals[key[0]] = key[1];
         });
         let q = Number(DME.visuals.quality);
         DME.visuals.quality = 1;
         DME.changeQuality(q);
-        Array.from(document.querySelectorAll("#DME-visuals-menu input[type='checkbox'")).forEach(checkbox => {
-          let val = DME.visuals?.[checkbox.id.replace("DME-toggle-visuals-", "")];
+        Array.from(
+          document.querySelectorAll("#DME-visuals-menu input[type='checkbox'")
+        ).forEach((checkbox) => {
+          let val =
+            DME.visuals?.[checkbox.id.replace("DME-toggle-visuals-", "")];
           if (val != undefined) {
             checkbox.checked = !!val;
           }
         });
-        Array.from(document.querySelectorAll("#DME-visuals-menu input[type='color'")).forEach(colorInp => {
+        Array.from(
+          document.querySelectorAll("#DME-visuals-menu input[type='color'")
+        ).forEach((colorInp) => {
           let val = DME.visuals?.[colorInp.id.replace("DME-edit-visuals-", "")];
           if (val) {
             colorInp.value = val;
           }
         });
-        if(DME.visuals.custom_preset.hasBeenSet) document.querySelectorAll('#DME-edit-visuals-C-preset option')[3].removeAttribute('disabled');
-        document.querySelector('#DME-edit-visuals-grid_line_width').value = DME.visuals.grid_line_width;
+        if (DME.visuals.custom_preset.hasBeenSet)
+          document
+            .querySelectorAll("#DME-edit-visuals-C-preset option")[3]
+            .removeAttribute("disabled");
+        document.querySelector("#DME-edit-visuals-grid_line_width").value =
+          DME.visuals.grid_line_width;
       }
       Array.from(
         document.querySelectorAll("#DME-hotkey-menu > div > button")
@@ -4164,7 +4287,9 @@ const DME = {
 
     canvas.addEventListener("mousedown", (e) => {
       let mKeys = ["Left Click", "Middle Click", "Right Click"];
-      DME.handleInput('button_down', mKeys?.[e.button] ? mKeys[e.button] : `Button ${e.button}`
+      DME.handleInput(
+        "button_down",
+        mKeys?.[e.button] ? mKeys[e.button] : `Button ${e.button}`
       );
     });
     canvas.addEventListener("mouseup", (e) => {
@@ -4176,7 +4301,11 @@ const DME = {
     });
     canvas.addEventListener("wheel", (e) => {
       e.preventDefault();
-      this.handleInput("button_down", e.deltaY > 0 ? 'Scroll Down' : 'Scroll Up', e.deltaY);
+      this.handleInput(
+        "button_down",
+        e.deltaY > 0 ? "Scroll Down" : "Scroll Up",
+        e.deltaY
+      );
     });
     canvas.addEventListener("mousemove", (e) => {
       this.handleInput("mousemove", e);
