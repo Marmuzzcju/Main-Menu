@@ -2487,7 +2487,15 @@ const DME = {
           ctx.shadowBlur = 0;
         }
         if (!colorId) {
-          ctx.fillStyle = "black";
+          let w = defly.TOWER_WIDTH * fract;
+          ctx.drawImage(
+            defly.images.koth_crown,
+            t.x - w,
+            t.y - w,
+            w * 2,
+            w * 2
+          );
+          /*ctx.fillStyle = "black";
           ctx.beginPath();
           ctx.moveTo(t.x - 6.5 * fract, t.y + 6.5 * fract);
           ctx.lineTo(t.x + 6.5 * fract, t.y + 6.5 * fract);
@@ -2541,7 +2549,7 @@ const DME = {
             0,
             2 * Math.PI
           );
-          ctx.fill();
+          ctx.fill();*/
         }
       } else {
         //not a tower: either spawn or bomb
@@ -2551,7 +2559,17 @@ const DME = {
 
         if (tower.id > -3) {
           //bomb spot
-          ctx.strokeStyle = "rgba(110,130,250,.5)";
+
+          let img = defly.images.bombB;
+          if (tower.id == -1) img = defly.images.bombA;
+          ctx.drawImage(
+            img,
+            t.x - bombRadius,
+            t.y - bombRadius,
+            2 * bombRadius,
+            2 * bombRadius
+          );
+          /*ctx.strokeStyle = "rgba(110,130,250,.5)";
           ctx.lineWidth = 8 * fract;
           ctx.beginPath();
           ctx.arc(t.x, t.y, bombRadius - 4 * fract, 0, 2 * Math.PI);
@@ -2562,7 +2580,7 @@ const DME = {
             tower.id == -1 ? "A" : "B",
             t.x - 58 * fract,
             t.y + 54 * fract
-          );
+          );*/
         } else {
           //spawn
           let col = tower.id == -3 ? 3 : 2;
