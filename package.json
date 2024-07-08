@@ -4,11 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "vite ./index.html",
+    "start": "vite --config vite.config.js",
     "build": "vite build",
     "preview": "vite preview"
   },
-  "author": "",
+  "type": "module",
+  "author": "Marmuzzcju",
   "license": "ISC",
   "devDependencies": {
     "vite": "^5.3.3"

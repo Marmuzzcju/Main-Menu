@@ -280,9 +280,9 @@ const defly = {
     koth_crown: new Image(),
   },
 };
-defly.images.bombA.src = "images/defly-defuse-bombSpotA.png";
-defly.images.bombB.src = "images/defly-defuse-bombSpotB.png";
-defly.images.koth_crown.src = "images/defuse-koth-crown.svg";
+defly.images.bombA.src = "Main-Menu/images/defly-defuse-bombSpotA.png";
+defly.images.bombB.src = "Main-Menu/images/defly-defuse-bombSpotB.png";
+defly.images.koth_crown.src = "Main-Menu/images/defuse-koth-crown.svg";
 
 /*
 js for site 1:
