@@ -5,6 +5,8 @@ and page setup
 */
 const version = '1.38b';
 
+const globalTestExists = true;
+
 let hasLocalStorage = false;
 let currentPage = 1;
 //page = page in main menu
