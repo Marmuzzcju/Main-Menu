@@ -43,7 +43,7 @@ body::before {
   position: fixed;
   left: 0; right: 0;
   top: 0; bottom: 0;
-  background-image: url('./images/background-grid.png');
+  background-image: url('/images/background-grid.png');
   background-size: 50px 50px;
 }
 /*body::after {
