@@ -367,6 +367,8 @@ const DME = {
     zoomOut2: "-",
     zoomIn1: "Scroll Up",
     zoomIn2: "+",
+    resetZoom1: "=",
+    resetZoom2: "",
   },
   changeKeybind: {
     isChanging: false,
@@ -3207,10 +3209,10 @@ const DME = {
     }
   },
 
-  updateMapZoom: function (zoom) {
+  updateMapZoom: function (zoom, isEvent = true) {
     //zoom value realtive to mouse sensitivity
     let v = zoom / 1250;
-    DME.mapZoom *= v > 0 ? 1.02 + v : 1 / (1.02 - v);
+    DME.mapZoom *= isEvent ? v > 0 ? 1.02 + v : 1 / (1.02 - v) : zoom / this.mapZoom;
 
     //update focus point relative to mouse coords
     let fpDelta = {
@@ -4031,6 +4033,11 @@ const DME = {
               case this.hotkeys.zoomIn2: {
                 if (!extra) extra = -100;
                 this.updateMapZoom(extra);
+                break;
+              }
+              case this.hotkeys.resetZoom1:
+              case this.hotkeys.resetZoom2: {
+                this.updateMapZoom(1, false);
                 break;
               }
               case this.hotkeys.selectTower1:
