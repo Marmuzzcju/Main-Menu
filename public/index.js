@@ -131,6 +131,22 @@ window.onbeforeunload = () => {
     }
   }
 };
+window.addEventListener( 'visibilitychange' , () => {
+  let hidden = !!document.hidden;
+  switch (currentSite) {
+    case "DME": {
+      //set all keys to not pressed
+      Object.entries(DME.isKeyPressed).forEach(value => {
+        DME.isKeyPressed[value[0]] = false;
+      });
+      if(hidden){
+        //cancle all events
+
+      }
+      break;
+    }
+  }
+});
 
 config();
 
@@ -1787,6 +1803,8 @@ const DME = {
           this.mapData.koth = [];
         }
         this.mapData.koth[4] = true;
+        console.log('reached');
+        canvas.style.cursor = 'url(/images/koth-bound-cursor-1.png), pointer';
         break;
       }
       case 1: {
@@ -1798,6 +1816,7 @@ const DME = {
           this.updateKothTowers();
         }
         document.querySelector("#DME-edit-KOTH").innerText = "Edit KOTH bounds";
+        canvas.style.cursor = 'url(/images/koth-bound-cursor-2.png) 18 18, pointer';
         break;
       }
       case 2: {
@@ -1819,6 +1838,7 @@ const DME = {
         document.querySelector("#DME-remove-KOTH").classList.remove("hidden");
         this.editMode = "building";
         this.updateKothTowers();
+        canvas.style.cursor = 'crosshair';
         break;
       }
       case -1: {
@@ -2340,7 +2360,7 @@ const DME = {
       this.mapData.width * fract,
       this.mapData.height * fract
     );
-    if (this.visuals.showBackgroundImage && this.visuals.backgroundImage.src) {
+    if (this.visuals.showBackgroundImage && this.visuals?.backgroundImage.src) {
       if (this.visuals.keepBackgroundImageRatio) {
         let img = this.visuals.backgroundImage,
           imgWidthRatio = img.width / img.height,
@@ -3072,7 +3092,7 @@ const DME = {
         o.hovering = 9;
       }
     }
-    canvas.style.cursor = cS;
+    //canvas.style.cursor = cS;
   },
 
   updateMouseCoords: function (x, y) {
@@ -3386,7 +3406,7 @@ const DME = {
       (this.mapData.width / mz) * q,
       (this.mapData.height / mz) * q
     );
-    if (this.visuals.showBackgroundImage && this.visuals.backgroundImage.src) {
+    if (this.visuals.showBackgroundImage && this.visuals?.backgroundImage.src) {
       if (this.visuals.keepBackgroundImageRatio) {
         let img = this.visuals.backgroundImage,
           imgWidthRatio = img.width / img.height,
