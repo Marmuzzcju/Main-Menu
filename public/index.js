@@ -1444,6 +1444,7 @@ const DME = {
     this.updateWalls(stID);
     this.updateAreas(stID);
     this.updateChunkOptions();
+    if(this.mapData.koth.length > 3) this.updateKothTowers();
     if (s) {
       this.logAction({
         action: "modify",
