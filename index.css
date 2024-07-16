@@ -157,8 +157,15 @@ button {
 #DME-resize-values > div {
   position: fixed;
 }
-#DME-resize-values > div > input {
-  width: 40px;
+#DME-resize-values input[type=number] {
+  width: auto;
+  max-width: 40px;
+  border: 1px solid rgba(0,0,0,.5);
+  background-color: rgba(50,50,50,.6);
+}
+#DME-resize-values input[type=number]::-webkit-inner-spin-button {
+  opacity: .4;
+  margin-right: -7px;
 }
 
 #DME-nav-bar {

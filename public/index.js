@@ -1281,10 +1281,10 @@ const DME = {
           }
         }
         let mz = this.mapZoom;
-        if (origin.x) o.vx = this.relToFsPt.x(o.rx) - xDelta / mz;
-        if (!origin?.z) o.vw = o.rw / mz + xDelta / mz;
-        if (origin.y) o.vy = this.relToFsPt.y(o.ry) - yDelta / mz;
-        if (!origin?.z) o.vh = o.rh / mz + yDelta / mz;
+        if (origin.x) o.vx = o.rx - xDelta;
+        if (!origin?.z) o.vw = o.rw + xDelta;
+        if (origin.y) o.vy = o.ry - yDelta;
+        if (!origin?.z) o.vh = o.rh + yDelta;
         this.updateChunkSizeDisplay(xDelta, yDelta);
         break;
       }
@@ -2344,7 +2344,7 @@ const DME = {
     width *= fract;
     height *= fract;
     canvas.width = width;
-    canvas.height = height; //HERE
+    canvas.height = height;
 
     const relToCvs = {
       x: (val) => (val + UW) * fract,
@@ -3008,31 +3008,29 @@ const DME = {
     this.updateMouseCoords(x, y);
     let o = this.chunckOptions;
     if (!o.active) return;
-    let mc = this.mouseCoords.snapped;
+    let mc = this.mouseCoords.relative;
     let cP = {
       distance: 0,
       index: o.hovering - 1,
     };
     if (!o.isChanging) {
       //if selected but havent started changing yet
-      cP.distance = Infinity;
+      cP.index = -1;
       let sp = [];
       for (let h = 0; h <= 1; h += 0.5) {
         for (let w = 0; w <= 1; w += 0.5) {
-          sp.push([o.rx + o.rw * w, o.ry + o.rh * h]);
+          sp.push([o.rx - 9 + (o.rw+18) * w, o.ry - 9 + (o.rh+18) * h]);
         }
       } //get all edge points for the resize
 
-      sp.splice(4, 1);
+      sp.splice(4, 1);//ignore middle one
       sp.forEach((pos, index) => {
-        let d = this.getDistance(mc.x, mc.y, pos[0], pos[1]);
-        if (d < cP.distance) {
-          cP.distance = d;
+        if (Math.abs(mc.x-pos[0])<=o.rsr && Math.abs(mc.y-pos[1])<=o.rsr) {
           cP.index = index;
         }
       });
     } else this.resizeChunkByDrag(1); //call function to take in mouse movement
-    let cS = ""; //cursor style
+    let cS = ''; //cursor style
     switch (
       cP.index //index: determining which case of resizing
     ) {
@@ -3060,27 +3058,27 @@ const DME = {
         cS = "ew-resize";
         break;
       }
-    }
+    }//here
     o.hovering = cP.index + 1;
-    if (cP.distance > o.rsr) {
+    if (cP.index < 0) {
       //check if cursor is on sides (dragging)
-      let [x, y] = [mc.x, mc.y];
+      let [x, y, rx, ry, rw, rh] = [mc.x, mc.y, o.rx-9, o.ry-9, o.rw+18, o.rh+18];
       let [a, b, c, d] = [
-        this.getDistanceToLine(o.rx, o.ry, o.rx + o.rw, o.ry, x, y),
-        this.getDistanceToLine(o.rx, o.ry, o.rx, o.ry + o.rh, x, y),
+        this.getDistanceToLine(rx, ry, rx + rw, ry, x, y),
+        this.getDistanceToLine(rx, ry, rx, ry + rh, x, y),
         this.getDistanceToLine(
-          o.rx + o.rw,
-          o.ry + o.rh,
-          o.rx + o.rw,
-          o.ry,
+          rx + rw,
+          ry + rh,
+          rx + rw,
+          ry,
           x,
           y
         ),
         this.getDistanceToLine(
-          o.rx + o.rw,
-          o.ry + o.rh,
-          o.rx,
-          o.ry + o.rh,
+          rx + rw,
+          ry + rh,
+          rx,
+          ry + rh,
           x,
           y
         ),
@@ -3088,14 +3086,14 @@ const DME = {
       let dist =
         (a < b ? a : b) < (c < d ? c : d) ? (a < b ? a : b) : c < d ? c : d;
       if (dist > o.rsw) {
-        cS = "crosshair";
+        cS = 'crosshair';//canvas.style.cursor;
         o.hovering = 0;
       } else {
         cS = "move";
         o.hovering = 9;
       }
     }
-    //canvas.style.cursor = cS;
+    canvas.style.cursor = cS;
   },
 
   updateMouseCoords: function (x, y) {
@@ -3248,10 +3246,10 @@ const DME = {
         right = right < t.x ? t.x : right;
         bottom = bottom < t.y ? t.y : bottom;
       });
-      let vx = this.relToFsPt.x(left); // - 10 - 15 / mz;
-      let vy = this.relToFsPt.y(top); // - 10 - 15 / mz;
-      let vw = (right - left) / mz; // + 20 + 30 / mz;
-      let vh = (bottom - top) / mz; // + 20 + 30 / mz;
+      let vx = left; // - 10 - 15 / mz;
+      let vy = top; // - 10 - 15 / mz;
+      let vw = (right - left); // + 20 + 30 / mz;
+      let vh = (bottom - top); // + 20 + 30 / mz;
 
       //object containing data about chunk options - has to be updated uppon map move/zoom since contains render position data
       let cO = this.chunckOptions;
@@ -3261,14 +3259,14 @@ const DME = {
       cO.ry = top; //... y posittion
       cO.rw = right - left; //... width
       cO.rh = bottom - top; //... height
-      cO.rsr = 12 * mz + 12; //... selective radious around key points
-      cO.rsw = 10 * mz + 10; //... selective width of outline
+      cO.rsr = 9 * mz;// + 12; //... selective radious around key points
+      cO.rsw = 8 * mz;// + 10; //... selective width of outline
       cO.vx = vx; //visual left x position
       cO.vy = vy; //... y position
       cO.vw = vw; //... width
       cO.vh = vh; //... height
-      cO.vsr = 8 + 8 / mz; //... selective radious around key points
-      cO.vsw = 6 + 6 / mz; //... selective width of the outlines
+      cO.vsr = 9; //... selective radious around key points
+      cO.vsw = 8; //... selective width of the outlines
     } else this.chunckOptions.active = false;
     this.updateChunkSizeDisplay();
   },
@@ -3287,21 +3285,21 @@ const DME = {
     if (!newl && cO.hovering == 9) newl = true;
     document.querySelector("#DME-resize-values").style.display = "inline";
     let xSel = document.querySelector("#DME-resize-values-x");
-    xSel.style.left = `${cO.vx + cO.vw / 2 - 58}px`;
-    xSel.style.top = `${cO.vy + cO.vh + 20}px`;
+    xSel.style.left = `${this.relToFsPt.x(cO.vx + cO.vw / 2) - 58}px`;
+    xSel.style.top = `${this.relToFsPt.y(cO.vy + cO.vh) + 20}px`;
     let xSels = xSel.querySelectorAll("input");
-    xSels[0].value = newl ? 100 : ((cO.rw + xDelta) / cO.rw) * 100;
-    xSels[1].value = newl
+    xSels[0].value = newl
       ? cO.rw / defly.UNIT_WIDTH
       : (cO.rw + xDelta) / defly.UNIT_WIDTH;
+    xSels[1].value = newl ? 100 : ((cO.rw + xDelta) / cO.rw) * 100;
     let ySel = document.querySelector("#DME-resize-values-y");
-    ySel.style.left = `${cO.vx + cO.vw + 20}px`;
-    ySel.style.top = `${cO.vy + cO.vh / 2 - 22}px`;
+    ySel.style.left = `${this.relToFsPt.x(cO.vx + cO.vw) + 20}px`;
+    ySel.style.top = `${this.relToFsPt.y(cO.vy + cO.vh / 2) - 22}px`;
     let ySels = ySel.querySelectorAll("input");
-    ySels[0].value = newl ? 100 : ((cO.rh + yDelta) / cO.rh) * 100;
-    ySels[1].value = newl
+    ySels[0].value = newl
       ? cO.rh / defly.UNIT_WIDTH
       : (cO.rh + yDelta) / defly.UNIT_WIDTH;
+    ySels[1].value = newl ? 100 : ((cO.rh + yDelta) / cO.rh) * 100;
   },
 
   updateTowerInfo: function () {
@@ -3795,23 +3793,36 @@ const DME = {
     if (this.chunckOptions.active) {
       let d = this.chunckOptions;
 
-      ctx.strokeStyle = "rgba(170, 90, 30, 0.8)";
+      ctx.lineWidth = (d.vsw / 2) * q;
+      /*ctx.strokeStyle = "rgba(170, 90, 30, 0.8)";
       ctx.lineDashOffset = 4;
       ctx.lineWidth = d.vsw * q;
-      ctx.strokeRect(d.vx, d.vy, d.vw, d.vh);
+      let offset = d.vsw * q / 2;
+      ctx.strokeRect(d.vx-offset, d.vy-offset, d.vw+2*offset, d.vh+2*offset);
 
       ctx.lineDashOffset = 0;
-      ctx.lineWidth = (d.vsw / 2) * q;
       let [o, s] = [d.vsr, 2 * d.vsr];
-      ctx.strokeRect(d.vx - o, d.vy - o, s, s);
-      ctx.strokeRect(d.vx - o + d.vw / 2, d.vy - o, s, s);
-      ctx.strokeRect(d.vx - o + d.vw, d.vy - o, s, s);
-      ctx.strokeRect(d.vx - o, d.vy - o + d.vh / 2, s, s);
-      ctx.strokeRect(d.vx - o + d.vw, d.vy - o + d.vh / 2, s, s);
-      ctx.strokeRect(d.vx - o, d.vy - o + d.vh, s, s);
-      ctx.strokeRect(d.vx - o + d.vw / 2, d.vy - o + d.vh, s, s);
-      ctx.strokeRect(d.vx - o + d.vw, d.vy - o + d.vh, s, s);
-    }
+      ctx.strokeRect(d.vx - 3*o, d.vy - 3*o, s, s);
+      ctx.strokeRect(d.vx - o + d.vw / 2, d.vy - 3*o, s, s);
+      ctx.strokeRect(d.vx + o + d.vw, d.vy - 3*o, s, s);
+      ctx.strokeRect(d.vx - 3*o, d.vy - o + d.vh / 2, s, s);
+      ctx.strokeRect(d.vx + o + d.vw, d.vy - o + d.vh / 2, s, s);
+      ctx.strokeRect(d.vx - 3*o, d.vy + o + d.vh, s, s);
+      ctx.strokeRect(d.vx - o + d.vw / 2, d.vy + o + d.vh, s, s);
+      ctx.strokeRect(d.vx + o + d.vw, d.vy + o + d.vh, s, s);*/
+
+      ctx.strokeStyle = 'red';
+      let modif = (9 +  d.rsr / 2);
+      for (let h = 0; h <= 1; h += 0.5) {
+        for (let w = 0; w <= 1; w += 0.5) {
+          if(h==.5 && w==.5) continue;
+          ctx.strokeRect(this.relToFsPt.x(d.vx - modif + (d.vw+18) * w), this.relToFsPt.y(d.vy - modif + (d.vh+18) * h), d.rsr / mz, d.rsr / mz);
+        }
+      } //get all edge points for the resize
+      let oModif = 9-d.rsr/2
+      ctx.strokeRect(this.relToFsPt.x(d.vx-oModif),this.relToFsPt.y(d.vy-oModif),(d.vw+2*oModif)/mz,(d.vh+2*oModif)/mz);
+
+    }//here
 
     if (this.selectingChunk.isSelecting) {
       ctx.strokeStyle = "rgba(230, 130, 40, 0.8)";
