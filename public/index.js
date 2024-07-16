@@ -3007,7 +3007,7 @@ const DME = {
   updateMouse: function (x, y) {
     this.updateMouseCoords(x, y);
     let o = this.chunckOptions;
-    if (!o.active) return;
+    if (!o.active || this.editMode == 'KOTH') return;
     let mc = this.mouseCoords.relative;
     let cP = {
       distance: 0,
