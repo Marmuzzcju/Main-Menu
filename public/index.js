@@ -66,6 +66,9 @@ function switchSite(newPage = "main-menu", instance = 0) {
         break;
       }
       case "defuse-clone": {
+        console.log("New Page selected: Defuse Clone!");
+        currentSite = "DC";
+        DC.config();
         break;
       }
       default: {
@@ -3816,11 +3819,11 @@ const DME = {
       for (let h = 0; h <= 1; h += 0.5) {
         for (let w = 0; w <= 1; w += 0.5) {
           if(h==.5 && w==.5) continue;
-          ctx.strokeRect(this.relToFsPt.x(d.vx - modif + (d.vw+18) * w), this.relToFsPt.y(d.vy - modif + (d.vh+18) * h), d.rsr / mz, d.rsr / mz);
+          ctx.strokeRect(this.relToFsPt.x(d.vx - modif + (d.vw+18) * w), this.relToFsPt.y(d.vy - modif + (d.vh+18) * h), d.rsr / mz * q, d.rsr / mz * q);
         }
       } //get all edge points for the resize
       let oModif = 9-d.rsr/2
-      ctx.strokeRect(this.relToFsPt.x(d.vx-oModif),this.relToFsPt.y(d.vy-oModif),(d.vw+2*oModif)/mz,(d.vh+2*oModif)/mz);
+      ctx.strokeRect(this.relToFsPt.x(d.vx-oModif),this.relToFsPt.y(d.vy-oModif),(d.vw+2*oModif)/mz*q,(d.vh+2*oModif)/mz*q);
 
     }//here
 
@@ -4389,7 +4392,7 @@ const DME = {
   },
 
   updateCanvas: function () {
-    if ((currentSite = "DME")) {
+    if ((currentSite == "DME")) {
       //stop requesting new animation frames if site changed from map editor
       DME.updateFocusPoint();
       DME.draw();
@@ -4397,6 +4400,12 @@ const DME = {
     }
   },
 };
+
+const DC = {
+  config: function(){
+
+  },
+}
 
 window.oncontextmenu = (e) => {
   e.preventDefault();

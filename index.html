@@ -86,7 +86,7 @@
     <div id="map-editor" class="hidden main-page" ondragover="document.querySelector('#DME-file-drop').setAttribute('drag_active', true);event.preventDefault();">
       THIS IS DA MAP EDITOR
       <canvas id="DME-display-canvas" class="hidden"></canvas>
-      <div id="DME-resize-values" class="wrapper">
+      <div id="DME-resize-values" class="prevent-select">
         <div id="DME-resize-values-x">
         <input type="number" onfocus="this.select();DME.blockInput=true" onblur="DME.blockInput=false" onchange="DME.resizeChunkByValue(['total','x'],this.value)">U
         &#40;<input type="number" onfocus="this.select();DME.blockInput=true" onblur="DME.blockInput=false" onchange="DME.resizeChunkByValue(['fraction','x'],this.value/100)">%&#41;
