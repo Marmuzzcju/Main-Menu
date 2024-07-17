@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = '1.39b';
+const version = '1.39c';
 
 let hasLocalStorage = false;
 let currentPage = 1;
