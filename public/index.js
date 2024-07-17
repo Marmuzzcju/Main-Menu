@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = '1.38b';
+const version = '1.39b';
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -4269,6 +4269,46 @@ const DME = {
     }
   },
 
+  enterTestMode: function(){
+    //remove editor event listeners
+
+  },
+
+  addAllEventListeners: function(){
+    canvas.addEventListener("mousedown", (e) => {
+      let mKeys = ["Left Click", "Middle Click", "Right Click"];
+      DME.handleInput(
+        "button_down",
+        mKeys?.[e.button] ? mKeys[e.button] : `Button ${e.button}`
+      );
+    });
+    canvas.addEventListener("mouseup", (e) => {
+      let mKeys = ["Left Click", "Middle Click", "Right Click"];
+      this.handleInput(
+        "button_up",
+        mKeys?.[e.button] ? mKeys[e.button] : `Button ${e.button}`
+      );
+    });
+    canvas.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      this.handleInput(
+        "button_down",
+        e.deltaY > 0 ? "Scroll Down" : "Scroll Up",
+        e.deltaY
+      );
+    });
+    canvas.addEventListener("mousemove", (e) => {
+      this.handleInput("mousemove", e);
+    });
+
+    document.addEventListener("keydown", (e) => {
+      this.handleInput("button_down", e.key.toLocaleUpperCase());
+    });
+    document.addEventListener("keyup", (e) => {
+      this.handleInput("button_up", e.key.toLocaleUpperCase());
+    });
+  },
+
   config: function () {
     //show canvas
     canvas.classList.remove("hidden");
@@ -4290,7 +4330,7 @@ const DME = {
         let storedHotkeys = JSON.parse(localStorage.getItem("DMEhotkeys"));
         console.log(storedHotkeys);
         Object.entries(storedHotkeys).forEach((key) => {
-          if(DME.hasOwnProperty(key[0])) DME.hotkeys[key[0]] = key[1];
+          if(DME.hotkeys.hasOwnProperty(key[0])) DME.hotkeys[key[0]] = key[1];
         });
       }
       if (!localStorage.getItem("DME-visuals")) {
@@ -4351,38 +4391,7 @@ const DME = {
       y: this.mapData.height / 2,
     };
 
-    canvas.addEventListener("mousedown", (e) => {
-      let mKeys = ["Left Click", "Middle Click", "Right Click"];
-      DME.handleInput(
-        "button_down",
-        mKeys?.[e.button] ? mKeys[e.button] : `Button ${e.button}`
-      );
-    });
-    canvas.addEventListener("mouseup", (e) => {
-      let mKeys = ["Left Click", "Middle Click", "Right Click"];
-      this.handleInput(
-        "button_up",
-        mKeys?.[e.button] ? mKeys[e.button] : `Button ${e.button}`
-      );
-    });
-    canvas.addEventListener("wheel", (e) => {
-      e.preventDefault();
-      this.handleInput(
-        "button_down",
-        e.deltaY > 0 ? "Scroll Down" : "Scroll Up",
-        e.deltaY
-      );
-    });
-    canvas.addEventListener("mousemove", (e) => {
-      this.handleInput("mousemove", e);
-    });
-
-    document.addEventListener("keydown", (e) => {
-      this.handleInput("button_down", e.key.toLocaleUpperCase());
-    });
-    document.addEventListener("keyup", (e) => {
-      this.handleInput("button_up", e.key.toLocaleUpperCase());
-    });
+    this.addAllEventListeners();
 
     //update menu (such as "Enable XY" -> "Upadate XY" if XY already exists)
     if (this.mapData.koth.length)
