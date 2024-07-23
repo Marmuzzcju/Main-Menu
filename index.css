@@ -308,6 +308,7 @@ button {
   position: fixed;
   top: 30px;
   right: 30px;
+  z-index: 10;
   background-color: rgba(10,10,10,.6);
   padding: 1px 3px;
   border-radius: 5px;
@@ -409,7 +410,7 @@ input[type=number]:not(:hover)::-webkit-inner-spin-button {
   top: 10px;
   background-color: rgba(10, 10, 10, 0.3);
   border-radius: 10px;
-  z-index: 11;
+  z-index: 10;
   outline: 1px solid rgba(250,250,250,.6);
   scale: .5;
 }
