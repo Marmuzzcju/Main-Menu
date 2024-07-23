@@ -85,7 +85,6 @@
     </div>
     <div id="map-editor" class="hidden main-page" ondragover="document.querySelector('#DME-file-drop').setAttribute('drag_active', true);event.preventDefault();">
       THIS IS DA MAP EDITOR
-      <canvas id="DME-display-canvas" class="hidden"></canvas>
       <div id="DME-resize-values" class="prevent-select">
         <div id="DME-resize-values-x">
         <input type="number" onfocus="this.select();DME.blockInput=true" onblur="DME.blockInput=false" onchange="DME.resizeChunkByValue(['total','x'],this.value)">U
@@ -143,7 +142,7 @@
         <button class="fatButton" id="DME-menu-load-background-image" onclick="document.querySelector('#DME-browse-background-image').click();">Load Background Image</button>
         <button class="fatButtonLeft hidden"  id="DME-menu-remove-background-image" onclick="DME.removeBackgroundImage();">Remove Background Image</button> <br />
         <button class="fatButton" onclick="DME.exportMapPreview();">Get Map Preview</button> </br>
-        <button class="fatButton" onclick="DME.enterTestMode();">Test Map</button>
+        <button class="fatButton" onclick="DME.deConfig();switchSite('defly-clone',2);">Test Map</button>
         <!-- <button class="fatButton" onclick="document.getElementById('distance-overview-table').style.display = 'inline';mapStuff.classList.add('blurred');openMenu=true;">View Distance Table</button> <br /> -->
 			  <!-- <button class="fatButton" onclick="testMap();">Test Map</button><a href="https://marmuzzcju.github.io/Defuse-Clone/" target="_blank" id="linkToMapTest" style="display: none;"></a> <br /> -->
 		  </div>
@@ -264,6 +263,25 @@
       </div>
       <div id="DME-file-drop" ondrop="DME.handleFileDrop(event);this.removeAttribute('drag_active');event.preventDefault();" ondragleave="this.removeAttribute('drag_active', true);">Drop File</div>
     </div>
+    <div id="defly-clone" class="hidden main-page">
+      Defly-emulator
+      <div id="DC-menu">
+			  <span style="font-size:20px;text-align: center;">Menu</span><br />
+			  <button onclick="document.querySelector('#DC-menu').style.display = 'none';document.querySelector('#DC-show-menu').style.display = 'inline';">Hide</button><br />
+			  <button onclick="DC.reloadMap();">Reload Map</button><br />
+			  <button onclick="DC.deConfig();switchSite('map-editor', 2);">Exit</button>
+      </div>
+      <button id="DC-show-menu" style="font-size:12px; width:60px; position:fixed; top:4%; left:2%; z-index:100;display:none;" onclick="document.querySelector('#DC-menu').style.display = 'inline';this.style.display = 'none';">Show Menu</button>
+      <div id="DC-select-defuse-copter">
+        <img id="DC-select-defuse-basic" class="DC-copter-selected" onclick="DC.selectDefuseCopter('basic')" src="/public/images/copter-basic.png">
+        <img id="DC-select-defuse-shotgun" onclick="DC.selectDefuseCopter('shotgun')" src="/public/images/copter-shotgun.png">
+        <img id="DC-select-defuse-drone" onclick="DC.selectDefuseCopter('drone')" src="/public/images/copter-drone.png">
+        <img id="DC-select-defuse-minisnipe" onclick="DC.selectDefuseCopter('minisnipe')" src="/public/images/copter-minisnipe.png">
+        <img id="DC-select-defuse-machinegun" onclick="DC.selectDefuseCopter('machinegun')" src="/public/images/copter-machinegun.png">
+        <img id="DC-select-defuse-sniper" onclick="DC.selectDefuseCopter('sniper')" src="/public/images/copter-sniper.png">
+      </div>
+    </div>
+    <canvas id="main-canvas" class="hidden"></canvas>
     <div class="screen-overlay-fade"></div>
     <script defer src="index.js"></script>
   </body>

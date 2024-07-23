@@ -3,14 +3,14 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = '1.39c';
+const version = "1.40";
 
 let hasLocalStorage = false;
 let currentPage = 1;
 //page = page in main menu
 let currentSite = "MM";
 //site = site after main menu
-const canvas = document.querySelector("#DME-display-canvas");
+const canvas = document.querySelector("#main-canvas");
 const ctx = canvas.getContext("2d");
 
 function fadeOutScreen(fadeIn = true) {
@@ -65,10 +65,10 @@ function switchSite(newPage = "main-menu", instance = 0) {
         DME.config();
         break;
       }
-      case "defuse-clone": {
-        console.log("New Page selected: Defuse Clone!");
-        currentSite = "DC";
+      case "defly-clone": {
+        console.log("New Page selected: Defly Clone!");
         DC.config();
+        currentSite = "DC";
         break;
       }
       default: {
@@ -121,30 +121,22 @@ window.onbeforeunload = () => {
     localStorage.setItem("current-page", currentPage);
     switch (currentSite) {
       case "DME": {
-        localStorage.setItem(
-          "DMEauto-saved-map",
-          DME.generateMapFile("compact")
-        );
-        localStorage.setItem("DMEhotkeys", JSON.stringify(DME.hotkeys));
-        //don't save background image - too heavy load, unnecessary & breaks image loading
-        delete DME.visuals.backgroundImage;
-        localStorage.setItem("DME-visuals", JSON.stringify(DME.visuals));
+        DME.deConfig();
         break;
       }
     }
   }
 };
-window.addEventListener( 'visibilitychange' , () => {
+window.addEventListener("visibilitychange", () => {
   let hidden = !!document.hidden;
   switch (currentSite) {
     case "DME": {
       //set all keys to not pressed
-      Object.entries(DME.isKeyPressed).forEach(value => {
+      Object.entries(DME.isKeyPressed).forEach((value) => {
         DME.isKeyPressed[value[0]] = false;
       });
-      if(hidden){
+      if (hidden) {
         //cancle all events
-
       }
       break;
     }
@@ -158,6 +150,64 @@ usefull functions and data for all sites
 */
 const randomNumber = (min, max) =>
   Math.floor(Math.random() * (max - min)) + min;
+
+const randomFloat = (min, max) => Math.random() * (max - min) + min;
+
+const getDistance2d = (x1, y1, x2, y2) =>
+  ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5;
+
+function getAngle(Vector, t1, t2) {
+  let sign = Vector[0] < 0 ? 0 : 1;
+  let alpha = Math.atan((t2.y - t1.y) / (t2.x - t1.x));
+  let beta = sign * Math.PI - Math.atan(Vector[1] / Vector[0]);
+  let gamma = Math.PI - alpha - beta;
+  let delta = Math.PI - beta - 2 * gamma;
+  //ONLY BOUNCE ONCE EVERY 2 TICS <-- add this (edit: idk)
+  return delta;
+}
+
+function getDistanceToLine2d(wall1x, wall1y, wall2x, wall2y, pointX, pointY) {
+  const dx1 = pointX - wall1x;
+  const dy1 = pointY - wall1y;
+  const dx2 = pointX - wall2x;
+  const dy2 = pointY - wall2y;
+  const dx12 = wall2x - wall1x;
+  const dy12 = wall2y - wall1y;
+
+  // Calculate squared distances
+  const dist1Sq = dx1 * dx1 + dy1 * dy1;
+  const dist2Sq = dx2 * dx2 + dy2 * dy2;
+  const lineLengthSq = dx12 * dx12 + dy12 * dy12;
+
+  // Calculate squared distance from point3 to line formed by point1 and point2
+  const crossProduct = dx1 * dy12 - dx12 * dy1;
+  const distToLineSq = (crossProduct * crossProduct) / lineLengthSq;
+
+  //(doesn´t have to) Check if point3 is between point1 and point2
+  const dotProduct = dx1 * dx12 + dy1 * dy12;
+  if (dotProduct >= 0 && dotProduct <= lineLengthSq) {
+    // Calculate the distance from point3 to the line
+    const distToLine = Math.sqrt(distToLineSq);
+    return distToLine;
+  }
+
+  const distanceT1 = Math.sqrt(dist1Sq) + 1;
+  const distanceT2 = Math.sqrt(dist2Sq) + 1;
+  if (distanceT1 < distanceT2) return distanceT1;
+  return distanceT2; // Point is not near the line
+}
+
+function isIntersecting(a, b, c, d, p, q, r, s) {
+  let det, gamma, lambda;
+  det = (c - a) * (s - q) - (r - p) * (d - b);
+  if (det === 0) {
+    return false;
+  } else {
+    lambda = ((s - q) * (r - a) + (p - r) * (s - b)) / det;
+    gamma = ((b - d) * (r - a) + (c - a) * (s - b)) / det;
+    return 0 < lambda && lambda < 1 && 0 < gamma && gamma < 1;
+  }
+}
 
 function removePairs(ar) {
   let hasValue = {};
@@ -214,10 +264,10 @@ Number.prototype.toRounded = function (decPlaces) {
 };
 
 function updateFOV() {
+  let w = window.innerWidth;
+  let h = window.innerHeight;
   switch (currentSite) {
     case "DME": {
-      let w = window.innerWidth;
-      let h = window.innerHeight;
       DME.focusOffset = {
         x: w / 2,
         y: h / 2,
@@ -225,6 +275,14 @@ function updateFOV() {
       canvas.width = w * DME.visuals.quality;
       canvas.height = h * DME.visuals.quality;
       break;
+    }
+    case 'DC':{
+      camera.offset = {
+        x: w / 2,
+        y: h / 2,
+      };
+      canvas.width = w * DME.visuals.quality;
+      canvas.height = h * DME.visuals.quality;
     }
   }
 }
@@ -289,10 +347,68 @@ const defly = {
   BULLET_WIDTH: 7,
   WALL_WIDTH: 13,
   TOWER_WIDTH: 13,
-  PLAYER_WIDTH: 5,
+  PLAYER_WIDTH: 10,
   GRID_WIDTH: 44,
   UNIT_WIDTH: 22, //GRID_WIDTH / 2
   MAX_WALL_LENGTH: 660, //GRID_WIDTH * 15
+  defuseCopter: {
+    basic: {
+      copterSpeed: 260,
+      bulletSpeed: 260,
+      bulletLifespan: 1.7,
+      reloadTime: 0.75,
+      inaccuracy: 0,
+      bulletCount: 1,
+    },
+    drone: {
+      copterSpeed: 230,
+      bulletSpeed: 300,
+      bulletLifespan: 1.5,
+      reloadTime: 0.5,
+      inaccuracy: 0.06,
+      bulletCount: 1,
+    },
+    shotgun: {
+      copterSpeed: 230,
+      bulletSpeed: 260,
+      bulletLifespan: 1.1,
+      reloadTime: 1,
+      inaccuracy: 0.03,
+      bulletCount: 5,
+    },
+    minisnipe: {
+      copterSpeed: 210,
+      bulletSpeed: 320,
+      bulletLifespan: 2,
+      reloadTime: 0.75,
+      inaccuracy: 0.03,
+      bulletCount: 1,
+    },
+    machinegun: {
+      copterSpeed: 175,
+      bulletSpeed: 260, //!
+      bulletLifespan: 1.25,
+      reloadTime: 0.2,
+      inaccuracy: 0.08,
+      bulletCount: 1,
+    },
+    sniper: {
+      copterSpeed: 180,
+      bulletSpeed: 525,
+      bulletLifespan: 2.4,
+      reloadTime: 2,
+      inaccuracy: 0.004,
+      bulletCount: 1,
+    },
+    weapon7: {
+      copterSpeed: 180,
+      bulletSpeed: 150,
+      bulletLifespan: 10,
+      reloadTime: 1.2,
+      inaccuracy: 0,
+      bulletCount: 1,
+    },
+  },
   images: {
     bombA: new Image(),
     bombB: new Image(),
@@ -302,6 +418,27 @@ const defly = {
 defly.images.bombA.src = "/images/defly-defuse-bombSpotA.png";
 defly.images.bombB.src = "/images/defly-defuse-bombSpotB.png";
 defly.images.koth_crown.src = "/images/defuse-koth-crown.svg";
+
+const camera = {
+  position: {
+    x: 0,
+    y: 0,
+  },
+  offset: {
+    x: 0,
+    y: 0,
+  },
+  zoom: 1,
+  quality: 1,
+  relative: {
+    x: (ogX) =>
+      ((ogX - camera.position.x) / camera.zoom + camera.offset.x) *
+      camera.quality,
+    y: (ogY) =>
+      ((ogY - camera.position.y) / camera.zoom + camera.offset.y) *
+      camera.quality,
+  },
+};
 
 /*
 js for site 1:
@@ -450,6 +587,7 @@ const DME = {
   openSubMenu: "",
 
   mapData: {
+    //here
     width: 210 * defly.UNIT_WIDTH,
     height: 120 * defly.UNIT_WIDTH,
     koth: [],
@@ -588,7 +726,7 @@ const DME = {
       distance: Infinity,
     };
     this.mapData.walls.forEach((wall, idx) => {
-      let dist = this.getDistanceToLine(
+      let dist = getDistanceToLine2d(
         wall.from.x,
         wall.from.y,
         wall.to.x,
@@ -596,7 +734,7 @@ const DME = {
         mc.x,
         mc.y
       );
-      //getDistanceToLine might not be accurate - have to check though looking good for now
+      //getDistanceToLine2d might not be accurate - have to check though looking good for now
       if (dist <= closestWall.distance) {
         closestWall.index = idx;
         closestWall.distance = dist;
@@ -1449,7 +1587,7 @@ const DME = {
     this.updateWalls(stID);
     this.updateAreas(stID);
     this.updateChunkOptions();
-    if(this.mapData.koth.length > 3) this.updateKothTowers();
+    if (this.mapData.koth.length > 3) this.updateKothTowers();
     if (s) {
       this.logAction({
         action: "modify",
@@ -1809,8 +1947,8 @@ const DME = {
           this.mapData.koth = [];
         }
         this.mapData.koth[4] = true;
-        console.log('reached');
-        canvas.style.cursor = 'url(/images/koth-bound-cursor-1.png), pointer';
+        console.log("reached");
+        canvas.style.cursor = "url(/images/koth-bound-cursor-1.png), pointer";
         break;
       }
       case 1: {
@@ -1822,7 +1960,8 @@ const DME = {
           this.updateKothTowers();
         }
         document.querySelector("#DME-edit-KOTH").innerText = "Edit KOTH bounds";
-        canvas.style.cursor = 'url(/images/koth-bound-cursor-2.png) 18 18, pointer';
+        canvas.style.cursor =
+          "url(/images/koth-bound-cursor-2.png) 18 18, pointer";
         break;
       }
       case 2: {
@@ -1844,7 +1983,7 @@ const DME = {
         document.querySelector("#DME-remove-KOTH").classList.remove("hidden");
         this.editMode = "building";
         this.updateKothTowers();
-        canvas.style.cursor = 'crosshair';
+        canvas.style.cursor = "crosshair";
         break;
       }
       case -1: {
@@ -2366,7 +2505,10 @@ const DME = {
       this.mapData.width * fract,
       this.mapData.height * fract
     );
-    if (this.visuals.showBackgroundImage && this.visuals?.backgroundImage.src) {
+    if (
+      this.visuals.showBackgroundImage &&
+      this.visuals?.backgroundImage?.src
+    ) {
       if (this.visuals.keepBackgroundImageRatio) {
         let img = this.visuals.backgroundImage,
           imgWidthRatio = img.width / img.height,
@@ -2725,37 +2867,6 @@ const DME = {
     return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5;
   },
 
-  getDistanceToLine: function (wall1x, wall1y, wall2x, wall2y, pointX, pointY) {
-    const dx1 = pointX - wall1x;
-    const dy1 = pointY - wall1y;
-    const dx2 = pointX - wall2x;
-    const dy2 = pointY - wall2y;
-    const dx12 = wall2x - wall1x;
-    const dy12 = wall2y - wall1y;
-
-    // Calculate squared distances
-    const dist1Sq = dx1 * dx1 + dy1 * dy1;
-    const dist2Sq = dx2 * dx2 + dy2 * dy2;
-    const lineLengthSq = dx12 * dx12 + dy12 * dy12;
-
-    // Calculate squared distance from point3 to line formed by point1 and point2
-    const crossProduct = dx1 * dy12 - dx12 * dy1;
-    const distToLineSq = (crossProduct * crossProduct) / lineLengthSq;
-
-    //(doesn´t have to) Check if point3 is between point1 and point2
-    const dotProduct = dx1 * dx12 + dy1 * dy12;
-    if (dotProduct >= 0 && dotProduct <= lineLengthSq) {
-      // Calculate the distance from point3 to the line
-      const distToLine = Math.sqrt(distToLineSq);
-      return distToLine;
-    }
-
-    const distanceT1 = Math.sqrt(dist1Sq) + 1;
-    const distanceT2 = Math.sqrt(dist2Sq) + 1;
-    if (distanceT1 < distanceT2) return distanceT1;
-    return distanceT2; // Point is not near the line
-  },
-
   calculateAngle: function (pointA, pointB, pointC) {
     const angleAB = Math.atan2(pointB[1] - pointA[1], pointB[0] - pointA[0]);
     const angleBC = Math.atan2(pointC[1] - pointB[1], pointC[0] - pointB[0]);
@@ -2768,18 +2879,6 @@ const DME = {
     if (angle < 0) console.log("WTF ;-;");
 
     return angle * (180 / Math.PI);
-  },
-
-  isIntersecting: function (a, b, c, d, p, q, r, s) {
-    let det, gamma, lambda;
-    det = (c - a) * (s - q) - (r - p) * (d - b);
-    if (det === 0) {
-      return false;
-    } else {
-      lambda = ((s - q) * (r - a) + (p - r) * (s - b)) / det;
-      gamma = ((b - d) * (r - a) + (c - a) * (s - b)) / det;
-      return 0 < lambda && lambda < 1 && 0 < gamma && gamma < 1;
-    }
   },
 
   isPointInsideNodes: function (point, nodes) {
@@ -2796,7 +2895,7 @@ const DME = {
     let intersectionCounter = 0;
     let anl = area.length;
     area.forEach((node, idx) => {
-      let intersecting = this.isIntersecting(
+      let intersecting = isIntersecting(
         node.x,
         node.y,
         area[(idx + 1) % anl].x,
@@ -3010,7 +3109,7 @@ const DME = {
   updateMouse: function (x, y) {
     this.updateMouseCoords(x, y);
     let o = this.chunckOptions;
-    if (!o.active || this.editMode == 'KOTH') return;
+    if (!o.active || this.editMode == "KOTH") return;
     let mc = this.mouseCoords.relative;
     let cP = {
       distance: 0,
@@ -3022,18 +3121,21 @@ const DME = {
       let sp = [];
       for (let h = 0; h <= 1; h += 0.5) {
         for (let w = 0; w <= 1; w += 0.5) {
-          sp.push([o.rx - 9 + (o.rw+18) * w, o.ry - 9 + (o.rh+18) * h]);
+          sp.push([o.rx - 9 + (o.rw + 18) * w, o.ry - 9 + (o.rh + 18) * h]);
         }
       } //get all edge points for the resize
 
-      sp.splice(4, 1);//ignore middle one
+      sp.splice(4, 1); //ignore middle one
       sp.forEach((pos, index) => {
-        if (Math.abs(mc.x-pos[0])<=o.rsr && Math.abs(mc.y-pos[1])<=o.rsr) {
+        if (
+          Math.abs(mc.x - pos[0]) <= o.rsr &&
+          Math.abs(mc.y - pos[1]) <= o.rsr
+        ) {
           cP.index = index;
         }
       });
     } else this.resizeChunkByDrag(1); //call function to take in mouse movement
-    let cS = ''; //cursor style
+    let cS = ""; //cursor style
     switch (
       cP.index //index: determining which case of resizing
     ) {
@@ -3061,35 +3163,28 @@ const DME = {
         cS = "ew-resize";
         break;
       }
-    }//here
+    }
     o.hovering = cP.index + 1;
     if (cP.index < 0) {
       //check if cursor is on sides (dragging)
-      let [x, y, rx, ry, rw, rh] = [mc.x, mc.y, o.rx-9, o.ry-9, o.rw+18, o.rh+18];
+      let [x, y, rx, ry, rw, rh] = [
+        mc.x,
+        mc.y,
+        o.rx - 9,
+        o.ry - 9,
+        o.rw + 18,
+        o.rh + 18,
+      ];
       let [a, b, c, d] = [
-        this.getDistanceToLine(rx, ry, rx + rw, ry, x, y),
-        this.getDistanceToLine(rx, ry, rx, ry + rh, x, y),
-        this.getDistanceToLine(
-          rx + rw,
-          ry + rh,
-          rx + rw,
-          ry,
-          x,
-          y
-        ),
-        this.getDistanceToLine(
-          rx + rw,
-          ry + rh,
-          rx,
-          ry + rh,
-          x,
-          y
-        ),
+        getDistanceToLine2d(rx, ry, rx + rw, ry, x, y),
+        getDistanceToLine2d(rx, ry, rx, ry + rh, x, y),
+        getDistanceToLine2d(rx + rw, ry + rh, rx + rw, ry, x, y),
+        getDistanceToLine2d(rx + rw, ry + rh, rx, ry + rh, x, y),
       ];
       let dist =
         (a < b ? a : b) < (c < d ? c : d) ? (a < b ? a : b) : c < d ? c : d;
       if (dist > o.rsw) {
-        cS = 'crosshair';//canvas.style.cursor;
+        cS = "crosshair"; //canvas.style.cursor;
         o.hovering = 0;
       } else {
         cS = "move";
@@ -3101,7 +3196,7 @@ const DME = {
 
   updateMouseCoords: function (x, y) {
     let mc = this.mouseCoords;
-    //if update is called without x,y coords - only update realtive coords without crashing
+    //if update is called without x,y coords - only update relative coords without crashing
     mc.real = x && y ? { x: x, y: y } : mc.real;
     mc.relative = {
       x: this.focusPoint.x + (mc.real.x - this.focusOffset.x) * this.mapZoom,
@@ -3142,7 +3237,7 @@ const DME = {
         for (c = 0; c < 6; c++) {
           //check whether position is outside hex map bounds
           if (
-            this.isIntersecting(
+            isIntersecting(
               mX,
               mY,
               cX,
@@ -3204,6 +3299,8 @@ const DME = {
     mY *= speedModif;
     this.focusPoint.x += mX;
     this.focusPoint.y += mY;
+    camera.position.x = this.focusPoint.x;
+    camera.position.y = this.focusPoint.y;
     if (speedModif) {
       this.updateMouseCoords();
       this.updateChunkOptions();
@@ -3211,9 +3308,14 @@ const DME = {
   },
 
   updateMapZoom: function (zoom, isEvent = true) {
-    //zoom value realtive to mouse sensitivity
+    //zoom value relative to mouse sensitivity
     let v = zoom / 1250;
-    DME.mapZoom *= isEvent ? v > 0 ? 1.02 + v : 1 / (1.02 - v) : zoom / this.mapZoom;
+    DME.mapZoom *= isEvent
+      ? v > 0
+        ? 1.02 + v
+        : 1 / (1.02 - v)
+      : zoom / this.mapZoom;
+    camera.zoom = DME.mapZoom;
 
     //update focus point relative to mouse coords
     let fpDelta = {
@@ -3228,6 +3330,8 @@ const DME = {
     };
     this.focusPoint.x += fpDelta.x;
     this.focusPoint.y += fpDelta.y;
+    camera.position.x = this.focusPoint.x;
+    camera.position.y = this.focusPoint.y;
     this.updateChunkOptions();
   },
 
@@ -3251,8 +3355,8 @@ const DME = {
       });
       let vx = left; // - 10 - 15 / mz;
       let vy = top; // - 10 - 15 / mz;
-      let vw = (right - left); // + 20 + 30 / mz;
-      let vh = (bottom - top); // + 20 + 30 / mz;
+      let vw = right - left; // + 20 + 30 / mz;
+      let vh = bottom - top; // + 20 + 30 / mz;
 
       //object containing data about chunk options - has to be updated uppon map move/zoom since contains render position data
       let cO = this.chunckOptions;
@@ -3262,8 +3366,8 @@ const DME = {
       cO.ry = top; //... y posittion
       cO.rw = right - left; //... width
       cO.rh = bottom - top; //... height
-      cO.rsr = 9 * mz;// + 12; //... selective radious around key points
-      cO.rsw = 8 * mz;// + 10; //... selective width of outline
+      cO.rsr = 9 * mz; // + 12; //... selective radious around key points
+      cO.rsw = 8 * mz; // + 10; //... selective width of outline
       cO.vx = vx; //visual left x position
       cO.vy = vy; //... y position
       cO.vw = vw; //... width
@@ -3410,7 +3514,10 @@ const DME = {
       (this.mapData.width / mz) * q,
       (this.mapData.height / mz) * q
     );
-    if (this.visuals.showBackgroundImage && this.visuals?.backgroundImage.src) {
+    if (
+      this.visuals.showBackgroundImage &&
+      this.visuals?.backgroundImage?.src
+    ) {
       if (this.visuals.keepBackgroundImageRatio) {
         let img = this.visuals.backgroundImage,
           imgWidthRatio = img.width / img.height,
@@ -3716,16 +3823,16 @@ const DME = {
             );
           } else {
             ctx.strokeStyle = "rgba(62,94,255,.5)";
-            ctx.lineWidth = 5.8 / mz * q;
+            ctx.lineWidth = (5.8 / mz) * q;
             ctx.beginPath();
-            ctx.arc(t.x, t.y, bombRadius - 2.9 / mz * q, 0, 2 * Math.PI);
+            ctx.arc(t.x, t.y, bombRadius - (2.9 / mz) * q, 0, 2 * Math.PI);
             ctx.stroke();
             ctx.fillStyle = "rgba(62,94,255,.5)";
-            ctx.font = `bold ${150 / mz * q}px Verdana`;
+            ctx.font = `bold ${(150 / mz) * q}px Verdana`;
             ctx.fillText(
               tower.id == -1 ? "A" : "B",
-              t.x - 58 / mz * q,
-              t.y + 54 / mz * q
+              t.x - (58 / mz) * q,
+              t.y + (54 / mz) * q
             );
           }
         } else {
@@ -3814,18 +3921,27 @@ const DME = {
       ctx.strokeRect(d.vx - o + d.vw / 2, d.vy + o + d.vh, s, s);
       ctx.strokeRect(d.vx + o + d.vw, d.vy + o + d.vh, s, s);*/
 
-      ctx.strokeStyle = 'red';
-      let modif = (9 +  d.rsr / 2);
+      ctx.strokeStyle = "red";
+      let modif = 9 + d.rsr / 2;
       for (let h = 0; h <= 1; h += 0.5) {
         for (let w = 0; w <= 1; w += 0.5) {
-          if(h==.5 && w==.5) continue;
-          ctx.strokeRect(this.relToFsPt.x(d.vx - modif + (d.vw+18) * w), this.relToFsPt.y(d.vy - modif + (d.vh+18) * h), d.rsr / mz * q, d.rsr / mz * q);
+          if (h == 0.5 && w == 0.5) continue;
+          ctx.strokeRect(
+            this.relToFsPt.x(d.vx - modif + (d.vw + 18) * w),
+            this.relToFsPt.y(d.vy - modif + (d.vh + 18) * h),
+            (d.rsr / mz) * q,
+            (d.rsr / mz) * q
+          );
         }
       } //get all edge points for the resize
-      let oModif = 9-d.rsr/2
-      ctx.strokeRect(this.relToFsPt.x(d.vx-oModif),this.relToFsPt.y(d.vy-oModif),(d.vw+2*oModif)/mz*q,(d.vh+2*oModif)/mz*q);
-
-    }//here
+      let oModif = 9 - d.rsr / 2;
+      ctx.strokeRect(
+        this.relToFsPt.x(d.vx - oModif),
+        this.relToFsPt.y(d.vy - oModif),
+        ((d.vw + 2 * oModif) / mz) * q,
+        ((d.vh + 2 * oModif) / mz) * q
+      );
+    }
 
     if (this.selectingChunk.isSelecting) {
       ctx.strokeStyle = "rgba(230, 130, 40, 0.8)";
@@ -3935,8 +4051,8 @@ const DME = {
         this.loadBackgroundImage(ev.dataTransfer);
         break;
       }
-      default:{
-        console.log('Unknown file type: File ignored');
+      default: {
+        console.log("Unknown file type: File ignored");
         return;
       }
     }
@@ -4020,168 +4136,210 @@ const DME = {
       this.visuals.grid_lineC;
   },
 
-  handleInput: function (type, input, extra) {
-    if (this.blockInput) return;
+  handleInput: function (e /*type, input, extra*/) {
+    if (DME.blockInput) return;
     //ignore hotkeys if a menu is open
-    let modifiedInput = this.specialKeyInputs.hasOwnProperty(input)
-      ? this.specialKeyInputs[input]
+
+    let type = e.type,
+      input,
+      extra;
+
+    //extract (type,) input & extra values from event
+    switch (e.type) {
+      case "mousedown": {
+        type = "button_down";
+        let mKeys = ["Left Click", "Middle Click", "Right Click"];
+        input = mKeys?.[e.button] ? mKeys[e.button] : `Button ${e.button}`;
+        break;
+      }
+      case "mouseup": {
+        type = "button_up";
+        let mKeys = ["Left Click", "Middle Click", "Right Click"];
+        input = mKeys?.[e.button] ? mKeys[e.button] : `Button ${e.button}`;
+        break;
+      }
+      case "wheel": {
+        type = "button_down";
+        e.preventDefault(); //not 100% sure whether that works here but ig it should
+        input = e.deltaY > 0 ? "Scroll Down" : "Scroll Up";
+        extra = e.deltaY;
+        break;
+      }
+      case "mousemove": {
+        input = e;
+        break;
+      }
+      case "keydown": {
+        type = "button_down";
+        input = e.key.toLocaleUpperCase();
+        break;
+      }
+      case "keyup": {
+        type = "button_up";
+        input = e.key.toLocaleUpperCase();
+        break;
+      }
+    }
+
+    let modifiedInput = DME.specialKeyInputs.hasOwnProperty(input)
+      ? DME.specialKeyInputs[input]
       : input;
     switch (type) {
       case "mousemove": {
-        this.updateMouse(input.clientX, input.clientY);
+        DME.updateMouse(input.clientX, input.clientY);
         break;
       }
       case "button_down": {
         //console.log(input);
 
-        switch (this.editMode) {
+        switch (DME.editMode) {
           case "building": {
             switch (modifiedInput) {
-              case this.hotkeys.zoomOut1:
-              case this.hotkeys.zoomOut2: {
+              case DME.hotkeys.zoomOut1:
+              case DME.hotkeys.zoomOut2: {
                 if (!extra) extra = 100;
-                this.updateMapZoom(extra);
+                DME.updateMapZoom(extra);
                 break;
               }
-              case this.hotkeys.zoomIn1:
-              case this.hotkeys.zoomIn2: {
+              case DME.hotkeys.zoomIn1:
+              case DME.hotkeys.zoomIn2: {
                 if (!extra) extra = -100;
-                this.updateMapZoom(extra);
+                DME.updateMapZoom(extra);
                 break;
               }
-              case this.hotkeys.resetZoom1:
-              case this.hotkeys.resetZoom2: {
-                this.updateMapZoom(1, false);
+              case DME.hotkeys.resetZoom1:
+              case DME.hotkeys.resetZoom2: {
+                DME.updateMapZoom(1, false);
                 break;
               }
-              case this.hotkeys.selectTower1:
-              case this.hotkeys.selectTower2: {
-                if (this.chunckOptions.hovering) {
-                  this.resizeChunkByDrag(0);
-                } else this.selectTower();
+              case DME.hotkeys.selectTower1:
+              case DME.hotkeys.selectTower2: {
+                if (DME.chunckOptions.hovering) {
+                  DME.resizeChunkByDrag(0);
+                } else DME.selectTower();
                 break;
               }
-              case this.hotkeys.selectArea1:
-              case this.hotkeys.selectArea2: {
-                if (!this.selectingChunk.isSelecting) this.selectChunk(0);
+              case DME.hotkeys.selectArea1:
+              case DME.hotkeys.selectArea2: {
+                if (!DME.selectingChunk.isSelecting) DME.selectChunk(0);
                 break;
               }
-              case this.hotkeys.placeTower1:
-              case this.hotkeys.placeTower2: {
-                if (!this.chunckOptions.hovering) this.placeTower();
+              case DME.hotkeys.placeTower1:
+              case DME.hotkeys.placeTower2: {
+                if (!DME.chunckOptions.hovering) DME.placeTower();
                 break;
               }
               case "CONTROL": {
-                this.isKeyPressed.CONTROL = true;
+                DME.isKeyPressed.CONTROL = true;
                 break;
               }
               case "SHIFT": {
-                this.isKeyPressed.SHIFT = true;
+                DME.isKeyPressed.SHIFT = true;
                 break;
               }
               case "ENTER": {
-                this.isKeyPressed.ENTER = true;
+                DME.isKeyPressed.ENTER = true;
                 break;
               }
-              case this.hotkeys.toggleSnap1:
-              case this.hotkeys.toggleSnap2: {
+              case DME.hotkeys.toggleSnap1:
+              case DME.hotkeys.toggleSnap2: {
                 let c = document.querySelector(
                   "#DME-toggle-snapping-checkbox"
                 ).checked;
                 document.querySelector(
                   "#DME-toggle-snapping-checkbox"
                 ).checked = !c;
-                this.snapping = !c;
+                DME.snapping = !c;
                 break;
               }
-              case this.hotkeys.toggleMirrorMode1:
-              case this.hotkeys.toggleMirrorMode2: {
-                this.isKeyPressed.MirrorMode = true;
+              case DME.hotkeys.toggleMirrorMode1:
+              case DME.hotkeys.toggleMirrorMode2: {
+                DME.isKeyPressed.MirrorMode = true;
                 break;
               }
-              case this.hotkeys.toggleRotateMode1:
-              case this.hotkeys.toggleRotateMode2: {
-                this.isKeyPressed.RotateMode = true;
+              case DME.hotkeys.toggleRotateMode1:
+              case DME.hotkeys.toggleRotateMode2: {
+                DME.isKeyPressed.RotateMode = true;
                 break;
               }
-              case this.hotkeys.Delete1:
-              case this.hotkeys.Delete2: {
-                this.deleteTowers();
+              case DME.hotkeys.Delete1:
+              case DME.hotkeys.Delete2: {
+                DME.deleteTowers();
                 break;
               }
-              case this.hotkeys.shadeArea1:
-              case this.hotkeys.shadeArea2: {
+              case DME.hotkeys.shadeArea1:
+              case DME.hotkeys.shadeArea2: {
                 console.log("Looking for Area to enshade...");
-                this.placeArea();
+                DME.placeArea();
                 break;
               }
-              case this.hotkeys.shieldTower1:
-              case this.hotkeys.shieldTower2: {
-                this.shieldTowers();
+              case DME.hotkeys.shieldTower1:
+              case DME.hotkeys.shieldTower2: {
+                DME.shieldTowers();
                 break;
               }
-              case this.hotkeys.placeBombA1:
-              case this.hotkeys.placeBombA2: {
-                this.placeSpecial(1);
+              case DME.hotkeys.placeBombA1:
+              case DME.hotkeys.placeBombA2: {
+                DME.placeSpecial(1);
                 break;
               }
-              case this.hotkeys.placeBombB1:
-              case this.hotkeys.placeBombB2: {
-                this.placeSpecial(2);
+              case DME.hotkeys.placeBombB1:
+              case DME.hotkeys.placeBombB2: {
+                DME.placeSpecial(2);
                 break;
               }
-              case this.hotkeys.placeSpawnRed1:
-              case this.hotkeys.placeSpawnRed2: {
-                this.placeSpecial(3);
+              case DME.hotkeys.placeSpawnRed1:
+              case DME.hotkeys.placeSpawnRed2: {
+                DME.placeSpecial(3);
                 break;
               }
-              case this.hotkeys.placeSpawnBlue1:
-              case this.hotkeys.placeSpawnBlue2: {
-                this.placeSpecial(4);
+              case DME.hotkeys.placeSpawnBlue1:
+              case DME.hotkeys.placeSpawnBlue2: {
+                DME.placeSpecial(4);
                 break;
               }
-              case this.hotkeys.MoveUp1:
-              case this.hotkeys.MoveUp2: {
-                /*if (e.shiftKey) this.resizeChunk(0, this.snapRange, { z: true });
-          else this.isKeyPressed.MoveUp = true;*/
-                this.handleMoveInput("Up");
+              case DME.hotkeys.MoveUp1:
+              case DME.hotkeys.MoveUp2: {
+                /*if (e.shiftKey) DME.resizeChunk(0, DME.snapRange, { z: true });
+          else DME.isKeyPressed.MoveUp = true;*/
+                DME.handleMoveInput("Up");
                 break;
               }
-              case this.hotkeys.MoveDown1:
-              case this.hotkeys.MoveDown2: {
-                this.handleMoveInput("Down");
+              case DME.hotkeys.MoveDown1:
+              case DME.hotkeys.MoveDown2: {
+                DME.handleMoveInput("Down");
                 break;
               }
-              case this.hotkeys.MoveLeft1:
-              case this.hotkeys.MoveLeft2: {
-                this.handleMoveInput("Left");
+              case DME.hotkeys.MoveLeft1:
+              case DME.hotkeys.MoveLeft2: {
+                DME.handleMoveInput("Left");
                 break;
               }
-              case this.hotkeys.MoveRight1:
-              case this.hotkeys.MoveRight2: {
-                this.handleMoveInput("Right");
+              case DME.hotkeys.MoveRight1:
+              case DME.hotkeys.MoveRight2: {
+                DME.handleMoveInput("Right");
                 break;
               }
-              case this.hotkeys.copyChunk1:
-              case this.hotkeys.copyChunk2: {
-                if (this.isKeyPressed.CONTROL) this.copyChunk();
+              case DME.hotkeys.copyChunk1:
+              case DME.hotkeys.copyChunk2: {
+                if (DME.isKeyPressed.CONTROL) DME.copyChunk();
                 break;
               }
-              case this.hotkeys.pasteChunk1:
-              case this.hotkeys.pasteChunk2: {
-                if (this.isKeyPressed.CONTROL) this.pasteChunk();
+              case DME.hotkeys.pasteChunk1:
+              case DME.hotkeys.pasteChunk2: {
+                if (DME.isKeyPressed.CONTROL) DME.pasteChunk();
                 break;
               }
               case "ESCAPE": {
-                this.selectedTowers = [];
-                this.updateChunkOptions();
+                DME.selectedTowers = [];
+                DME.updateChunkOptions();
               }
             }
             break;
           }
           case "KOTH": {
             if (["Left Click", "Right Click"].includes(modifiedInput)) {
-              this.handleKothInput(this.mapData.koth[4] ? 1 : 2);
+              DME.handleKothInput(DME.mapData.koth[4] ? 1 : 2);
             }
             break;
           }
@@ -4189,76 +4347,76 @@ const DME = {
         break;
       }
       case "button_up": {
-        switch (this.editMode) {
+        switch (DME.editMode) {
           case "building": {
             switch (modifiedInput) {
               /*case "Left Click":*/
-              case this.hotkeys.selectTower1:
-              case this.hotkeys.selectTower2: {
-                if (this.chunckOptions.isChanging) {
-                  this.resizeChunkByDrag(2);
+              case DME.hotkeys.selectTower1:
+              case DME.hotkeys.selectTower2: {
+                if (DME.chunckOptions.isChanging) {
+                  DME.resizeChunkByDrag(2);
                 }
                 break;
               }
-              case this.hotkeys.selectArea1:
-              case this.hotkeys.selectArea2: {
-                this.selectChunk(1);
+              case DME.hotkeys.selectArea1:
+              case DME.hotkeys.selectArea2: {
+                DME.selectChunk(1);
                 break;
               }
               case "CONTROL": {
-                this.isKeyPressed.CONTROL = false;
+                DME.isKeyPressed.CONTROL = false;
                 break;
               }
               case "SHIFT": {
-                this.isKeyPressed.SHIFT = false;
+                DME.isKeyPressed.SHIFT = false;
                 break;
               }
               case "ENTER": {
-                this.isKeyPressed.ENTER = false;
+                DME.isKeyPressed.ENTER = false;
                 break;
               }
-              case this.hotkeys.toggleSnap1:
-              case this.hotkeys.toggleSnap2: {
+              case DME.hotkeys.toggleSnap1:
+              case DME.hotkeys.toggleSnap2: {
                 break;
               }
-              case this.hotkeys.toggleMirrorMode1:
-              case this.hotkeys.toggleMirrorMode2: {
-                this.isKeyPressed.MirrorMode = false;
+              case DME.hotkeys.toggleMirrorMode1:
+              case DME.hotkeys.toggleMirrorMode2: {
+                DME.isKeyPressed.MirrorMode = false;
                 break;
               }
-              case this.hotkeys.toggleRotateMode1:
-              case this.hotkeys.toggleRotateMode2: {
-                this.isKeyPressed.RotateMode = false;
+              case DME.hotkeys.toggleRotateMode1:
+              case DME.hotkeys.toggleRotateMode2: {
+                DME.isKeyPressed.RotateMode = false;
                 break;
               }
-              case this.hotkeys.MoveUp1:
-              case this.hotkeys.MoveUp2: {
-                this.isKeyPressed.MoveUp = false;
+              case DME.hotkeys.MoveUp1:
+              case DME.hotkeys.MoveUp2: {
+                DME.isKeyPressed.MoveUp = false;
                 break;
               }
-              case this.hotkeys.MoveDown1:
-              case this.hotkeys.MoveDown2: {
-                this.isKeyPressed.MoveDown = false;
+              case DME.hotkeys.MoveDown1:
+              case DME.hotkeys.MoveDown2: {
+                DME.isKeyPressed.MoveDown = false;
                 break;
               }
-              case this.hotkeys.MoveLeft1:
-              case this.hotkeys.MoveLeft2: {
-                this.isKeyPressed.MoveLeft = false;
+              case DME.hotkeys.MoveLeft1:
+              case DME.hotkeys.MoveLeft2: {
+                DME.isKeyPressed.MoveLeft = false;
                 break;
               }
-              case this.hotkeys.MoveRight1:
-              case this.hotkeys.MoveRight2: {
-                this.isKeyPressed.MoveRight = false;
+              case DME.hotkeys.MoveRight1:
+              case DME.hotkeys.MoveRight2: {
+                DME.isKeyPressed.MoveRight = false;
                 break;
               }
-              case this.hotkeys.undoAction1:
-              case this.hotkeys.undoAction2: {
-                if (this.isKeyPressed.CONTROL) this.modifyLastAction(0);
+              case DME.hotkeys.undoAction1:
+              case DME.hotkeys.undoAction2: {
+                if (DME.isKeyPressed.CONTROL) DME.modifyLastAction(0);
                 break;
               }
-              case this.hotkeys.redoAction1:
-              case this.hotkeys.redoAction2: {
-                if (this.isKeyPressed.CONTROL) this.modifyLastAction(1);
+              case DME.hotkeys.redoAction1:
+              case DME.hotkeys.redoAction2: {
+                if (DME.isKeyPressed.CONTROL) DME.modifyLastAction(1);
                 break;
               }
             }
@@ -4269,44 +4427,19 @@ const DME = {
     }
   },
 
-  enterTestMode: function(){
+  enterTestMode: function () {
     //remove editor event listeners
-
   },
 
-  addAllEventListeners: function(){
-    canvas.addEventListener("mousedown", (e) => {
-      let mKeys = ["Left Click", "Middle Click", "Right Click"];
-      DME.handleInput(
-        "button_down",
-        mKeys?.[e.button] ? mKeys[e.button] : `Button ${e.button}`
-      );
-    });
-    canvas.addEventListener("mouseup", (e) => {
-      let mKeys = ["Left Click", "Middle Click", "Right Click"];
-      this.handleInput(
-        "button_up",
-        mKeys?.[e.button] ? mKeys[e.button] : `Button ${e.button}`
-      );
-    });
-    canvas.addEventListener("wheel", (e) => {
-      e.preventDefault();
-      this.handleInput(
-        "button_down",
-        e.deltaY > 0 ? "Scroll Down" : "Scroll Up",
-        e.deltaY
-      );
-    });
-    canvas.addEventListener("mousemove", (e) => {
-      this.handleInput("mousemove", e);
-    });
+  toggleAllEventListeners: function (on = true) {
+    let modif = on ? "addEventListener" : "removeEventListener";
+    canvas[modif]("mousedown", DME.handleInput);
+    canvas[modif]("mouseup", DME.handleInput);
+    canvas[modif]("wheel", DME.handleInput);
+    canvas[modif]("mousemove", DME.handleInput);
 
-    document.addEventListener("keydown", (e) => {
-      this.handleInput("button_down", e.key.toLocaleUpperCase());
-    });
-    document.addEventListener("keyup", (e) => {
-      this.handleInput("button_up", e.key.toLocaleUpperCase());
-    });
+    document[modif]("keydown", DME.handleInput);
+    document[modif]("keyup", DME.handleInput);
   },
 
   config: function () {
@@ -4322,15 +4455,16 @@ const DME = {
     DME.defaultHotkeys = structuredClone(DME.hotkeys);
     DME.defaultVisuals = JSON.parse(JSON.stringify(DME.visuals));
     DME.defaultVisuals.backgroundImage = new Image();
+    DME.visuals.backgroundImage = new Image();
     if (hasLocalStorage) {
-      localStorage.setItem('Last loaded version', version);
+      localStorage.setItem("Last loaded version", version);
       if (!localStorage.getItem("DMEhotkeys")) {
         localStorage.setItem("DMEhotkeys", JSON.stringify(DME.hotkeys));
       } else {
         let storedHotkeys = JSON.parse(localStorage.getItem("DMEhotkeys"));
         console.log(storedHotkeys);
         Object.entries(storedHotkeys).forEach((key) => {
-          if(DME.hotkeys.hasOwnProperty(key[0])) DME.hotkeys[key[0]] = key[1];
+          if (DME.hotkeys.hasOwnProperty(key[0])) DME.hotkeys[key[0]] = key[1];
         });
       }
       if (!localStorage.getItem("DME-visuals")) {
@@ -4386,12 +4520,15 @@ const DME = {
     }
     this.markDoubledKeybinds();
 
-    this.focusPoint = {
-      x: this.mapData.width / 2,
-      y: this.mapData.height / 2,
-    };
+    if(camera.position.x != this.focusPoint.x || camera.position.x != this.focusPoint.x){
+      this.focusPoint = {
+        x: this.mapData.width / 2,
+        y: this.mapData.height / 2,
+      };
+      camera.position = this.focusPoint;
+    }
 
-    this.addAllEventListeners();
+    this.toggleAllEventListeners(true);
 
     //update menu (such as "Enable XY" -> "Upadate XY" if XY already exists)
     if (this.mapData.koth.length)
@@ -4400,8 +4537,16 @@ const DME = {
     this.updateCanvas();
   },
 
+  deConfig: function () {
+    localStorage.setItem("DMEauto-saved-map", DME.generateMapFile("compact"));
+    localStorage.setItem("DMEhotkeys", JSON.stringify(DME.hotkeys));
+    //don't save background image - too heavy load, unnecessary & breaks image loading
+    delete DME.visuals.backgroundImage;
+    localStorage.setItem("DME-visuals", JSON.stringify(DME.visuals));
+  },
+
   updateCanvas: function () {
-    if ((currentSite == "DME")) {
+    if (currentSite == "DME") {
       //stop requesting new animation frames if site changed from map editor
       DME.updateFocusPoint();
       DME.draw();
@@ -4411,10 +4556,992 @@ const DME = {
 };
 
 const DC = {
-  config: function(){
-
+  permanentMapData: {
+    width: 1000,
+    height: 1000,
+    towers: [[], [], [], [], [], [], [], [], [], [], [], [], [], []],
+    walls: [[], [], [], [], [], [], [], [], [], [], [], [], [], []],
+    areas: [[], [], [], [], [], [], [], [], [], [], [], [], [], []],
+    bombs: [],
+    spawns: [],
   },
-}
+  mapData: {
+    width: 1000,
+    height: 1000,
+    towers: [[], [], [], [], [], [], [], [], [], [], [], [], [], []],
+    walls: [[], [], [], [], [], [], [], [], [], [], [], [], [], []],
+    areas: [[], [], [], [], [], [], [], [], [], [], [], [], [], []],
+    bombs: [],
+    spawns: [],
+    wallRegister: [],
+  },
+  gameData: {
+    bullets: [],
+    idToTeam: { id1: 2 }, //DC.gameData.idToTeam[`id${player.id}`] => returns team id for player id
+  },
+
+  player: {
+    position: {
+      x: 0,
+      y: 0,
+    },
+    aimingAt: {
+      x: 0,
+      y: 0,
+    },
+    velocity: {
+      xN: 0,
+      xP: 0,
+      yN: 0,
+      yP: 0,
+    },
+    isStuck: false,
+    connectedTo: false,
+    team: 2,
+    id: 1,
+    money: 1000,
+    score: 0,
+    isShooting: false,
+    wantsToBuild: false,
+    shootingCooldown: 0,
+    copter: "basic",
+  },
+
+  rawDelta: 0,
+  localDelta: 0,
+  MAX_DELTA: 0.1,
+  gameTime: 0,
+
+  updatePlayer: function () {
+    DC.updatePlayerPosition();
+    DC.checkShoot();
+    DC.checkBuild();
+  },
+  updatePlayerPosition: function () {
+    if (typeof DC.player.isStuck == "boolean") {
+      //update position
+      let xVel = DC.player.velocity.xP - DC.player.velocity.xN,
+        yVel = DC.player.velocity.yP - DC.player.velocity.yN,
+        xModif = xVel * (yVel ? 0.71 : 1),
+        yModif = yVel * (xVel ? 0.71 : 1);
+      DC.player.position.x +=
+        xModif *
+        defly.defuseCopter[DC.player.copter].copterSpeed *
+        DC.localDelta;
+      DC.player.position.y +=
+        yModif *
+        defly.defuseCopter[DC.player.copter].copterSpeed *
+        DC.localDelta;
+      camera.position.x = DC.player.position.x;
+      camera.position.y = DC.player.position.y;
+
+      //check if on top of tower: connect
+      DC.mapData.towers[DC.player.team].forEach((tower, index) => {
+        if (
+          getDistance2d(
+            DC.player.position.x,
+            DC.player.position.y,
+            tower.x,
+            tower.y
+          ) <
+          defly.TOWER_WIDTH + defly.PLAYER_WIDTH
+        ) {
+          if(DC.player.connectedTo !== index && DC.player.connectedTo !== false){
+            let t = DC.mapData.towers[DC.player.team],
+                t1 = t[DC.player.connectedTo],
+                t2 = t[index],
+                wallCanBePlaced = true;
+            DC.mapData.wallRegister.forEach(set => {
+              if(wallCanBePlaced){
+                if((set[0] == t1.id && set[1] == t2.id) || (set[1] == t1.id && set[0] == t2.id)) wallCanBePlaced = false;
+              }
+            })//has to be fixed smh
+            if(wallCanBePlaced) DC.mapData.walls[DC.player.team].push({from:{x:t1.x,y:t1.y,id:t1.id},to:{x:t2.x,y:t2.y,id:t2.id}});
+          }
+          DC.player.connectedTo = index;
+        }
+      });
+      DC.checkPlayerWallCollision();
+    } else {
+      DC.player.position.x +=
+        DC.player.isStuck.x *
+        defly.defuseCopter[DC.player.copter].copterSpeed *
+        DC.localDelta;
+      DC.player.position.y +=
+        DC.player.isStuck.y *
+        defly.defuseCopter[DC.player.copter].copterSpeed *
+        DC.localDelta;
+      DC.checkPlayerWallCollision();
+    }
+  },
+  checkPlayerWallCollision: function () {
+    DC.player.isStuck = false;
+    let bA = {x:0,y:0},
+        bC = 0;
+        pP = DC.player.position;
+    DC.mapData.walls.forEach((wallSet, team) => {
+      if (team != DC.player.team) {
+        wallSet.forEach((wall) => {
+          let distance = getDistanceToLine2d(
+            wall.from.x,
+            wall.from.y,
+            wall.to.x,
+            wall.to.y,
+            pP.x,
+            pP.y
+          );
+          if (distance < defly.WALL_WIDTH/2 + defly.PLAYER_WIDTH) {
+            //colliding
+            if (team == 1) {
+              DC.player.isStuck = true;
+              //grey wall, bounce player
+              bC++;
+              let wallVector = [wall.to.x-wall.from.x,wall.to.y-wall.from.y],
+                  rightVector = [-wallVector[1],wallVector[0]],
+                  sign = getDistance2d(rightVector[0]+wall.from.x,rightVector[1]+wall.from.y,pP.x,pP.y) < getDistance2d(-rightVector[0]+wall.from.x,-rightVector[1]+wall.from.y,pP.x,pP.y) ? 1 : -1,
+                  normalizer = sign/(rightVector[0]**2+rightVector[1]**2)**.5;
+              bA.x += normalizer*rightVector[0];
+              bA.y += normalizer*rightVector[1];
+            } else {
+              //enemy wall, die
+            }
+          }
+        });
+      }
+    });
+    if(DC.player.isStuck) {
+      let normalizer = 1/(bA.x**2+bA.y**2)**.5;
+      DC.player.isStuck = {
+        x : normalizer*bA.x,
+        y : normalizer*bA.y,
+      };
+    }
+  },
+  checkBuild: function () {
+    if (!DC.player.wantsToBuild) return;
+    DC.player.wantsToBuild = false;
+    if (DC.player.isShooting) return;
+    //check if player too close to tower, wall
+    let x = DC.player.position.x,
+      y = DC.player.position.y;
+    let cIdx = DC.player.connectedTo,
+      pTeam = DC.player.team;
+    let canBuildHere = true;
+    DC.mapData.towers.forEach((towerSet) => {
+      towerSet.forEach((tower) => {
+        if (getDistance2d(tower.x, tower.y, x, y) < defly.GRID_WIDTH)
+          canBuildHere = false;
+      });
+    });
+    if (canBuildHere) {
+      DC.mapData.walls.forEach((wallSet, team) => {
+        if (team != 1) {
+          //ignore grey walls
+          wallSet.forEach((wall) => {
+            if (
+              getDistanceToLine2d(
+                wall.from.x,
+                wall.from.y,
+                wall.to.x,
+                wall.to.y,
+                x,
+                y
+              ) <
+              defly.WALL_WIDTH + 2 * defly.TOWER_WIDTH
+              // && wall[2] != 1 <- wtf is this?
+            )
+              canBuildHere = false;
+          });
+        }
+      });
+    }
+    if (canBuildHere) {
+      let placeWall = false;
+      ogT = DC.mapData.towers[pTeam]?.[cIdx];
+      if (typeof cIdx === "number") {
+        //check if wall would intersect any other wall, would be too close to other towers or is too long
+        let tX = ogT.x,
+          tY = ogT.y;
+        let wallLength = ((x - tX) ** 2 + (y - tY) ** 2) ** 0.5;
+        if (wallLength < defly.MAX_WALL_LENGTH) {
+          //only if wall is not too long
+          let wallCanBePlaced = true;
+          DC.mapData.towers.forEach((towerSet, team) => {
+            if (team != 1) {
+              towerSet.forEach((tower, index) => {
+                if (!(index == cIdx && team == pTeam)) {
+                  let tDtWall = getDistanceToLine2d(
+                    x,
+                    y,
+                    tX,
+                    tY,
+                    tower.x,
+                    tower.y
+                  );
+                  if (tDtWall < defly.WALL_WIDTH + 2 * defly.TOWER_WIDTH) {
+                    wallCanBePlaced = false;
+                  }
+                }
+              });
+            }
+          });
+          if (wallCanBePlaced) {
+            DC.mapData.walls.forEach((wallSet, team) => {
+              wallSet.forEach((w) => {
+                if (wallCanBePlaced) {
+                  if (
+                    isIntersecting(
+                      x,
+                      y,
+                      tX,
+                      tY,
+                      w.from.x,
+                      w.from.y,
+                      w.to.x,
+                      w.to.y
+                    )
+                  ) {
+                    wallCanBePlaced = false;
+                  }
+                }
+              });
+            });
+          }
+          placeWall = wallCanBePlaced;
+        }
+      }
+      let id = 500;
+      DC.mapData.towers[pTeam].push({ x: x, y: y, id: id });
+      if (placeWall) {
+        DC.mapData.walls[pTeam].push({
+          from: { x: ogT.x, y: ogT.y, id: ogT.id },
+          to: { x: x, y: y, id: id },
+        });
+        DC.mapData.wallRegister.push([ogT.id,id]);
+      }
+    }
+  },
+  checkShoot: function () {
+    if (DC.player.shootingCooldown > 0)
+      DC.player.shootingCooldown -= DC.localDelta;
+    if (DC.player.isShooting && DC.player.shootingCooldown <= 0) {
+      //spawn a bullet
+      DC.createBullets(
+        DC.player.position,
+        DC.player.aimingAt,
+        defly.defuseCopter[DC.player.copter].inaccuracy,
+        defly.defuseCopter[DC.player.copter].bulletSpeed,
+        defly.defuseCopter[DC.player.copter].bulletLifespan,
+        defly.defuseCopter[DC.player.copter].bulletCount,
+        DC.player.id
+      );
+      //gameData.bullets.push({position : {x : player.position.x, y : player.position.y}, velocity : {x : -20, y : 10}, lifespawn : 5})
+      DC.player.shootingCooldown =
+        defly.defuseCopter[DC.player.copter].reloadTime;
+    }
+  },
+  createBullets: function (
+    position,
+    aim,
+    inaccuracy,
+    bulletSpeed,
+    bulletLifespan,
+    bulletCount,
+    owner
+  ) {
+    let offset = camera.offset;
+    for (let c = -((bulletCount - 1) / 2); c < (bulletCount - 1) / 2 + 1; c++) {
+      let left = aim.x > offset.x ? 0 : Math.PI;
+      let shootingAngle =
+        Math.atan((aim.y - offset.y) / (aim.x - offset.x)) + left;
+      shootingAngle +=
+        randomFloat(-Math.PI * inaccuracy, Math.PI * inaccuracy) +
+        inaccuracy * c * 2 * Math.PI;
+      let velocity = {
+        x: Math.cos(shootingAngle) * bulletSpeed,
+        y: Math.sin(shootingAngle) * bulletSpeed,
+      };
+      DC.gameData.bullets.push({
+        v: velocity,
+        p: structuredClone(position),
+        l: bulletLifespan,
+        o: owner,
+        t: DC.gameData.idToTeam[`id${owner}`],
+      });
+    }
+  },
+
+  updateBullets: function () {
+    let fadedBullets = [];
+    DC.gameData.bullets.forEach((bullet, bIndex) => {
+      let notBounced = true,
+        bounceAngle = 0;
+
+      /*let thisLocalDelta =
+        localDelta > bullet.lastBounceDelta
+          ? localDelta
+          : bullet.lastBounceDelta + 0.001;*/
+      bullet.p.x += bullet.v.x * DC.localDelta;
+      bullet.p.y += bullet.v.y * DC.localDelta;
+      //check for collisions with walls, players, towers
+
+      //walls
+      DC.mapData.walls.forEach((wallSet, idx) => {
+        if (idx != bullet.t && notBounced) {
+          wallSet.forEach((wall) => {
+            let xT1 = wall.from.x;
+            let yT1 = wall.from.y;
+            let xT2 = wall.to.x;
+            let yT2 = wall.to.y;
+            let bulletDistanceToWall = getDistanceToLine2d(
+              xT1,
+              yT1,
+              xT2,
+              yT2,
+              bullet.p.x,
+              bullet.p.y
+            );
+            if (
+              bulletDistanceToWall * 2 <=
+              defly.WALL_WIDTH + defly.BULLET_WIDTH
+            ) {
+              notBounced = false;
+              bounceAngle += DC.getBounceBulletAngle(
+                bullet.v,
+                { x: xT1, y: yT1 },
+                { x: xT2, y: yT2 }
+              );
+            }
+          });
+        }
+      });
+      if (!notBounced) {
+        bullet.v = DC.bounceBullet(bullet.v, bounceAngle);
+      }
+
+      //towers
+      let bAlive = true;
+      DC.mapData.towers.forEach((towerSet, team) => {
+        if (team != bullet.t && bAlive) {
+          towerSet.forEach((tower, index) => {
+            if (bAlive) {
+              let distanceToBullet = getDistance2d(
+                tower.x,
+                tower.y,
+                bullet.p.x,
+                bullet.p.y
+              );
+              if (distanceToBullet < defly.BULLET_WIDTH + defly.TOWER_WIDTH) {
+                console.log("HIT!");
+                bAlive = false;
+                bullet.l = 0;
+                if (team != 1) {
+                  DC.deleteTower(team, index);
+                } //only if not grey tower
+              }
+            }
+          });
+        }
+      });
+
+      bullet.l -= DC.localDelta;
+      if (bullet.l <= 0) fadedBullets.push(bIndex);
+    });
+    fadedBullets.forEach((bulletIndex, counter) => {
+      DC.gameData.bullets.splice(bulletIndex - counter, 1);
+    });
+  },
+
+  getBounceBulletAngle: function (bulletVector, t1, t2) {
+    let sign = bulletVector.x < 0 ? 0 : 1;
+    let alpha = Math.atan((t2.y - t1.y) / (t2.x - t1.x));
+    let beta = sign * Math.PI - Math.atan(bulletVector.y / bulletVector.x);
+    let gamma = Math.PI - alpha - beta;
+    let delta = Math.PI - beta - 2 * gamma;
+    //ONLY BOUNCE ONCE EVERY 2 TICS <-- add this (edit: idk)
+    return delta;
+  },
+  bounceBullet: function (bulletVector, angle) {
+    let velo = (bulletVector.x ** 2 + bulletVector.y ** 2) ** 0.5;
+
+    return { x: Math.cos(angle) * velo, y: Math.sin(angle) * velo };
+  },
+
+  deleteTower: function (team, towerIndex) {
+    let targetTower = DC.mapData.towers[team][towerIndex],
+      tId = targetTower.id;
+    //.splice(towerIndex, 1);
+    if (team == DC.player.team) {
+      if (
+        !towerIndex >= DC.player.connectedTo &&
+        typeof DC.player.connectedTo == "number"
+      ) {
+        if (towerIndex === DC.player.connectedTo) {
+          DC.player.connectedTo = false;
+        } else {
+          DC.player.connectedTo--;
+        }
+      }
+    }
+    let wallsToDelete = [];
+    DC.mapData.walls[team].forEach((wall, index) => {
+      if (wall.from.id == tId || wall.to.id == tId) {
+        wallsToDelete.push(index);
+      }
+    });
+    console.log(
+      `Walls to be deleted: ${wallsToDelete.length}  -  ${wallsToDelete}`
+    );
+    wallsToDelete.forEach((index, counter) => {
+      DC.mapData.walls[team].splice(index - counter, 1);
+    });
+    let areasToDelete = [];
+    DC.mapData.areas[team].forEach((area, index) => {
+      let hasToBeDeleted = false;
+      area.nodes.forEach((n) => {
+        if (n.id == tId) hasToBeDeleted = true;
+      });
+      if (hasToBeDeleted) {
+        areasToDelete.push(index);
+      }
+    });
+    areasToDelete.forEach((index, counter) => {
+      DC.mapData.areas[team].splice(index - counter, 1);
+    });
+    DC.mapData.towers[team].splice(towerIndex, 1);
+  },
+
+  updateOtherStuff: function () {},
+
+  reloadMap: function () {
+    //load permanent map data into running map data
+    DC.resetMapData();
+    DC.mapData.width = DC.permanentMapData.width;
+    DC.mapData.height = DC.permanentMapData.height;
+    DC.permanentMapData.towers.forEach((tSet, team) => {
+      tSet.forEach((t) => {
+        DC.mapData.towers[team].push({ x: t.x, y: t.y, id: t.id });
+      });
+    });
+    DC.permanentMapData.bombs.forEach((b) => {
+      DC.mapData.bombs.push({ x: b.x, y: b.y });
+    });
+    DC.permanentMapData.spawns.forEach((s) => {
+      DC.mapData.spawns.push({ t: s.t, x: s.x, y: s.y, rotation: s.rotation });
+    });
+    DC.permanentMapData.walls.forEach((wSet, team) => {
+      wSet.forEach((w) => {
+        DC.mapData.walls[team].push({
+          from: { x: w.from.x, y: w.from.y, id: w.from.id },
+          to: { x: w.to.x, y: w.to.y, id: w.to.id },
+        });
+        DC.mapData.wallRegister.push([w.from.id,w.to.id]);
+      });
+    });
+    DC.permanentMapData.areas.forEach((aSet, team) => {
+      aSet.forEach((a) => {
+        DC.mapData.areas[team].push({
+          length: a.length,
+          nodes: structuredClone(a.nodes),
+        });
+      });
+    });
+    DC.player.connectedTo = false;
+  },
+
+  selectDefuseCopter: function(newCopter){
+    document.querySelector(`#DC-select-defuse-copter > .DC-copter-selected`).classList.remove("DC-copter-selected");
+    DC.player.copter = newCopter;
+    document.querySelector(`#DC-select-defuse-${newCopter}`).classList.add("DC-copter-selected");
+  },
+
+  resetMapData: function(resetAll){
+    if(resetAll){
+      DC.permanentMapData = {
+        width: 1000,
+        height: 1000,
+        towers: [[], [], [], [], [], [], [], [], [], [], [], [], [], []],
+        walls: [[], [], [], [], [], [], [], [], [], [], [], [], [], []],
+        areas: [[], [], [], [], [], [], [], [], [], [], [], [], [], []],
+        bombs: [],
+        spawns: [],
+      };
+    }
+    DC.mapData = {
+      width: 1000,
+      height: 1000,
+      towers: [[], [], [], [], [], [], [], [], [], [], [], [], [], []],
+      walls: [[], [], [], [], [], [], [], [], [], [], [], [], [], []],
+      areas: [[], [], [], [], [], [], [], [], [], [], [], [], [], []],
+      bombs: [],
+      spawns: [],
+      wallRegister: [],
+    };
+  },
+
+  draw: function () {
+    //clear canvas
+    ctx.fillStyle = DME.visuals.map_BGC;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    let z = camera.zoom,
+      q = camera.quality;
+    //draw map background
+    ctx.fillStyle = DME.visuals.grid_BGC;
+    ctx.fillRect(
+      camera.relative.x(0),
+      camera.relative.y(0),
+      (DME.mapData.width / z) * q,
+      (DME.mapData.height / z) * q
+    );
+    ctx.strokeStyle = DME.visuals.grid_lineC;
+    if (Number(DME.visuals.grid_line_width)) {
+      ctx.lineWidth = (DME.visuals.grid_line_width / z) * q;
+      ctx.beginPath();
+      let w = DME.mapData.width;
+      let h = DME.mapData.height;
+      for (c = defly.GRID_WIDTH; c < w; c += defly.GRID_WIDTH) {
+        ctx.moveTo(camera.relative.x(c), camera.relative.y(0));
+        ctx.lineTo(camera.relative.x(c), camera.relative.y(h));
+      }
+      for (c = defly.GRID_WIDTH; c < h; c += defly.GRID_WIDTH) {
+        ctx.moveTo(camera.relative.x(0), camera.relative.y(c));
+        ctx.lineTo(camera.relative.x(w), camera.relative.y(c));
+      }
+      ctx.stroke();
+    }
+    ctx.lineWidth = (1 + 1 / z) * q;
+    switch (DME.mapData.shape) {
+      case 0: {
+        //rectangle
+        ctx.strokeRect(
+          camera.relative.x(0),
+          camera.relative.y(0),
+          (DME.mapData.width / z) * q,
+          (DME.mapData.height / z) * q
+        );
+        break;
+      }
+      case 1: {
+        //hexagon
+        ctx.beginPath();
+        let w = DME.mapData.width,
+          h = DME.mapData.height;
+        ctx.moveTo(camera.relative.x(w / 4), camera.relative.y(0));
+        ctx.lineTo(camera.relative.x((w * 3) / 4), camera.relative.y(0));
+        ctx.lineTo(camera.relative.x(w), camera.relative.y(h / 2));
+        ctx.lineTo(camera.relative.x((w * 3) / 4), camera.relative.y(h));
+        ctx.lineTo(camera.relative.x(w / 4), camera.relative.y(h));
+        ctx.lineTo(camera.relative.x(0), camera.relative.y(h / 2));
+        ctx.closePath();
+        ctx.stroke();
+        break;
+      }
+      case 2: {
+        //circle
+        let w = DME.mapData.width,
+          h = DME.mapData.height;
+        ctx.beginPath();
+        ctx.arc(
+          camera.relative.x(w / 2),
+          camera.relative.y(h / 2),
+          (w / 2 / z) * q,
+          2 * Math.PI,
+          false
+        );
+        ctx.stroke();
+        break;
+      }
+    }
+
+    let mc = DME.mouseCoords.snapped;
+    let [mcX, mcY] = [camera.relative.x(mc.x), camera.relative.y(mc.y)];
+
+    let wallWidth = defly.WALL_WIDTH / z;
+    let towerWidth = defly.TOWER_WIDTH / z;
+
+    //draw areas
+    DC.mapData.areas.forEach((areaSet, idx) => {
+      ctx.beginPath();
+      ctx.fillStyle = defly.colors.faded[idx];
+      areaSet.forEach((area) => {
+        ctx.moveTo(
+          camera.relative.x(area.nodes[0].x),
+          camera.relative.y(area.nodes[0].y)
+        );
+        area.nodes.forEach((node) => {
+          ctx.lineTo(camera.relative.x(node.x), camera.relative.y(node.y));
+        });
+      });
+      ctx.fill();
+    });
+
+    //draw walls
+    DC.mapData.walls.forEach((wallSet, idx) => {
+      wallSet.forEach((wall) => {
+        ctx.lineWidth = wallWidth * q;
+        ctx.strokeStyle = defly.colors.darkened[idx];
+        ctx.beginPath();
+        ctx.moveTo(
+          camera.relative.x(wall.from.x),
+          camera.relative.y(wall.from.y)
+        );
+        ctx.lineTo(camera.relative.x(wall.to.x), camera.relative.y(wall.to.y));
+        ctx.stroke();
+        //draw wall twice, once bit darker to create the darkened edge of the wall
+        ctx.strokeStyle = defly.colors.standard[idx];
+        ctx.lineWidth = (wallWidth - 4 / z) * q;
+        ctx.beginPath();
+        ctx.moveTo(
+          camera.relative.x(wall.from.x),
+          camera.relative.y(wall.from.y)
+        );
+        ctx.lineTo(camera.relative.x(wall.to.x), camera.relative.y(wall.to.y));
+        ctx.stroke();
+      });
+    });
+    //draw wall preview \/
+
+    //draw towers
+    DC.mapData.towers.forEach((towerSet, idx) => {
+      towerSet.forEach((tower) => {
+        let t = {
+          x: camera.relative.x(tower.x),
+          y: camera.relative.y(tower.y),
+        };
+        let colorId = tower?.isKothTower ? false : idx;
+        ctx.fillStyle = colorId
+          ? defly.colors.darkened[colorId]
+          : "rgb(70, 52, 14)";
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, towerWidth * q, 2 * Math.PI, false);
+        ctx.fill();
+        //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
+        ctx.fillStyle = colorId
+          ? defly.colors.standard[colorId]
+          : "rgb(195,143,39)";
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, (towerWidth - 2 / z) * q, 2 * Math.PI, false);
+        ctx.fill();
+
+        //if tower is shielded, draw shield
+        if (tower?.isShielded && DME.visuals.showTowerShields) {
+          ctx.shadowColor = "black";
+          ctx.strokeStyle = defly.colors.faded[1];
+          ctx.lineWidth = (2 / z) * q;
+          ctx.shadowBlur = (3 / z) * q;
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, (towerWidth + 2 / z) * q, 2 * Math.PI, false);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+        if (!colorId) {
+          let w = (defly.TOWER_WIDTH / z) * q;
+          ctx.drawImage(
+            defly.images.koth_crown,
+            t.x - w,
+            t.y - w,
+            w * 2,
+            w * 2
+          );
+        }
+      });
+    });
+    DC.mapData.spawns.forEach((spawn, idx) => {
+      let t = {
+          x: camera.relative.x(spawn.x),
+          y: camera.relative.y(spawn.y),
+        },
+        sS = ((4.5 * defly.UNIT_WIDTH) / z) * q,
+        tS = (defly.TOWER_WIDTH / z) * q,
+        col = spawn.t;
+      ctx.fillStyle = defly.colors.faded[col];
+      ctx.fillRect(t.x - sS, t.y - sS, 2 * sS, 2 * sS);
+      //triangle, based on spawn rotation
+      ctx.fillStyle = defly.colors.standard[col];
+      ctx.beginPath();
+      switch (spawn.rotation) {
+        case 0: {
+          ctx.moveTo(t.x - tS, t.y);
+          ctx.lineTo(t.x + tS, t.y - tS);
+          ctx.lineTo(t.x + tS, t.y + tS);
+          break;
+        }
+        case 1: {
+          ctx.moveTo(t.x + tS, t.y);
+          ctx.lineTo(t.x - tS, t.y - tS);
+          ctx.lineTo(t.x - tS, t.y + tS);
+          break;
+        }
+        case 2: {
+          ctx.moveTo(t.x, t.y - tS);
+          ctx.lineTo(t.x - tS, t.y + tS);
+          ctx.lineTo(t.x + tS, t.y + tS);
+          break;
+        }
+        case 3: {
+          ctx.moveTo(t.x, t.y + tS);
+          ctx.lineTo(t.x - tS, t.y - tS);
+          ctx.lineTo(t.x + tS, t.y - tS);
+          break;
+        }
+      }
+      ctx.closePath();
+      ctx.fill();
+    });
+    DC.mapData.bombs.forEach((bomb, idx) => {
+      let bombRadius = ((6 * defly.UNIT_WIDTH) / z) * q,
+        t = {
+          x: camera.relative.x(bomb.x),
+          y: camera.relative.y(bomb.y),
+        },
+        img = idx ? defly.images.bombA : defly.images.bombB;
+      ctx.drawImage(
+        img,
+        t.x - bombRadius,
+        t.y - bombRadius,
+        2 * bombRadius,
+        2 * bombRadius
+      );
+    });
+    DC.gameData.bullets.forEach((bullet) => {
+      ctx.beginPath();
+      ctx.fillStyle = defly.colors.standard[bullet.t];
+      ctx.moveTo(camera.relative.x(bullet.p.x), camera.relative.y(bullet.p.y));
+      ctx.arc(
+        camera.relative.x(bullet.p.x),
+        camera.relative.y(bullet.p.y),
+        defly.BULLET_WIDTH,
+        2 * Math.PI,
+        false
+      );
+      ctx.fill();
+    });
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'red';
+    ctx.beginPath();
+    ctx.arc(camera.relative.x(DC.player.position.x), camera.relative.y(DC.player.position.y), defly.PLAYER_WIDTH, 2 * Math.PI, false);
+    ctx.moveTo(camera.relative.x(DC.player.position.x), camera.relative.y(DC.player.position.y));
+    ctx.stroke();
+    //draw tower preview \/
+  },
+
+  handleInput: function (e) {
+    let type, input, extra;
+    switch (e.type) {
+      case "mousedown": {
+        type = "button_down";
+        let mKeys = ["Left Click", "Middle Click", "Right Click"];
+        input = mKeys?.[e.button] ? mKeys[e.button] : `Button ${e.button}`;
+        break;
+      }
+      case "mouseup": {
+        type = "button_up";
+        let mKeys = ["Left Click", "Middle Click", "Right Click"];
+        input = mKeys?.[e.button] ? mKeys[e.button] : `Button ${e.button}`;
+        break;
+      }
+      case "wheel": {
+        type = "button_down";
+        e.preventDefault(); //not 100% sure whether that works here but ig it should
+        input = e.deltaY > 0 ? "Scroll Down" : "Scroll Up";
+        extra = e.deltaY;
+        break;
+      }
+      case 'dblclick': {
+        type = "button_down";
+        input = "Double Click";
+        break;
+      }
+      case "mousemove": {
+        type = "mouse_move";
+        input = e;
+        break;
+      }
+      case "keydown": {
+        type = "button_down";
+        input = e.key.toLocaleUpperCase();
+        break;
+      }
+      case "keyup": {
+        type = "button_up";
+        input = e.key.toLocaleUpperCase();
+        break;
+      }
+    }
+    switch (type) {
+      case "button_down": {
+        switch (input) {
+          case "W": {
+            DC.player.velocity.yN = 1;
+            break;
+          }
+          case "A": {
+            DC.player.velocity.xN = 1;
+            break;
+          }
+          case "S": {
+            DC.player.velocity.yP = 1;
+            break;
+          }
+          case "D": {
+            DC.player.velocity.xP = 1;
+            break;
+          }
+          case "Left Click": {
+            DC.player.isShooting = true;
+            break;
+          }
+          case "Right Click": {
+            DC.player.wantsToBuild = true;
+            break;
+          }
+          case 'Double Click': {
+            console.log('TPING');
+            DC.player.position.x += DC.player.aimingAt.x-camera.offset.x;
+            DC.player.position.y += DC.player.aimingAt.y-camera.offset.y;
+            break;
+          }
+        }
+        break;
+      }
+      case "button_up": {
+        switch (input) {
+          case "W": {
+            DC.player.velocity.yN = 0;
+            break;
+          }
+          case "A": {
+            DC.player.velocity.xN = 0;
+            break;
+          }
+          case "S": {
+            DC.player.velocity.yP = 0;
+            break;
+          }
+          case "D": {
+            DC.player.velocity.xP = 0;
+            break;
+          }
+          case "Left Click": {
+            DC.player.isShooting = false;
+            break;
+          }
+        }
+        break;
+      }
+      case "mouse_move": {
+        DC.player.aimingAt.x = e.clientX;
+        DC.player.aimingAt.y = e.clientY;
+        break;
+      }
+    }
+  },
+
+  toggleAllEventListeners: function (on = true) {
+    let modif = on ? "addEventListener" : "removeEventListener";
+    canvas[modif]("mousedown", DC.handleInput);
+    canvas[modif]("mouseup", DC.handleInput);
+    canvas[modif]("wheel", DC.handleInput);
+    canvas[modif]("dblclick", DC.handleInput);
+    canvas[modif]("mousemove", DC.handleInput);
+
+    document[modif]("keydown", DC.handleInput);
+    document[modif]("keyup", DC.handleInput);
+  },
+
+  config: function () {
+    switch (currentSite) {
+      case "DME": {
+        //remove map editor event listeners
+        DME.toggleAllEventListeners(false);
+        //take position & quality from editor
+        DC.player.position = structuredClone(DME.focusPoint);
+        camera.position = structuredClone(DME.focusPoint);
+        camera.offset = structuredClone(DME.focusOffset);
+        camera.zoom = 1;
+        camera.quality = DME.visuals.quality;
+        //transform map data
+        DC.resetMapData(true);
+        DC.permanentMapData.width = DME.mapData.width; //here
+        DC.permanentMapData.height = DME.mapData.height;
+        DME.mapData.towers.forEach((t) => {
+          if (!t?.isNotTower) {
+            DC.permanentMapData.towers[t.color].push({
+              x: t.x,
+              y: t.y,
+              id: t.id,
+            });
+          } else {
+            if (t.id > -3) {
+              DC.permanentMapData.bombs[2+t.id] = { x: t.x, y: t.y };
+            } else {
+              DC.permanentMapData.spawns.push({
+                t: 6 + t.id,
+                x: t.x,
+                y: t.y,
+                rotation: t.rotation,
+              });
+            }
+          }
+        });
+        DME.mapData.walls.forEach((w) => {
+          DC.permanentMapData.walls[w.color].push({
+            from: { x: w.from.x, y: w.from.y, id: w.from.id },
+            to: { x: w.to.x, y: w.to.y, id: w.to.id },
+          });
+        });
+        DME.mapData.areas.forEach((a) => {
+          DC.permanentMapData.areas[a.color].push({
+            length: a.length,
+            nodes: structuredClone(a.nodes),
+          });
+        });
+        break;
+      }
+      default: {
+        break;
+      }
+    }
+    DC.toggleAllEventListeners(true);
+    currentSite = "DC";
+
+    DC.reloadMap();
+    DC.rawDelta = new Date().getTime();
+    DC.updateLoop();
+  },
+
+  deConfig: function () {
+    //add map editor event listeners for clone event listeners
+    DC.toggleAllEventListeners(false);
+    //take position
+    DME.focusPoint = structuredClone(DC.player.position);
+    camera.zoom = DME.mapZoom;
+  },
+
+  updateLoop: function () {
+    if (currentSite == "DC") {
+      //stop requesting new animation frames if site changed from defuse clone
+      DC.rawDelta = new Date().getTime() - DC.rawDelta;
+      DC.gameTime += DC.rawDelta;
+      DC.rawDelta /= 1000; //ms -> s
+      let counter = 0;
+      do {
+        DC.localDelta = DC.rawDelta > DC.MAX_DELTA ? DC.MAX_DELTA : DC.rawDelta;
+        DC.updatePlayer();
+        DC.updateBullets();
+        DC.updateOtherStuff();
+        DC.rawDelta -= DC.MAX_DELTA;
+        counter++;
+        if (counter > 1 && counter < 10)
+          console.log(`Counter smh: ${counter} - Delta: ${DC.rawDelta}`);
+      } while (DC.rawDelta > DC.MAX_DELTA && counter < 100);
+      DC.draw();
+      DC.rawDelta = new Date().getTime();
+      window.requestAnimationFrame(DC.updateLoop);
+    }
+  },
+};
 
 window.oncontextmenu = (e) => {
   e.preventDefault();
