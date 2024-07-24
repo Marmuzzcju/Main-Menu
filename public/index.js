@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.40a";
+const version = "1.41";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -497,6 +497,8 @@ const DME = {
     toggleMirrorMode2: "",
     toggleRotateMode1: "R",
     toggleRotateMode2: "",
+    toggleDeleteWallMode1: 'Q',
+    toggleDeleteWallMode2: '',
     placeTower1: "Right Click",
     placeTower2: "SPACE",
     selectTower1: "Left Click",
@@ -528,6 +530,7 @@ const DME = {
     MoveRight: false,
     MirrorMode: false,
     RotateMode: false,
+    DeleteWallMode: false,
   },
 
   mouseCoords: {
@@ -1341,9 +1344,11 @@ const DME = {
             });
             this.logState = ls;
             this.logAction({ action: "create", type: "walls", ids: ids });
+            break;
           }
           case "area": {
             this.createArea(actionToModify.ids);
+            break;
           }
         }
         break;
@@ -1773,6 +1778,27 @@ const DME = {
     });
     this.updateChunkOptions();
     if (loggedAreas.length) this.updateShields();
+  },
+
+  deleteTargetWall: function () {
+    let mc = this.mouseCoords.relative,
+        [x, y] = [mc.x, mc.y],
+        wallsToDelete = [],
+        wallIds = [];
+    this.mapData.walls.forEach((wall,index) => {
+      if(getDistanceToLine2d(wall.from.x,wall.from.y,wall.to.x,wall.to.y,x,y) < defly.WALL_WIDTH/2) {
+        wallsToDelete.push(index);
+        wallIds.push({from:wall.from.id,to:wall.to.id});
+      }
+    });
+    wallsToDelete.forEach((idx, c) => {
+      this.mapData.walls.splice(idx-c,1);
+    });
+    this.logAction({
+      action: "delete",
+      type: "walls",
+      ids: wallIds,
+    });
   },
 
   deleteWalls: function (ids) {
@@ -4191,7 +4217,6 @@ const DME = {
       }
       case "button_down": {
         //console.log(input);
-
         switch (DME.editMode) {
           case "building": {
             switch (modifiedInput) {
@@ -4214,7 +4239,10 @@ const DME = {
               }
               case DME.hotkeys.selectTower1:
               case DME.hotkeys.selectTower2: {
-                if (DME.chunckOptions.hovering) {
+                if(DME.isKeyPressed.DeleteWallMode){
+                      console.log('Tryna delete');
+                      DME.deleteTargetWall();
+                } else if (DME.chunckOptions.hovering) {
                   DME.resizeChunkByDrag(0);
                 } else DME.selectTower();
                 break;
@@ -4260,6 +4288,11 @@ const DME = {
               case DME.hotkeys.toggleRotateMode1:
               case DME.hotkeys.toggleRotateMode2: {
                 DME.isKeyPressed.RotateMode = true;
+                break;
+              }
+              case DME.hotkeys.toggleDeleteWallMode1:
+              case DME.hotkeys.toggleDeleteWallMode2: {
+                DME.isKeyPressed.DeleteWallMode = true;
                 break;
               }
               case DME.hotkeys.Delete1:
@@ -4387,6 +4420,11 @@ const DME = {
               case DME.hotkeys.toggleRotateMode1:
               case DME.hotkeys.toggleRotateMode2: {
                 DME.isKeyPressed.RotateMode = false;
+                break;
+              }
+              case DME.hotkeys.toggleDeleteWallMode1:
+              case DME.hotkeys.toggleDeleteWallMode2: {
+                DME.isKeyPressed.DeleteWallMode = false;
                 break;
               }
               case DME.hotkeys.MoveUp1:
