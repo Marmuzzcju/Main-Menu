@@ -1794,6 +1794,25 @@ const DME = {
     wallsToDelete.forEach((idx, c) => {
       this.mapData.walls.splice(idx-c,1);
     });
+    let areasToDelete = [];
+    wallIds.forEach(ids => {
+      this.mapData.areas.forEach((area, index) => {
+        let targetIdStrike = [ids.from,ids.to].includes(area.nodes.at(-1).id) ? 1 : 0;
+        area.nodes.forEach(n => {
+          if([ids.from,ids.to].includes(n.id)) targetIdStrike++;
+          else targetIdStrike = targetIdStrike < 2 ? 0 : 3;
+          if(targetIdStrike == 2) {
+            areasToDelete.push(index);
+            let ids = [];
+            area.nodes.forEach(n=>{ids.push(n.id)});
+            this.logAction({ action: "delete", type: "area", ids: ids });
+          }
+        });
+      });
+    });
+    areasToDelete.forEach((idx, c) => {
+      this.mapData.areas.splice(idx - c, 1);
+    });
     this.logAction({
       action: "delete",
       type: "walls",
