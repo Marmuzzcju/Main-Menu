@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.41";
+const version = "1.41b";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -509,7 +509,7 @@ const DME = {
     zoomOut2: "-",
     zoomIn1: "Scroll Up",
     zoomIn2: "+",
-    resetZoom1: "=",
+    resetZoom1: "0",
     resetZoom2: "",
   },
   changeKeybind: {
