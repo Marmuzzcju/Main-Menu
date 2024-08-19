@@ -5077,7 +5077,9 @@ const DC = {
     DC.mapData.height = DC.permanentMapData.height;
     DC.permanentMapData.towers.forEach((tSet, team) => {
       tSet.forEach((t) => {
-        DC.mapData.towers[team].push({ x: t.x, y: t.y, id: t.id });
+        let data = { x: t.x, y: t.y, id: t.id };
+        if(t?.isKothTower) data.isKothTower = true;
+        DC.mapData.towers[team].push(data);
       });
     });
     DC.permanentMapData.bombs.forEach((b) => {
@@ -5088,19 +5090,23 @@ const DC = {
     });
     DC.permanentMapData.walls.forEach((wSet, team) => {
       wSet.forEach((w) => {
-        DC.mapData.walls[team].push({
+        let data = {
           from: { x: w.from.x, y: w.from.y, id: w.from.id },
           to: { x: w.to.x, y: w.to.y, id: w.to.id },
-        });
+        };
+        if(w?.isKothWall) data.isKothWall = true;
+        DC.mapData.walls[team].push(data);
         DC.mapData.wallRegister.push([w.from.id,w.to.id]);
       });
     });
     DC.permanentMapData.areas.forEach((aSet, team) => {
       aSet.forEach((a) => {
-        DC.mapData.areas[team].push({
+        let data = {
           length: a.length,
           nodes: structuredClone(a.nodes),
-        });
+        };
+        if(a?.isKothArea) data.isKothArea = true;
+        DC.mapData.areas[team].push(data);
       });
     });
     DC.player.connectedTo = false;
@@ -5219,9 +5225,9 @@ const DC = {
 
     //draw areas
     DC.mapData.areas.forEach((areaSet, idx) => {
-      ctx.beginPath();
-      ctx.fillStyle = defly.colors.faded[idx];
       areaSet.forEach((area) => {
+        ctx.fillStyle = defly.colors.faded[area?.isKothArea ? 'koth' : idx];
+        ctx.beginPath();
         ctx.moveTo(
           camera.relative.x(area.nodes[0].x),
           camera.relative.y(area.nodes[0].y)
@@ -5229,15 +5235,16 @@ const DC = {
         area.nodes.forEach((node) => {
           ctx.lineTo(camera.relative.x(node.x), camera.relative.y(node.y));
         });
+        ctx.fill();
       });
-      ctx.fill();
     });
 
     //draw walls
     DC.mapData.walls.forEach((wallSet, idx) => {
       wallSet.forEach((wall) => {
+        let color = wall?.isKothWall ? 'koth' : idx;
         ctx.lineWidth = wallWidth * q;
-        ctx.strokeStyle = defly.colors.darkened[idx];
+        ctx.strokeStyle = defly.colors.darkened[color];
         ctx.beginPath();
         ctx.moveTo(
           camera.relative.x(wall.from.x),
@@ -5246,7 +5253,7 @@ const DC = {
         ctx.lineTo(camera.relative.x(wall.to.x), camera.relative.y(wall.to.y));
         ctx.stroke();
         //draw wall twice, once bit darker to create the darkened edge of the wall
-        ctx.strokeStyle = defly.colors.standard[idx];
+        ctx.strokeStyle = defly.colors.standard[color];
         ctx.lineWidth = (wallWidth - 4 / z) * q;
         ctx.beginPath();
         ctx.moveTo(
@@ -5266,17 +5273,12 @@ const DC = {
           x: camera.relative.x(tower.x),
           y: camera.relative.y(tower.y),
         };
-        let colorId = tower?.isKothTower ? false : idx;
-        ctx.fillStyle = colorId
-          ? defly.colors.darkened[colorId]
-          : "rgb(70, 52, 14)";
+        ctx.fillStyle = tower?.isKothTower ? 'rgb(70, 52, 14)' : defly.colors.darkened[idx];
         ctx.beginPath();
         ctx.arc(t.x, t.y, towerWidth * q, 2 * Math.PI, false);
         ctx.fill();
         //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
-        ctx.fillStyle = colorId
-          ? defly.colors.standard[colorId]
-          : "rgb(195,143,39)";
+        ctx.fillStyle = tower?.isKothTower ? 'rgb(195,143,39)' : defly.colors.standard[idx];
         ctx.beginPath();
         ctx.arc(t.x, t.y, (towerWidth - 2 / z) * q, 2 * Math.PI, false);
         ctx.fill();
@@ -5292,7 +5294,7 @@ const DC = {
           ctx.stroke();
           ctx.shadowBlur = 0;
         }
-        if (!colorId) {
+        if (tower?.isKothTower) {
           let w = (defly.TOWER_WIDTH / z) * q;
           ctx.drawImage(
             defly.images.koth_crown,
@@ -5524,11 +5526,13 @@ const DC = {
         DC.permanentMapData.height = DME.mapData.height;
         DME.mapData.towers.forEach((t) => {
           if (!t?.isNotTower) {
-            DC.permanentMapData.towers[t.color].push({
+            let data = {
               x: t.x,
               y: t.y,
               id: t.id,
-            });
+            };
+            if(t?.isKothTower) data.isKothTower = true;
+            DC.permanentMapData.towers[t.color].push(data);
           } else {
             if (t.id > -3) {
               DC.permanentMapData.bombs[2+t.id] = { x: t.x, y: t.y };
@@ -5543,16 +5547,32 @@ const DC = {
           }
         });
         DME.mapData.walls.forEach((w) => {
-          DC.permanentMapData.walls[w.color].push({
-            from: { x: w.from.x, y: w.from.y, id: w.from.id },
-            to: { x: w.to.x, y: w.to.y, id: w.to.id },
-          });
+          try {
+            let data = {
+              from: { x: w.from.x, y: w.from.y, id: w.from.id },
+              to: { x: w.to.x, y: w.to.y, id: w.to.id },
+            },
+            t = w.color;
+            if(t == 'koth'){
+              t = 1;
+              data.isKothWall = true;
+            }
+            DC.permanentMapData.walls[t].push(data);
+          } catch {
+            console.log(`Color: ${w.color}`);
+          }
         });
         DME.mapData.areas.forEach((a) => {
-          DC.permanentMapData.areas[a.color].push({
+          let data = {
             length: a.length,
             nodes: structuredClone(a.nodes),
-          });
+          },
+          t = a.color;
+          if(t == 'koth') {
+            t = 1;
+            data.isKothArea = true;
+          }
+          DC.permanentMapData.areas[t].push(data);
         });
         break;
       }
