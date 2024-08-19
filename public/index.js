@@ -4689,8 +4689,6 @@ const DC = {
         yModif *
         defly.defuseCopter[DC.player.copter].copterSpeed *
         DC.localDelta;
-      camera.position.x = DC.player.position.x;
-      camera.position.y = DC.player.position.y;
 
       //check if on top of tower: connect
       DC.mapData.towers[DC.player.team].forEach((tower, index) => {
@@ -4730,6 +4728,80 @@ const DC = {
         DC.localDelta;
       DC.checkPlayerWallCollision();
     }
+    //if player is outside map...
+    switch (DC.mapData.shape) {
+      case 0: {
+        //rectangle
+        DC.player.position.x =
+          DC.player.position.x < 0
+            ? 0
+            : DC.player.position.x > DC.mapData.width
+            ? DC.mapData.width
+            : DC.player.position.x;
+        DC.player.position.y =
+          DC.player.position.y < 0
+            ? 0
+            : DC.player.position.y > DC.mapData.height
+            ? DC.mapData.height
+            : DC.player.position.y;
+        break;
+      }
+      case 1: {
+        //hexagon
+        let cX = DC.mapData.width / 2,
+          cY = DC.mapData.height / 2,
+          pX = DC.player.position.x,
+          pY = DC.player.position.y;
+        bounds = DC.mapData.bounds;
+        //radious = cX
+        for (c = 0; c < 6; c++) {
+          //check whether position is outside hex map bounds
+          if (
+            isIntersecting(
+              pX,
+              pY,
+              cX,
+              cY,
+              bounds[c * 2],
+              bounds[1 + c * 2],
+              bounds[(2 + c * 2) % 12],
+              bounds[(3 + c * 2) % 12]
+            )
+          ) {
+            let [sin, cos] = [
+                Math.sin((Math.PI / 3) * c),
+                Math.cos((Math.PI / 3) * c),
+              ],
+              [x, y] = [pX - cX, pY - cY];
+            let xC = x * cos - y * sin + 0.5 * cX,
+              fraction = (xC > cX ? cX : xC < 0 ? 0 : xC) / cX,
+              deltaX = bounds[(2 + c * 2) % 12] - bounds[c * 2],
+              deltaY = bounds[(3 + c * 2) % 12] - bounds[1 + c * 2],
+              tx = bounds[c * 2] + deltaX * fraction,
+              ty = bounds[1 + c * 2] + deltaY * fraction;
+            DC.player.position.x = tx;// < 0 ? 0 : tx > DC.mapData.width ? DC.mapData.width : tx;
+            DC.player.position.y = ty;// < 0 ? 0 : ty > DC.mapData.height ? DC.mapData.height : ty;
+            break;
+          } else if(pX < 0) DC.player.position.x = 0;
+          else if(pX > DC.mapData.width) DC.player.position.x = DC.mapData.width;
+        }
+        break;
+      }
+      case 2: {
+        //circle
+        let radious = DC.mapData.width / 2,
+          xDif = DC.player.position.x - radious,
+          yDif = DC.player.position.y - radious,
+          e = (xDif ** 2 + yDif ** 2) ** 0.5 / radious;
+        if (e > 1) {
+          DC.player.position.x = radious + xDif / e;
+          DC.player.position.y = radious + yDif / e;
+        }
+        break;
+      }
+    }
+    camera.position.x = DC.player.position.x;
+    camera.position.y = DC.player.position.y;
   },
   checkPlayerWallCollision: function () {
     DC.player.isStuck = false;
@@ -5075,6 +5147,8 @@ const DC = {
     DC.resetMapData();
     DC.mapData.width = DC.permanentMapData.width;
     DC.mapData.height = DC.permanentMapData.height;
+    DC.mapData.shape = DC.permanentMapData.shape;
+    DC.mapData.bounds = DC.permanentMapData.bounds;
     DC.permanentMapData.towers.forEach((tSet, team) => {
       tSet.forEach((t) => {
         let data = { x: t.x, y: t.y, id: t.id };
@@ -5174,7 +5248,7 @@ const DC = {
       ctx.stroke();
     }
     ctx.lineWidth = (1 + 1 / z) * q;
-    switch (DME.mapData.shape) {
+    switch (DC.mapData.shape) {
       case 0: {
         //rectangle
         ctx.strokeRect(
@@ -5524,6 +5598,8 @@ const DC = {
         DC.resetMapData(true);
         DC.permanentMapData.width = DME.mapData.width; //here
         DC.permanentMapData.height = DME.mapData.height;
+        DC.permanentMapData.shape = DME.mapData.shape;
+        DC.permanentMapData.bounds = DME.mapData.bounds;
         DME.mapData.towers.forEach((t) => {
           if (!t?.isNotTower) {
             let data = {
