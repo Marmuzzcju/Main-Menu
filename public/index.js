@@ -1016,6 +1016,7 @@ const DME = {
       let k = this.mapData.koth;
       if (
         k &&
+        t.color == 1 &&
         t.x >= k[0] &&
         t.x <= k[2] &&
         t.y >= k[1] &&
