@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.41c";
+const version = "1.42";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -2079,8 +2079,8 @@ const DME = {
     this.updateMouseCoords();
   },
 
-  switchMapShape: function () {
-    this.mapData.shape = ++this.mapData.shape % 3;
+  switchMapShape: function (newShape=-1) {
+    this.mapData.shape = newShape >= 0 ? Number(newShape) : ++this.mapData.shape % 3;
     switch (this.mapData.shape) {
       case 0: {
         //rectangle
@@ -2198,6 +2198,10 @@ const DME = {
                 newMapData[position + 1];
               break;
             }
+            case "MAP_SHAPE":{
+              this.switchMapShape(newMapData[position + 1]);
+              break;
+            }
             case "KOTH": {
               this.mapData.koth = [
                 newMapData[position + 1] * defly.UNIT_WIDTH,
@@ -2275,6 +2279,8 @@ const DME = {
           Number(newMapSize[1]) > 0
             ? Number(newMapSize[1]) * defly.UNIT_WIDTH
             : this.mapData.height;
+        //map shape
+        if(newMapSize[2]) this.switchMapShape(newMapSize[2]);
 
         //koth bounds
         this.mapData.koth =
@@ -2351,7 +2357,7 @@ const DME = {
         /*newMapData.regions.forEach(r => {
           let ids = [];
           r.forEach(n => {
-            //!here \/ has to be fixed - don't have files on me rn
+            \/ has to be fixed - don't have files on me rn
             ids.push(n.value);
           });
           this.createArea(ids);
@@ -2397,6 +2403,7 @@ const DME = {
       case "defly": {
         text += `MAP_WIDTH ${d.width / uW}`;
         text += `\nMAP_HEIGHT ${d.height / uW}`;
+        if(d.shape) text += `\nMAP_SHAPE ${d.shape}`;
         if (d?.koth.length >= 4)
           text += `\nKOTH ${d.koth[0] / uW.toRounded(6)} ${
             d.koth[1] / uW.toRounded(6)
@@ -2435,7 +2442,7 @@ const DME = {
       case "compact": {
         text += `${(d.width / uW).toRounded(2)},${(d.height / uW).toRounded(
           2
-        )}|${
+        )}${d.shape?','+d.shape:''}|${
           /*Koth bounds*/ d?.koth.length >= 4
             ? `${d.koth[0]},${d.koth[1]},${d.koth[2]},${d.koth[3]}`
             : ""
