@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.42";
+const version = "1.42b";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -691,7 +691,7 @@ const DME = {
     DME.mapData.towers.push({ x: x, y: y, color: color, id: id });
     //check if tower is inside koth bounds
     let k = this.mapData.koth;
-    if (k && x >= k[0] && x <= k[2] && y >= k[1] && y <= k[3])
+    if (k && color == 1 && x >= k[0] && x <= k[2] && y >= k[1] && y <= k[3])
       this.mapData.towers.at(-1).isKothTower = true;
     DME.highestId = id > DME.highestId ? id + 1 : DME.highestId + 1;
     this.logAction({ action: "create", type: "tower", id: id });
@@ -1623,6 +1623,17 @@ const DME = {
       loggedData.push({ ar: ar, color: t.color });
       ids.push(t.id);
       t.color = newColor;
+      if(newColor == 1){
+        //check if in KOTH bounds
+        let k = this.mapData.koth;
+        if(
+          k &&
+          t.x >= k[0] &&
+          t.x <= k[2] &&
+          t.y >= k[1] &&
+          t.y <= k[3] &&
+          t.id > 0) t.isKothTower = true;
+      } else t?.isKothTower ? t.isKothTower = false : ':)';
     });
     let colorInput = document.querySelector("#DME-towers-info-color-input");
     colorInput.value = newColor;
