@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.43";
+const version = "1.43b";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -4996,9 +4996,9 @@ const DC = {
     }
   },
   placeTower: function(x,y,team,id=DC.highestId+1){
-    if(this.highestId < id) this.highestId = id;;
+    if(this.highestId < id) this.highestId = id;//!here
     let cO = this.getClusterOrigin({x: x, y: y});
-    DC.mapData.towerCluster[cO[0]][cO[1]].push({ x: x, y: y, id: id, team: team});
+    DC.mapData.towerCluster[cO[0]][cO[1]].push({ x: x, y: y, id: id, team: team, connectedTo: [], connectedFrom: [] });
     return id;
   },
   placeWall: function(from,to,team){//note: if max wall length would be increased, could place false walls
@@ -5254,13 +5254,23 @@ const DC = {
         let wallLength = getDistance2d(data.from.x,data.from.y,data.to.x,data.to.y);
         if(wallLength>defly.MAX_WALL_LENGTH){//if teams wall: has to be fixed on breaking (e.g. split wall on build)
           let sections = Math.floor(wallLength/defly.MAX_WALL_LENGTH)+1,
-              wallVector = [(data.to.x-data.from.x)/sections,(data.to.y-data.to.y)/sections];
-          for(let c=1;c<sections;c++){
-            mD.wallCluster[coordToCluster(data.from.x+wallVector[0]*c)][coordToCluster(data.from.y+wallVector[1]*c)].push(data)
+              wallVector = [(data.to.x-data.from.x)/sections,(data.to.y-data.from.y)/sections];
+          for(let c=0;c<sections;c++){//!here
+            let dataCopy = structuredClone(data);
+            dataCopy.from.x = data.from.x + wallVector[0]*c;
+            dataCopy.from.y = data.from.y + wallVector[1]*c;
+            dataCopy.to.x = dataCopy.from.x + wallVector[0];
+            dataCopy.to.y = dataCopy.from.y + wallVector[1];
+            dataCopy.from.id = c ? `0${c}${w.from.id}` : data.from.id;
+            dataCopy.to.id = c+1<sections ? `0${c+1}${w.from.id}` : data.to.id;
+            if(c+1<sections) this.placeTower(dataCopy.to.x,dataCopy.to.y,data.team,dataCopy.to.id);
+            mD.wallCluster[coordToCluster(dataCopy.from.x)][coordToCluster(dataCopy.from.y)].push(dataCopy);
+            pushNewConnection({x:dataCopy.from.x,y:dataCopy.from.y,id:dataCopy.from.id},{x:dataCopy.to.x,y:dataCopy.to.y,id:dataCopy.to.id});
           }
+        } else {
+          mD.wallCluster[coordToCluster(data.from.x)][coordToCluster(data.from.y)].push(data);
+          pushNewConnection({x:data.from.x,y:data.from.y,id:data.from.id},{x:data.to.x,y:data.to.y,id:data.to.id});
         }
-        mD.wallCluster[coordToCluster(data.from.x)][coordToCluster(data.from.y)].push(data);
-        pushNewConnection({x:data.from.x,y:data.from.y,id:data.from.id},{x:data.to.x,y:data.to.y,id:data.to.id});
       });
     });
     DC.permanentMapData.areas.forEach((aSet, team) => {
