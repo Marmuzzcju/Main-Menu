@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.43b";
+const version = "1.44";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -5551,7 +5551,7 @@ const DC = {
       ctx.arc(
         camera.relative.x(bullet.p.x),
         camera.relative.y(bullet.p.y),
-        defly.BULLET_WIDTH,
+        defly.BULLET_WIDTH * q,
         2 * Math.PI,
         false
       );
@@ -5560,7 +5560,7 @@ const DC = {
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'red';
     ctx.beginPath();
-    ctx.arc(camera.relative.x(DC.player.position.x), camera.relative.y(DC.player.position.y), defly.PLAYER_WIDTH, 2 * Math.PI, false);
+    ctx.arc(camera.relative.x(DC.player.position.x), camera.relative.y(DC.player.position.y), defly.PLAYER_WIDTH * q, 2 * Math.PI, false);
     ctx.moveTo(camera.relative.x(DC.player.position.x), camera.relative.y(DC.player.position.y));
     ctx.stroke();
     //draw tower preview \/
@@ -5568,9 +5568,10 @@ const DC = {
     //draw info
     let h = canvas.height;
     ctx.fillStyle = "black";
-    ctx.font = `12px Verdana`;
-    ctx.fillText(`frames/s: ${(1/DC.rawDelta).toFixed(2)}`,30,h-50);
-    ctx.fillText(`s/frame : ${DC.rawDelta}`,30,h-30);
+    ctx.font = `${4+8*q}px Verdana`;
+    ctx.fillText(`display size: ${canvas.width}x${canvas.height}`,30*q,h-70*q);
+    ctx.fillText(`frames/s: ${(1/DC.rawDelta).toFixed(2)}`,30*q,h-50*q);
+    ctx.fillText(`s/frame : ${DC.rawDelta}`,30*q,h-30*q);
   },
 
   handleInput: function (e) {
