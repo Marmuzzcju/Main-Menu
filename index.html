@@ -270,6 +270,7 @@
 			  <span style="font-size:20px;text-align: center;">Menu</span><br />
 			  <button onclick="document.querySelector('#DC-menu').style.display = 'none';document.querySelector('#DC-show-menu').style.display = 'inline';">Hide</button><br />
 			  <button onclick="DC.reloadMap();">Reload Map</button><br />
+			  <div>Mode: <select class="clickable" onchange="DC.changeMode(this.value);"><option value="2">Defuse</option><option value="0">FFA</option><option value="1">Teams</option></select></div>
 			  <button onclick="DC.deConfig();switchSite('map-editor', 2);">Exit</button>
       </div>
       <button id="DC-show-menu" style="font-size:12px; width:60px; position:fixed; top:4%; left:2%; z-index:100;display:none;" onclick="document.querySelector('#DC-menu').style.display = 'inline';this.style.display = 'none';">Show Menu</button>
@@ -280,6 +281,99 @@
         <img id="DC-select-defuse-minisnipe" onclick="DC.selectDefuseCopter('minisnipe')" src="/public/images/copter-minisnipe.png">
         <img id="DC-select-defuse-machinegun" onclick="DC.selectDefuseCopter('machinegun')" src="/public/images/copter-machinegun.png">
         <img id="DC-select-defuse-sniper" onclick="DC.selectDefuseCopter('sniper')" src="/public/images/copter-sniper.png">
+      </div>
+      <div id="DC-upgrade-block" class="hidden">
+        <div id="DC-upgrade-copter-speed">
+          <div class="DC-upgrade-line">Player speed</div>
+          <div class="DC-upgrade-boxes">
+            <span onclick="DC.upgradeCopter(1,1);"></span>
+            <span onclick="DC.upgradeCopter(1,2);"></span>
+            <span onclick="DC.upgradeCopter(1,3);"></span>
+            <span onclick="DC.upgradeCopter(1,4);"></span>
+            <span onclick="DC.upgradeCopter(1,5);"></span>
+            <span onclick="DC.upgradeCopter(1,6);"></span>
+            <span onclick="DC.upgradeCopter(1,7);"></span>
+            <span onclick="DC.upgradeCopter(1,8);"></span>
+          </div>
+        </div>
+        <div id="DC-upgrade-bullet-range">
+          <div class="DC-upgrade-line">Bullet range</div>
+          <div class="DC-upgrade-boxes">
+            <span onclick="DC.upgradeCopter(2,1);"></span>
+            <span onclick="DC.upgradeCopter(2,2);"></span>
+            <span onclick="DC.upgradeCopter(2,3);"></span>
+            <span onclick="DC.upgradeCopter(2,4);"></span>
+            <span onclick="DC.upgradeCopter(2,5);"></span>
+            <span onclick="DC.upgradeCopter(2,6);"></span>
+            <span onclick="DC.upgradeCopter(2,7);"></span>
+            <span onclick="DC.upgradeCopter(2,8);"></span>
+          </div>
+        </div>
+        <div id="DC-upgrade-bullet-speed">
+          <div class="DC-upgrade-line">Bullet speed</div>
+          <div class="DC-upgrade-boxes">
+            <span onclick="DC.upgradeCopter(3,1);"></span>
+            <span onclick="DC.upgradeCopter(3,2);"></span>
+            <span onclick="DC.upgradeCopter(3,3);"></span>
+            <span onclick="DC.upgradeCopter(3,4);"></span>
+            <span onclick="DC.upgradeCopter(3,5);"></span>
+            <span onclick="DC.upgradeCopter(3,6);"></span>
+            <span onclick="DC.upgradeCopter(3,7);"></span>
+            <span onclick="DC.upgradeCopter(3,8);"></span>
+          </div>
+        </div>
+        <div id="DC-upgrade-reload-speed">
+          <div class="DC-upgrade-line">Reload speed</div>
+          <div class="DC-upgrade-boxes">
+            <span onclick="DC.upgradeCopter(4,1);"></span>
+            <span onclick="DC.upgradeCopter(4,2);"></span>
+            <span onclick="DC.upgradeCopter(4,3);"></span>
+            <span onclick="DC.upgradeCopter(4,4);"></span>
+            <span onclick="DC.upgradeCopter(4,5);"></span>
+            <span onclick="DC.upgradeCopter(4,6);"></span>
+            <span onclick="DC.upgradeCopter(4,7);"></span>
+            <span onclick="DC.upgradeCopter(4,8);"></span>
+          </div>
+        </div>
+        <div id="DC-upgrade-build-range">
+          <div class="DC-upgrade-line">Build range</div>
+          <div class="DC-upgrade-boxes">
+            <span onclick="DC.upgradeCopter(5,1);"></span>
+            <span onclick="DC.upgradeCopter(5,2);"></span>
+            <span onclick="DC.upgradeCopter(5,3);"></span>
+            <span onclick="DC.upgradeCopter(5,4);"></span>
+            <span onclick="DC.upgradeCopter(5,5);"></span>
+            <span onclick="DC.upgradeCopter(5,6);"></span>
+            <span onclick="DC.upgradeCopter(5,7);"></span>
+            <span onclick="DC.upgradeCopter(5,8);"></span>
+          </div>
+        </div>
+        <div id="DC-upgrade-tower-shield">
+          <div class="DC-upgrade-line">Tower shield</div>
+          <div class="DC-upgrade-boxes">
+            <span onclick="DC.upgradeCopter(6,1);"></span>
+            <span onclick="DC.upgradeCopter(6,2);"></span>
+            <span onclick="DC.upgradeCopter(6,3);"></span>
+            <span onclick="DC.upgradeCopter(6,4);"></span>
+            <span onclick="DC.upgradeCopter(6,5);"></span>
+            <span onclick="DC.upgradeCopter(6,6);"></span>
+            <span onclick="DC.upgradeCopter(6,7);"></span>
+            <span onclick="DC.upgradeCopter(6,8);"></span>
+          </div>
+        </div>
+        <div id="DC-upgrade-tower-health">
+          <div class="DC-upgrade-line">Tower health</div>
+          <div class="DC-upgrade-boxes">
+            <span onclick="DC.upgradeCopter(7,1);"></span>
+            <span onclick="DC.upgradeCopter(7,2);"></span>
+            <span onclick="DC.upgradeCopter(7,3);"></span>
+            <span onclick="DC.upgradeCopter(7,4);"></span>
+            <span onclick="DC.upgradeCopter(7,5);"></span>
+            <span onclick="DC.upgradeCopter(7,6);"></span>
+            <span onclick="DC.upgradeCopter(7,7);"></span>
+            <span onclick="DC.upgradeCopter(7,8);"></span>
+          </div>
+        </div>
       </div>
     </div>
     <canvas id="main-canvas" class="hidden"></canvas>

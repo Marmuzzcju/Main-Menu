@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.44";
+const version = "1.45";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -283,6 +283,7 @@ function updateFOV() {
       };
       canvas.width = w * DME.visuals.quality;
       canvas.height = h * DME.visuals.quality;
+      //defly.updateUnits(w/h < 16/9 ? h/40.5 : w / 72);
     }
   }
 }
@@ -351,6 +352,15 @@ const defly = {
   GRID_WIDTH: 44,
   UNIT_WIDTH: 22, //GRID_WIDTH / 2
   MAX_WALL_LENGTH: 660, //GRID_WIDTH * 15
+  updateUnits: function(newUnitWidth){
+    this.UNIT_WIDTH = newUnitWidth;
+    this.GRID_WIDTH = 2*newUnitWidth;
+    this.MAX_WALL_LENGTH = 30*newUnitWidth;
+    this.BULLET_WIDTH = newUnitWidth/22*7;
+    this.PLAYER_WIDTH = newUnitWidth/22*10;
+    this.TOWER_WIDTH = newUnitWidth/22*13;
+    this.WALL_WIDTH = newUnitWidth/22*13;
+  },
   defuseCopter: {
     basic: {
       copterSpeed: 260,
@@ -4655,6 +4665,7 @@ const DC = {
     bullets: [],
     idToTeam: { id1: 2 }, //DC.gameData.idToTeam[`id${player.id}`] => returns team id for player id
   },
+  gameMode: 'defuse',
   highestId: 0,
 
   player: {
@@ -4685,7 +4696,15 @@ const DC = {
     isShooting: false,
     wantsToBuild: false,
     shootingCooldown: 0,
-    copter: "basic",
+    //copter: "basic",
+    copter: {
+      copterSpeed: 260,
+      bulletSpeed: 260,
+      bulletLifespan: 1.7,
+      reloadTime: 0.75,
+      inaccuracy: 0,
+      bulletCount: 1,
+    },
   },
 
   rawDelta: 0,
@@ -4713,11 +4732,11 @@ const DC = {
         yModif = yVel * (xVel ? 0.71 : 1);
       p.position.x +=
         xModif *
-        defly.defuseCopter[p.copter].copterSpeed *
+        DC.player.copter.copterSpeed *
         DC.localDelta;
       p.position.y +=
         yModif *
-        defly.defuseCopter[p.copter].copterSpeed *
+        DC.player.copter.copterSpeed *
         DC.localDelta;
 
       //check if on top of tower: connect
@@ -4758,11 +4777,11 @@ const DC = {
     } else {
       p.position.x +=
         p.isStuck.x *
-        defly.defuseCopter[p.copter].copterSpeed *
+        DC.player.copter.copterSpeed *
         DC.localDelta;
       p.position.y +=
         p.isStuck.y *
-        defly.defuseCopter[p.copter].copterSpeed *
+        DC.player.copter.copterSpeed *
         DC.localDelta;
       DC.checkPlayerWallCollision();
     }
@@ -4931,7 +4950,7 @@ const DC = {
     if (canBuildHere) {
       let placeWall = false;
       ogT = DC.player.connectedTo;
-      if (typeof cIdx === "number") {
+      if (typeof cIdx !== "boolean") {
         //check if wall would intersect any other wall, would be too close to other towers or is too long
         console.log('Checking wall...')
         let tX = ogT.x,
@@ -4944,7 +4963,7 @@ const DC = {
           for(let yM=-30;yM<31;yM++){
             for(let xM=-30;xM<31;xM++){
               DC.mapData.towerCluster[pCluster[0]+xM]?.[pCluster[1]+yM]?.forEach(tower => {
-                if (wallCanBePlaced && !(tower.id == cIdx)) {
+                if (wallCanBePlaced && tower.team != 1 && !(tower.id == cIdx)) {
                   let tDtWall = getDistanceToLine2d(
                     x,
                     y,
@@ -5015,15 +5034,15 @@ const DC = {
       DC.createBullets(
         p.position,
         p.aimingAt,
-        defly.defuseCopter[p.copter].inaccuracy,
-        defly.defuseCopter[p.copter].bulletSpeed,
-        defly.defuseCopter[p.copter].bulletLifespan,
-        defly.defuseCopter[p.copter].bulletCount,
+        DC.player.copter.inaccuracy,
+        DC.player.copter.bulletSpeed,
+        DC.player.copter.bulletLifespan,
+        DC.player.copter.bulletCount,
         p.id
       );
       //gameData.bullets.push({position : {x : player.position.x, y : player.position.y}, velocity : {x : -20, y : 10}, lifespawn : 5})
       p.shootingCooldown =
-        defly.defuseCopter[p.copter].reloadTime;
+        DC.player.copter.reloadTime;
     }
   },
   createBullets: function (
@@ -5208,6 +5227,36 @@ const DC = {
 
   updateOtherStuff: function () {},
 
+  changeMode: function(newMode) {
+    switch(Number(newMode)){
+      case 0:{//ffa
+        DC.gameMode = 'ffa';
+        for(let c=1;c<8;c++){
+          DC.upgradeCopter(c,0);
+        }
+        document.querySelector('#DC-select-defuse-copter').classList.add('hidden');
+        document.querySelector('#DC-upgrade-block').classList.remove('hidden');
+        break;
+      }
+      case 1:{//teams
+        DC.gameMode = 'teams';
+        for(let c=1;c<8;c++){
+          DC.upgradeCopter(c,0);
+        }
+        document.querySelector('#DC-select-defuse-copter').classList.add('hidden');
+        document.querySelector('#DC-upgrade-block').classList.remove('hidden');
+        break;
+      }
+      case 2:{//defuse
+        DC.gameMode = 'defuse';
+        DC.selectDefuseCopter('basic');
+        document.querySelector('#DC-select-defuse-copter').classList.remove('hidden');
+        document.querySelector('#DC-upgrade-block').classList.add('hidden');
+        break;
+      }
+    }
+  },
+
   reloadMap: function () {
     //load permanent map data into running map data
     DC.resetMapData();
@@ -5288,8 +5337,80 @@ const DC = {
 
   selectDefuseCopter: function(newCopter){
     document.querySelector(`#DC-select-defuse-copter > .DC-copter-selected`).classList.remove("DC-copter-selected");
-    DC.player.copter = newCopter;
+    DC.player.copter = structuredClone(defly.defuseCopter[newCopter]);
     document.querySelector(`#DC-select-defuse-${newCopter}`).classList.add("DC-copter-selected");
+  },
+
+  upgradeCopter: function(upgrade, value){
+    switch(upgrade){
+      case 1:{//player speed
+        let points = document.querySelectorAll('#DC-upgrade-copter-speed .DC-upgrade-boxes > span'),
+            newVal = points[value-1]?.classList.contains('active') && (value == 8 || !points[value]?.classList.contains('active')) ? value-1 : value;
+        this.player.copter.copterSpeed = 150 + 110 / 8 * newVal;//very rough approximation...
+        for(let c=0;c<8;c++){
+          if(c < newVal) points[c].classList.add('active');
+          else points[c].classList.remove('active');
+        }
+        break;
+      }
+      case 2:{//bullet range
+        let points = document.querySelectorAll('#DC-upgrade-bullet-range .DC-upgrade-boxes > span'),
+            newVal = points[value-1]?.classList.contains('active') && (value == 8 || !points[value]?.classList.contains('active')) ? value-1 : value;
+        this.player.copter.bulletLifespan = 1.3 + 2 / 8 * newVal;//very rough approximation...
+        for(let c=0;c<8;c++){
+          if(c < newVal) points[c].classList.add('active');
+          else points[c].classList.remove('active');
+        }
+        break;
+      }
+      case 3:{//bullet speed
+        let points = document.querySelectorAll('#DC-upgrade-bullet-speed .DC-upgrade-boxes > span'),
+            newVal = points[value-1]?.classList.contains('active') && (value == 8 || !points[value]?.classList.contains('active')) ? value-1 : value;
+        this.player.copter.bulletSpeed = 200 + 220 / 8 * newVal;//very rough approximation...
+        for(let c=0;c<8;c++){
+          if(c < newVal) points[c].classList.add('active');
+          else points[c].classList.remove('active');
+        }
+        break;
+      }
+      case 4:{//reload speed
+        let points = document.querySelectorAll('#DC-upgrade-reload-speed .DC-upgrade-boxes > span'),
+            newVal = points[value-1]?.classList.contains('active') && (value == 8 || !points[value]?.classList.contains('active')) ? value-1 : value;
+        this.player.copter.reloadTime = 1 - .57 / 8 * newVal;//very rough approximation...
+        for(let c=0;c<8;c++){
+          if(c < newVal) points[c].classList.add('active');
+          else points[c].classList.remove('active');
+        }
+        break;
+      }
+      case 5:{//build range
+        let points = document.querySelectorAll('#DC-upgrade-build-range .DC-upgrade-boxes > span'),
+            newVal = points[value-1]?.classList.contains('active') && (value == 8 || !points[value]?.classList.contains('active')) ? value-1 : value;
+        for(let c=0;c<8;c++){
+          if(c < newVal) points[c].classList.add('active');
+          else points[c].classList.remove('active');
+        }
+        break;
+      }
+      case 6:{//tower shield
+        let points = document.querySelectorAll('#DC-upgrade-tower-shield .DC-upgrade-boxes > span'),
+            newVal = points[value-1]?.classList.contains('active') && (value == 8 || !points[value]?.classList.contains('active')) ? value-1 : value;
+        for(let c=0;c<8;c++){
+          if(c < newVal) points[c].classList.add('active');
+          else points[c].classList.remove('active');
+        }
+        break;
+      }
+      case 7:{//tower health
+        let points = document.querySelectorAll('#DC-upgrade-tower-health .DC-upgrade-boxes > span'),
+            newVal = points[value-1]?.classList.contains('active') && (value == 8 || !points[value]?.classList.contains('active')) ? value-1 : value;
+        for(let c=0;c<8;c++){
+          if(c < newVal) points[c].classList.add('active');
+          else points[c].classList.remove('active');
+        }
+        break;
+      }
+    }
   },
 
   resetMapData: function(resetAll){
@@ -5488,6 +5609,8 @@ const DC = {
       }
     }
     DC.mapData.spawns.forEach((spawn, idx) => {
+      let currentAlpha = ctx.globalAlpha;
+      if(DC.gameMode != 'defuse') ctx.globalAlpha = .2 * currentAlpha;
       let t = {
           x: camera.relative.x(spawn.x),
           y: camera.relative.y(spawn.y),
@@ -5528,8 +5651,11 @@ const DC = {
       }
       ctx.closePath();
       ctx.fill();
+      ctx.globalAlpha = currentAlpha;
     });
     DC.mapData.bombs.forEach((bomb, idx) => {
+      let currentAlpha = ctx.globalAlpha;
+      if(DC.gameMode != 'defuse') ctx.globalAlpha = .2 * currentAlpha;
       let bombRadius = ((6 * defly.UNIT_WIDTH) / z) * q,
         t = {
           x: camera.relative.x(bomb.x),
@@ -5543,6 +5669,7 @@ const DC = {
         2 * bombRadius,
         2 * bombRadius
       );
+      ctx.globalAlpha = currentAlpha;
     });
     DC.gameData.bullets.forEach((bullet) => {
       ctx.beginPath();
@@ -5567,11 +5694,12 @@ const DC = {
 
     //draw info
     let h = canvas.height;
+    let w = canvas.width;
     ctx.fillStyle = "black";
     ctx.font = `${4+8*q}px Verdana`;
-    ctx.fillText(`display size: ${canvas.width}x${canvas.height}`,30*q,h-70*q);
-    ctx.fillText(`frames/s: ${(1/DC.rawDelta).toFixed(2)}`,30*q,h-50*q);
-    ctx.fillText(`s/frame : ${DC.rawDelta}`,30*q,h-30*q);
+    ctx.fillText(`display size: ${canvas.width}x${canvas.height}`,w-150*q,h-70*q);
+    ctx.fillText(`frames/s: ${(1/DC.rawDelta).toFixed(2)}`,w-150*q,h-50*q);
+    ctx.fillText(`s/frame : ${DC.rawDelta}`,w-150*q,h-30*q);
   },
 
   handleInput: function (e) {

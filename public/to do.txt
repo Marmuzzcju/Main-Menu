@@ -1,0 +1,5 @@
+To do:
+- fix rendering error (too big display)
+- fix walls not connecting back
+ + create areas
+- fix walls not connecting weird when placed over own team tower
