@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.45";
+const version = "1.46";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -423,11 +423,13 @@ const defly = {
     bombA: new Image(),
     bombB: new Image(),
     koth_crown: new Image(),
+    shield: new Image(),
   },
 };
 defly.images.bombA.src = "/images/defly-defuse-bombSpotA.png";
 defly.images.bombB.src = "/images/defly-defuse-bombSpotB.png";
 defly.images.koth_crown.src = "/images/defuse-koth-crown.svg";
+defly.images.shield.src = "/images/shield.png";
 
 const camera = {
   position: {
@@ -3824,14 +3826,23 @@ const DME = {
 
         //if tower is shielded, draw shield
         if (tower?.isShielded && this.visuals.showTowerShields) {
-          ctx.shadowColor = "black";
-          ctx.strokeStyle = defly.colors.faded[1];
-          ctx.lineWidth = (2 / mz) * q;
-          ctx.shadowBlur = (3 / mz) * q;
-          ctx.beginPath();
-          ctx.arc(t.x, t.y, (towerWidth + 2 / mz) * q, 2 * Math.PI, false);
-          ctx.stroke();
-          ctx.shadowBlur = 0;
+          if(false && this.visuals.useDeflyImages){//dont use rn
+            let r = (towerWidth + 2 / mz) * q;
+            ctx.fillStyle = defly.colors.standard[3];
+            ctx.fillRect(t.x-r,t.y-r,2*r,2*r);
+            ctx.globalCompositeOperation = "destination-in";
+            ctx.drawImage(defly.images.shield,t.x-r,t.y-r,2*r,2*r);
+            ctx.globalCompositeOperation = "source-over";
+          } else {
+            ctx.shadowColor = "black";
+            ctx.strokeStyle = defly.colors.faded[1];
+            ctx.lineWidth = (2 / mz) * q;
+            ctx.shadowBlur = (3 / mz) * q;
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, (towerWidth + 2 / mz) * q, 2 * Math.PI, false);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+          }
         }
         if (!colorId) {
           if (this.visuals.useDeflyImages) {
@@ -5056,7 +5067,7 @@ const DC = {
   ) {
     let offset = camera.offset;
     for (let c = -((bulletCount - 1) / 2); c < (bulletCount - 1) / 2 + 1; c++) {
-      let left = aim.x > offset.x ? 0 : Math.PI;
+      let left = aim.x >= offset.x ? 0 : Math.PI;
       let shootingAngle =
         Math.atan((aim.y - offset.y) / (aim.x - offset.x)) + left;
       shootingAngle +=
@@ -5228,6 +5239,7 @@ const DC = {
   updateOtherStuff: function () {},
 
   changeMode: function(newMode) {
+    DC.selectDefuseCopter('basic');//stats will be overwritten by non-defuse; expect bullet count
     switch(Number(newMode)){
       case 0:{//ffa
         DC.gameMode = 'ffa';
@@ -5249,7 +5261,6 @@ const DC = {
       }
       case 2:{//defuse
         DC.gameMode = 'defuse';
-        DC.selectDefuseCopter('basic');
         document.querySelector('#DC-select-defuse-copter').classList.remove('hidden');
         document.querySelector('#DC-upgrade-block').classList.add('hidden');
         break;
@@ -5328,6 +5339,10 @@ const DC = {
           length: a.length,
           nodes: structuredClone(a.nodes),
         };
+        a.nodes.forEach(n => {
+          console.log('Node loop here...');
+          this.mapData.towerCluster[DC.coordToCluster(n.x)][DC.coordToCluster(n.y)].forEach(t => {if(t.id == n.id){t.isShielded = true;}});
+        });
         if(a?.isKothArea) data.isKothArea = true;
         mD.areas[team].push(data);
       });
@@ -5346,7 +5361,7 @@ const DC = {
       case 1:{//player speed
         let points = document.querySelectorAll('#DC-upgrade-copter-speed .DC-upgrade-boxes > span'),
             newVal = points[value-1]?.classList.contains('active') && (value == 8 || !points[value]?.classList.contains('active')) ? value-1 : value;
-        this.player.copter.copterSpeed = 150 + 110 / 8 * newVal;//very rough approximation...
+        this.player.copter.copterSpeed = 132 + 64 / 8 * newVal;//very rough approximation...
         for(let c=0;c<8;c++){
           if(c < newVal) points[c].classList.add('active');
           else points[c].classList.remove('active');
@@ -5356,7 +5371,7 @@ const DC = {
       case 2:{//bullet range
         let points = document.querySelectorAll('#DC-upgrade-bullet-range .DC-upgrade-boxes > span'),
             newVal = points[value-1]?.classList.contains('active') && (value == 8 || !points[value]?.classList.contains('active')) ? value-1 : value;
-        this.player.copter.bulletLifespan = 1.3 + 2 / 8 * newVal;//very rough approximation...
+        this.player.copter.bulletLifespan = 1.9 + 1 / 8 * newVal;//very rough approximation...
         for(let c=0;c<8;c++){
           if(c < newVal) points[c].classList.add('active');
           else points[c].classList.remove('active');
@@ -5366,7 +5381,7 @@ const DC = {
       case 3:{//bullet speed
         let points = document.querySelectorAll('#DC-upgrade-bullet-speed .DC-upgrade-boxes > span'),
             newVal = points[value-1]?.classList.contains('active') && (value == 8 || !points[value]?.classList.contains('active')) ? value-1 : value;
-        this.player.copter.bulletSpeed = 200 + 220 / 8 * newVal;//very rough approximation...
+        this.player.copter.bulletSpeed = 200 + 100 / 8 * newVal;//very rough approximation...
         for(let c=0;c<8;c++){
           if(c < newVal) points[c].classList.add('active');
           else points[c].classList.remove('active');
@@ -5376,7 +5391,7 @@ const DC = {
       case 4:{//reload speed
         let points = document.querySelectorAll('#DC-upgrade-reload-speed .DC-upgrade-boxes > span'),
             newVal = points[value-1]?.classList.contains('active') && (value == 8 || !points[value]?.classList.contains('active')) ? value-1 : value;
-        this.player.copter.reloadTime = 1 - .57 / 8 * newVal;//very rough approximation...
+        this.player.copter.reloadTime = .7 - .3 / 8 * newVal;//very rough approximation...
         for(let c=0;c<8;c++){
           if(c < newVal) points[c].classList.add('active');
           else points[c].classList.remove('active');
@@ -5515,7 +5530,7 @@ const DC = {
     }
 
     let mc = DME.mouseCoords.snapped;
-    let [mcX, mcY] = [camera.relative.x(mc.x), camera.relative.y(mc.y)];
+    let [pX, pY] = [camera.relative.x(this.player.position.x), camera.relative.y(this.player.position.y)];
     let cO = this.getClusterOrigin();
 
     let wallWidth = defly.WALL_WIDTH / z;
@@ -5565,6 +5580,35 @@ const DC = {
       }
     }
     //draw wall preview \/
+    if((typeof this.player.connectedTo.id) == 'number'){
+      let ct = this.player.connectedTo,
+          length = getDistance2d(this.player.position.x,this.player.position.y,ct.x,ct.y);
+      if(length < 15*defly.GRID_WIDTH){
+        let gA = ctx.globalAlpha,
+            widthModif = length < 12*defly.GRID_WIDTH ? 1 : (15*defly.GRID_WIDTH-length)/(3*defly.GRID_WIDTH);
+        ctx.globalAlpha = 0.5;
+        ctx.strokeStyle = defly.colors.standard[this.player.team];
+        ctx.lineWidth = (wallWidth - 4 / z) * widthModif * q;
+        ctx.beginPath();
+        ctx.moveTo(camera.relative.x(ct.x), camera.relative.y(ct.y));
+        ctx.lineTo(pX, pY);
+        ctx.stroke();
+        let borderLines = calculateParallelLines(
+          [pX, pY],
+          [camera.relative.x(ct.x), camera.relative.y(ct.y)],
+          (wallWidth / 2 - 1 / z) * widthModif * q
+        );
+        ctx.strokeStyle = defly.colors.darkened[this.player.team];
+        ctx.lineWidth = (2 / z) * widthModif * q;
+        ctx.beginPath();
+        ctx.moveTo(borderLines.line1[0][0], borderLines.line1[0][1]);
+        ctx.lineTo(borderLines.line1[1][0], borderLines.line1[1][1]);
+        ctx.moveTo(borderLines.line2[0][0], borderLines.line2[0][1]);
+        ctx.lineTo(borderLines.line2[1][0], borderLines.line2[1][1]);
+        ctx.stroke();
+        ctx.globalAlpha = gA;
+      }
+    }
 
     //draw towers
     for(let yM=-22;yM<23;yM++){
@@ -5687,8 +5731,9 @@ const DC = {
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'red';
     ctx.beginPath();
-    ctx.arc(camera.relative.x(DC.player.position.x), camera.relative.y(DC.player.position.y), defly.PLAYER_WIDTH * q, 2 * Math.PI, false);
-    ctx.moveTo(camera.relative.x(DC.player.position.x), camera.relative.y(DC.player.position.y));
+    ctx.arc(pX, pY, defly.PLAYER_WIDTH * q, 2 * Math.PI, false);
+    ctx.moveTo(pX, pY);
+    ctx.lineTo(DC.player.aimingAt.x, DC.player.aimingAt.y);
     ctx.stroke();
     //draw tower preview \/
 
