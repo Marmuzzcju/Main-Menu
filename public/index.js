@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.46";
+const version = "1.47";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -105,6 +105,7 @@ function config() {
     }
   }
   toggleMainMenuContentPage(pageToLoad);
+  updateFOV();
   //check url for specific site
   let urlSpec = window.location.href?.split("?")[1];
   if (urlSpec) {
@@ -142,8 +143,6 @@ window.addEventListener("visibilitychange", () => {
     }
   }
 });
-
-config();
 
 /*
 usefull functions and data for all sites
@@ -266,6 +265,7 @@ Number.prototype.toRounded = function (decPlaces) {
 function updateFOV() {
   let w = window.innerWidth;
   let h = window.innerHeight;
+  defly.STANDARD_ZOOM = w/h < 16/9 ? 20*defly.GRID_WIDTH/h : 35*defly.GRID_WIDTH/w;
   switch (currentSite) {
     case "DME": {
       DME.focusOffset = {
@@ -283,6 +283,7 @@ function updateFOV() {
       };
       canvas.width = w * DME.visuals.quality;
       canvas.height = h * DME.visuals.quality;
+      camera.zoom = defly.STANDARD_ZOOM;
       //defly.updateUnits(w/h < 16/9 ? h/40.5 : w / 72);
     }
   }
@@ -352,6 +353,7 @@ const defly = {
   GRID_WIDTH: 44,
   UNIT_WIDTH: 22, //GRID_WIDTH / 2
   MAX_WALL_LENGTH: 660, //GRID_WIDTH * 15
+  STANDARD_ZOOM: 1,//this will be relative to screen size
   updateUnits: function(newUnitWidth){
     this.UNIT_WIDTH = newUnitWidth;
     this.GRID_WIDTH = 2*newUnitWidth;
@@ -564,6 +566,7 @@ const DME = {
     showMapHalves: true,
     showKothBounds: true,
     showTowerShields: true,
+    centerMapOnLoad: true,
     showBackgroundImage: true,
     useDeflyImages: false,
     backgroundImage: new Image(),
@@ -593,7 +596,7 @@ const DME = {
     x: window.innerWidth / 2,
     y: window.innerHeight / 2,
   },
-  mapZoom: 1,
+  mapZoom: undefined,
 
   snapRange: 2 * defly.UNIT_WIDTH,
   snapping: false,
@@ -2402,6 +2405,14 @@ const DME = {
       this.mapData.width / defly.UNIT_WIDTH;
     document.querySelector("#DME-input-map-height").value =
       this.mapData.height / defly.UNIT_WIDTH;
+    //if visual map size 1/2 of screen (zoom too high)
+    if(this.visuals.centerMapOnLoad || this.mapData.width / this.mapZoom < canvas.width / this.visuals.quality){
+      this.mapZoom = (this.mapData.width*this.visuals.quality/canvas.width);
+      this.focusPoint.x = this.mapData.width/2;
+      this.focusPoint.y = this.mapData.height/2;
+      camera.position.x = this.focusPoint.x;
+      camera.position.y = this.focusPoint.y;
+    }
     //enable action logging
     this.logState = 1;
   },
@@ -4624,6 +4635,7 @@ const DME = {
       };
       camera.position = this.focusPoint;
     }
+    this.mapZoom = this.mapZoom ?? defly.STANDARD_ZOOM;
 
     this.toggleAllEventListeners(true);
 
@@ -4632,6 +4644,7 @@ const DME = {
       document.querySelector("#DME-edit-KOTH").innerText = "Edit KOTH bounds";
 
     this.updateCanvas();
+    this.updateChunkOptions();
   },
 
   deConfig: function () {
@@ -4715,6 +4728,7 @@ const DC = {
       reloadTime: 0.75,
       inaccuracy: 0,
       bulletCount: 1,
+      buildRange: 0,
     },
   },
 
@@ -5580,7 +5594,7 @@ const DC = {
       }
     }
     //draw wall preview \/
-    if((typeof this.player.connectedTo.id) == 'number'){
+    if((typeof this.player.connectedTo.id) == 'number' && !this.player.isShooting){
       let ct = this.player.connectedTo,
           length = getDistance2d(this.player.position.x,this.player.position.y,ct.x,ct.y);
       if(length < 15*defly.GRID_WIDTH){
@@ -5731,11 +5745,26 @@ const DC = {
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'red';
     ctx.beginPath();
-    ctx.arc(pX, pY, defly.PLAYER_WIDTH * q, 2 * Math.PI, false);
+    ctx.arc(pX, pY, defly.PLAYER_WIDTH / z * q, 2 * Math.PI, false);
     ctx.moveTo(pX, pY);
     ctx.lineTo(DC.player.aimingAt.x, DC.player.aimingAt.y);
     ctx.stroke();
     //draw tower preview \/
+    if(!this.player.isShooting){
+      let gA = ctx.globalAlpha;
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = defly.colors.standard[this.player.team];
+      ctx.beginPath();
+      ctx.arc(pX, pY, towerWidth * q, 2 * Math.PI, false);
+      ctx.fill();
+      //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
+      ctx.lineWidth = (2 / z) * q;
+      ctx.strokeStyle = defly.colors.standard[this.player.team];
+      ctx.beginPath();
+      ctx.arc(pX, pY, (towerWidth - 1 / z) * q, 2 * Math.PI, false);
+      ctx.stroke();
+      ctx.globalAlpha = gA;
+    }
 
     //draw info
     let h = canvas.height;
@@ -5880,7 +5909,6 @@ const DC = {
         DC.player.position = structuredClone(DME.focusPoint);
         camera.position = structuredClone(DME.focusPoint);
         camera.offset = structuredClone(DME.focusOffset);
-        camera.zoom = 1;
         camera.quality = DME.visuals.quality;
         //transform map data
         DC.resetMapData(true);
@@ -5944,6 +5972,7 @@ const DC = {
         break;
       }
     }
+    camera.zoom = defly.STANDARD_ZOOM;
     DC.toggleAllEventListeners(true);
     currentSite = "DC";
 
@@ -5997,3 +6026,5 @@ window.addEventListener("resize", (event) => {
 window.addEventListener("keydown", (e) => {
   if (e.ctrlKey) e.preventDefault();
 });
+
+config();
