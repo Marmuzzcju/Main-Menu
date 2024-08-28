@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.47";
+const version = "1.47b";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -4927,11 +4927,15 @@ const DC = {
     }
 
     if(p.isStuck) {
-      let normalizer = 1/(bA.x**2+bA.y**2)**.5;
-      p.isStuck = {
-        x : normalizer*bA.x,
-        y : normalizer*bA.y,
-      };
+      if((bA.x**2+bA.y**2)**.5==0){
+        p.isStuck = false;
+      } else {
+        let normalizer = 1/(bA.x**2+bA.y**2)**.5;
+        p.isStuck = {
+          x : normalizer*bA.x,
+          y : normalizer*bA.y,
+        };
+      }
     }
   },
   checkBuild: function () {
@@ -4981,6 +4985,10 @@ const DC = {
         let tX = ogT.x,
             tY = ogT.y;
         let wallLength = ((x - tX) ** 2 + (y - tY) ** 2) ** 0.5;
+        let wallIntersections = {
+          walls: [],
+          towers: [],
+        }
         if (wallLength < defly.MAX_WALL_LENGTH) {
           //only if wall is not too long
           let wallCanBePlaced = true;
@@ -4998,7 +5006,11 @@ const DC = {
                     tower.y
                   );
                   if (tDtWall < defly.WALL_WIDTH + 2 * defly.TOWER_WIDTH) {
-                    wallCanBePlaced = false;
+                    if(tower.team != this.player.team) {
+                      wallCanBePlaced = false;
+                    } else {
+                      wallIntersections.towers.push(tower);
+                    }
                   }
                 }
               })
@@ -5024,7 +5036,13 @@ const DC = {
                       wall.to.x,
                       wall.to.y
                     )
-                  ) wallCanBePlaced = false;
+                  ) {
+                    if(wall.team != this.player.team) {
+                      wallCanBePlaced = false; 
+                    } else {
+                      wallIntersections.walls.push(wall);
+                    }
+                  }
                 })
               }
             }
