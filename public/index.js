@@ -3,13 +3,13 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.49b";
+const version = "1.49c";
 
 let hasLocalStorage = false;
 let currentPage = 1;
 //page = page in main menu
 let currentSite = "MM";
-//site = site after main menu
+//site = site after main menuDC-menu-player-team
 const canvas = document.querySelector("#main-canvas");
 const ctx = canvas.getContext("2d");
 
@@ -4983,8 +4983,8 @@ const DC = {
       pTeam = p.team;
     let canBuildHere = true;
     let pCluster = DC.getClusterOrigin({x:x,y:y});
-    for (let yM = -1; yM < 2; yM++) {
-      for (let xM = -1; xM < 2; xM++) {
+    for (let yM = -2; yM < 3; yM++) {
+      for (let xM = -2; xM < 3; xM++) {
         DC.mapData.towerCluster[pCluster[0] + xM]?.[pCluster[1] + yM]?.forEach(
           (tower) => {
             if (getDistance2d(tower.x, tower.y, x, y) < defly.GRID_WIDTH)
@@ -5420,11 +5420,13 @@ const DC = {
   },
 
   changePlayerTeam: function(newTeam) {
-    if(this.player.team != newTeam){
-      this.player.team = newTeam;
-      this.gameData.idToTeam[`id${this.player.id}`]=newTeam;
+    let realTeam = newTeam < 1 ? 1 : newTeam > 14 ? 14 : Math.floor(newTeam);
+    if(this.player.team != realTeam){
+      this.player.team = realTeam;
+      this.gameData.idToTeam[`id${this.player.id}`]=realTeam;
       this.player.connectedTo.id = false;
     }
+    document.querySelector('#DC-menu-player-team').value = realTeam;
   },
 
   changeMode: function (newMode) {

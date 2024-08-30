@@ -275,7 +275,7 @@
 			  <button onclick="document.querySelector('#DC-menu').style.display = 'none';document.querySelector('#DC-show-menu').style.display = 'inline';">Hide</button><br />
 			  <button onclick="DC.reloadMap();">Reload Map</button><br />
 			  <div>Mode: <select class="clickable" onchange="DC.changeMode(this.value);"><option value="2">Defuse</option><option value="0">FFA</option><option value="1">Teams</option></select></div>
-			  <div>Team: <input type="number" min="1" max="14" value="2" oninput="DC.changePlayerTeam(this.value);"></div>
+			  <div>Team: <input id="DC-menu-player-team" type="number" min="1" max="14" value="2" onchange="DC.changePlayerTeam(this.value);"></div>
 			  <button onclick="DC.deConfig();switchSite('map-editor', 2);">Exit</button>
       </div>
       <button id="DC-show-menu" style="font-size:12px; width:60px; position:fixed; top:4%; left:2%; z-index:100;display:none;" onclick="document.querySelector('#DC-menu').style.display = 'inline';this.style.display = 'none';">Show Menu</button>
