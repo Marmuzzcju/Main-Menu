@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.48";
+const version = "1.49";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -903,7 +903,6 @@ const DME = {
 
   //action here
   createArea: function (ids) {
-    console.log(`Area has been created with following ids: ${ids}`);
     let nodes = [];
     let towers = DME.mapData.towers;
     ids.forEach((id) => {
@@ -1021,7 +1020,6 @@ const DME = {
             let t1 = this.mapData.towers[this.getIndexFromId(node.id)];
             area.color = t1?.isKothTower ? "koth" : t1.color;
           }
-          console.log(`Updating node (${node.id})`);
         }
       });
     });
@@ -1074,7 +1072,6 @@ const DME = {
   },
 
   copyChunk: function () {
-    console.log("Fired copy!!");
     this.copiedChunk = {
       towers: [],
       walls: [],
@@ -1142,7 +1139,6 @@ const DME = {
   pasteChunk: function (x, y) {
     let previousState = this.logState;
     this.logState = 0;
-    console.log("Fired paste!!");
     x = x ? x : this.mouseCoords.snapped.x;
     y = y ? y : this.mouseCoords.snapped.y;
     let cId = this.highestId;
@@ -1195,7 +1191,6 @@ const DME = {
     this.updateTowerInfo();
 
     if (this.logState == 0) return;
-    console.log(action);
     if (this.logState == 1) {
       if (this.undoneDepth) this.lastActions.splice(-this.undoneDepth);
       this.undoneDepth = 0;
@@ -1268,7 +1263,6 @@ const DME = {
     }
   },
   modifyLastAction: function (time) {
-    console.log("Reversing...");
     if (
       (!time && this.lastActions.length <= this.undoneDepth) ||
       (time && this.undoneDepth < 1)
@@ -1713,15 +1707,11 @@ const DME = {
         this.selectingChunk.isSelecting = true;
         this.selectingChunk.origin.x = x;
         this.selectingChunk.origin.y = y;
-        console.log("Is selecting...");
         break;
       }
       case 1: {
         if (this.selectingChunk.isSelecting) {
           this.selectingChunk.isSelecting = false;
-          console.log(
-            `Selecting from ${this.selectingChunk.origin.x}, ${this.selectingChunk.origin.y} to ${x}, ${y}`
-          );
           if (this.isKeyPressed.SHIFT && this.isKeyPressed.CONTROL) {
             this.selectTower(); //will exit after checking shift pressed & selecting all towers
             return;
@@ -2050,7 +2040,6 @@ const DME = {
           this.mapData.koth = [];
         }
         this.mapData.koth[4] = true;
-        console.log("reached");
         canvas.style.cursor = "url(/images/koth-bound-cursor-1.png), pointer";
         break;
       }
@@ -2201,7 +2190,6 @@ const DME = {
     reader.readAsText(file);
 
     reader.onload = function () {
-      console.log(reader.result);
       DME.loadMap(reader.result);
     };
 
@@ -2221,12 +2209,6 @@ const DME = {
         mapData.split(/\n/).length == 1 && mapData.split("|").length == 6
           ? "compact"
           : undefined;
-      console.log(
-        `Row length: ${mapData.split(/\n/).length}; Argument length: ${
-          mapData.split("|").length
-        }`
-      );
-      console.log(mapData.split("|"));
       dataType = !dataType
         ? mapData.split(/\n/).length == 1 && mapData.split(":")[0] == '{"name"'
           ? "astrolly"
@@ -2235,7 +2217,6 @@ const DME = {
       dataType = !dataType ? "defly" : dataType;
     }
     let mapFile = mapData;
-    console.log(mapFile);
     console.log(`Loading map - data type: ${dataType}`);
     //only if new map is loaded
     this.clearMap(true);
@@ -3207,7 +3188,6 @@ const DME = {
             : direction == "Down"
             ? "bottom"
             : direction.toLowerCase();
-        console.log(`Mirror ${mirrorDir}`);
         this.mirrorChunk({ direction: mirrorDir });
         break;
       }
@@ -3217,7 +3197,6 @@ const DME = {
           (Number(prompt("Enter rotation angle", 90)) / 180) * Math.PI;
         if (direction == "Left") angle *= -1;
         else if (direction != "Right") return;
-        console.log(`Rotate ${direction} for ${angle} degree`);
         this.isKeyPressed.RotateMode = false;
         this.rotateChunk({ angle: angle });
         break;
@@ -4135,7 +4114,6 @@ const DME = {
     Object.entries(this.hotkeys).forEach((entrie) => {
       let t = document.querySelector(`#DME-ch-${entrie[0]}`);
       if (t != undefined) {
-        console.log("Element exists!!");
         t.innerText = entrie[1];
       }
     });
@@ -4346,7 +4324,6 @@ const DME = {
               case DME.hotkeys.selectTower1:
               case DME.hotkeys.selectTower2: {
                 if (DME.isKeyPressed.DeleteWallMode) {
-                  console.log("Tryna delete");
                   DME.deleteTargetWall();
                 } else if (DME.chunckOptions.hovering) {
                   DME.resizeChunkByDrag(0);
@@ -4730,6 +4707,7 @@ const DC = {
   },
   gameMode: "defuse",
   highestId: 0,
+  innitialDepth: 0,//used while looping through snap wall
 
   player: {
     position: {
@@ -4821,6 +4799,15 @@ const DC = {
                 defly.TOWER_WIDTH + defly.PLAYER_WIDTH &&
               t.team == p.team
             ) {
+              if(p.connectedTo.id !== undefined){
+                //connect towers
+                let wallHasToBePlaced = true;
+                t.connectedTo.forEach(c => {if(c.id == p.connectedTo.id)wallHasToBePlaced = false;});
+                t.connectedFrom.forEach(c => {if(c.id == p.connectedTo.id)wallHasToBePlaced = false;});
+                if(wallHasToBePlaced){
+                  this.handleWallPlacement(p.connectedTo, t, p.team);
+                }
+              }
               /*if(p.connectedTo.id != t.id && p.connectedTo.id !== false){
                 let t1 = t[p.connectedTo.id],
                     t2 = t.id,
@@ -5007,7 +4994,7 @@ const DC = {
     let cIdx = p.connectedTo.id,
       pTeam = p.team;
     let canBuildHere = true;
-    let pCluster = DC.getClusterOrigin();
+    let pCluster = DC.getClusterOrigin({x:x,y:y});
     for (let yM = -1; yM < 2; yM++) {
       for (let xM = -1; xM < 2; xM++) {
         DC.mapData.towerCluster[pCluster[0] + xM]?.[pCluster[1] + yM]?.forEach(
@@ -5019,7 +5006,7 @@ const DC = {
       }
     }
     if (canBuildHere) {
-      let pCluster = DC.getClusterOrigin();
+      let pCluster = DC.getClusterOrigin({x:x,y:y});
       for (let yM = -30; yM < 31; yM++) {
         for (let xM = -30; xM < 31; xM++) {
           DC.mapData.wallCluster[pCluster[0] + xM]?.[pCluster[1] + yM]?.forEach(
@@ -5034,7 +5021,7 @@ const DC = {
                   x,
                   y
                 ) <
-                  defly.WALL_WIDTH + 2 * defly.TOWER_WIDTH
+                  defly.WALL_WIDTH + defly.TOWER_WIDTH
               )
                 canBuildHere = false;
             }
@@ -5049,6 +5036,7 @@ const DC = {
         id: this.placeTower(x, y, pTeam),
       }
       let endTower = p.connectedTo;
+      this.innitialDepth = 0;
       if (typeof cIdx !== "boolean") this.handleWallPlacement(startTower, endTower, pTeam);
     }
   },
@@ -5067,13 +5055,14 @@ const DC = {
   },
   handleWallPlacement(startTower, endTower, pTeam){
     //note: has to be heavily optimised!!!
+    this.innitialDepth++;
     let sX = startTower.x,sY=startTower.y,sId=startTower.id,eX=endTower.x,eY=endTower.y,eId=endTower.id;
     //check if wall would intersect any other wall, would be too close to other towers or is too long
-    console.log("Checking wall...");
     let wallLength = ((sX - eX) ** 2 + (sY - eY) ** 2) ** 0.5;
     if (wallLength < defly.MAX_WALL_LENGTH) {
       //only if wall is not too long
       for (let i = 0; i < 30; i++) {//itterate till wall cant or has been placed
+        if(this.innitialDepth > 30) return; //stuck in inf loop - may be otimised later
         let wallIntersections = {
           walls: [],
           towers: [],
@@ -5098,11 +5087,10 @@ const DC = {
                   tower.x,
                   tower.y
                 );
-                if (tDtWall < defly.WALL_WIDTH + 2 * defly.TOWER_WIDTH) {
+                if (tDtWall < defly.WALL_WIDTH + defly.TOWER_WIDTH) {
                   if (tower.team != this.player.team) {
                     wallCanBePlaced = false;
                   } else {
-                    console.log(`Tower id: ${tower.id} - Connected id: ${eId}`);
                     wallIntersections.towers.push(tower);
                   }
                 }
@@ -5206,12 +5194,27 @@ const DC = {
   placeWall: function (from, to, team) {
     //note: if max wall length would be increased, could place false walls
     DC.mapData.wallRegister.push([from.id, to.id]);
-    let cO = this.getClusterOrigin({ x: from.x, y: from.y });
-    DC.mapData.wallCluster[cO[0]][cO[1]].push({
-      from: from,
-      to: to,
-      team: team,
+    let cO = this.getClusterOrigin({ x: from.x, y: from.y }),
+      hasToBePlaced = true;
+    DC.mapData.towerCluster[cO[0]][cO[1]].forEach(t => {
+      console.log('testing tower')
+      if(t.id == from.id){
+        console.log('matching tower')
+        console.log(t)
+        console.log('has to be connected to: ' + to.id)
+        t.connectedTo.forEach(c => {if(c.id == to.id)hasToBePlaced = false;});
+        t.connectedFrom.forEach(c => {if(c.id == to.id)hasToBePlaced = false;});
+        console.log(hasToBePlaced ? 'connection does not exist' : 'connection does already exist')
+      }
     });
+    if(hasToBePlaced){
+      DC.mapData.wallCluster[cO[0]][cO[1]].push({
+        from: from,
+        to: to,
+        team: team,
+      });
+      this.pushNewWallConnections(from, to);
+    }
   },
   checkShoot: function () {
     let p = DC.player;
@@ -5221,10 +5224,10 @@ const DC = {
       DC.createBullets(
         p.position,
         p.aimingAt,
-        DC.player.copter.inaccuracy,
-        DC.player.copter.bulletSpeed,
-        DC.player.copter.bulletLifespan,
-        DC.player.copter.bulletCount,
+        p.copter.inaccuracy,
+        p.copter.bulletSpeed,
+        p.copter.bulletLifespan,
+        p.copter.bulletCount,
         p.id
       );
       //gameData.bullets.push({position : {x : player.position.x, y : player.position.y}, velocity : {x : -20, y : 10}, lifespawn : 5})
@@ -5327,7 +5330,6 @@ const DC = {
                   bullet.p.y
                 );
                 if (distanceToBullet < defly.BULLET_WIDTH + defly.TOWER_WIDTH) {
-                  console.log("HIT!");
                   bAlive = false;
                   bullet.l = 0;
                   if (tower.team != 1) {
@@ -5368,9 +5370,12 @@ const DC = {
       tower;
     this.mapData.towerCluster[cP[0]][cP[1]].forEach((t, idx) => {
       //copy tower for later use
-      if (t.id == id) tower = structuredClone(t);
-      //delete tower
-      this.mapData.towerCluster[cP[0]][cP[1]].splice(idx, 1);
+      if (t.id == id) {
+        tower = structuredClone(t);
+        //delete tower
+        this.mapData.towerCluster[cP[0]][cP[1]].splice(idx, 1);
+        if(id == this.player.connectedTo.id) this.player.connectedTo.id = false;
+      }
     });
     tower.connectedTo.forEach((con) => {
       this.mapData.wallCluster[cP[0]][cP[1]].forEach((wall, idx) => {
@@ -5379,17 +5384,7 @@ const DC = {
           this.mapData.wallCluster[cP[0]][cP[1]].splice(idx, 1);
         }
       });
-      /*//why would I want to delete towers on the other side of the wall?? ;-;
-      let towersToSplice = [];
-      this.mapData.towerCluster[sCP[0]][sCP[1]].forEach((t,idx) => {
-        let connected = false;
-        t[connection[(i+1)%2]].forEach(c => {if(c.id == tower.id)connected=true;});
-        if(connected) towersToSplice.push(idx);
-      });
-      towersToSplice.forEach((idx,c)=>{
-        this.mapData.towerCluster[sCP[0]][sCP[1]].splice(idx-c,1);
-      });
-      */
+      //why would I want to delete towers on the other side of the wall?? ;-;
     });
     tower.connectedFrom.forEach((con) => {
       let sCP = [this.coordToCluster(con.x), this.coordToCluster(con.y)];
@@ -5434,6 +5429,14 @@ const DC = {
       let p = this.player.position;
       this.player.buildPoint.x = this.player.relativeBuildPoint.x + p.x;
       this.player.buildPoint.y = this.player.relativeBuildPoint.y + p.y;
+    }
+  },
+
+  changePlayerTeam: function(newTeam) {
+    if(this.player.team != newTeam){
+      this.player.team = newTeam;
+      this.gameData.idToTeam[`id${this.player.id}`]=newTeam;
+      this.player.connectedTo.id = false;
     }
   },
 
@@ -5518,22 +5521,6 @@ const DC = {
     DC.permanentMapData.spawns.forEach((s) => {
       mD.spawns.push({ t: s.t, x: s.x, y: s.y, rotation: s.rotation });
     });
-    function pushNewConnection(from, to) {
-      mD.towerCluster[coordToCluster(to.x)][coordToCluster(to.y)].forEach(
-        (t) => {
-          if (t.id == to.id) {
-            t.connectedFrom.push({ x: from.x, y: from.y, id: from.id });
-          }
-        }
-      );
-      mD.towerCluster[coordToCluster(from.x)][coordToCluster(from.y)].forEach(
-        (t) => {
-          if (t.id == from.id) {
-            t.connectedTo.push({ x: to.x, y: to.y, id: to.id });
-          }
-        }
-      );
-    }
     DC.permanentMapData.walls.forEach((wSet, team) => {
       wSet.forEach((w) => {
         let data = {
@@ -5576,7 +5563,7 @@ const DC = {
             mD.wallCluster[coordToCluster(dataCopy.from.x)][
               coordToCluster(dataCopy.from.y)
             ].push(dataCopy);
-            pushNewConnection(
+            this.pushNewWallConnections(
               { x: dataCopy.from.x, y: dataCopy.from.y, id: dataCopy.from.id },
               { x: dataCopy.to.x, y: dataCopy.to.y, id: dataCopy.to.id }
             );
@@ -5585,7 +5572,7 @@ const DC = {
           mD.wallCluster[coordToCluster(data.from.x)][
             coordToCluster(data.from.y)
           ].push(data);
-          pushNewConnection(
+          this.pushNewWallConnections(
             { x: data.from.x, y: data.from.y, id: data.from.id },
             { x: data.to.x, y: data.to.y, id: data.to.id }
           );
@@ -5599,7 +5586,6 @@ const DC = {
           nodes: structuredClone(a.nodes),
         };
         a.nodes.forEach((n) => {
-          console.log("Node loop here...");
           this.mapData.towerCluster[DC.coordToCluster(n.x)][
             DC.coordToCluster(n.y)
           ].forEach((t) => {
@@ -5613,6 +5599,24 @@ const DC = {
       });
     });
     DC.player.connectedTo.id = false;
+  },
+  pushNewWallConnections: function(from, to) {
+    let mD = this.mapData,
+      coordToCluster = (coord) => Math.floor(coord / defly.UNIT_WIDTH);
+    mD.towerCluster[coordToCluster(to.x)][coordToCluster(to.y)].forEach(
+      (t) => {
+        if (t.id == to.id) {
+          t.connectedFrom.push({ x: from.x, y: from.y, id: from.id });
+        }
+      }
+    );
+    mD.towerCluster[coordToCluster(from.x)][coordToCluster(from.y)].forEach(
+      (t) => {
+        if (t.id == from.id) {
+          t.connectedTo.push({ x: to.x, y: to.y, id: to.id });
+        }
+      }
+    );
   },
 
   selectDefuseCopter: function (newCopter) {
@@ -5705,7 +5709,7 @@ const DC = {
             (value == 8 || !points[value]?.classList.contains("active"))
               ? value - 1
               : value;
-        this.player.tower.buildRange = 0.6 * defly.UNIT_WIDTH * newVal; //very rough approximation...
+        this.player.tower.buildRange = 0.5 * defly.UNIT_WIDTH * newVal; //very rough approximation...
         for (let c = 0; c < 8; c++) {
           if (c < newVal) points[c].classList.add("active");
           else points[c].classList.remove("active");
@@ -6290,7 +6294,7 @@ const DC = {
             }
             DC.permanentMapData.walls[t].push(data);
           } catch {
-            console.log(`Color: ${w.color}`);
+            console.log(`Error - Color: ${w.color}`);
           }
         });
         DME.mapData.areas.forEach((a) => {
