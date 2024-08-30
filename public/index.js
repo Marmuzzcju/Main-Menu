@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.49";
+const version = "1.49b";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -4699,7 +4699,6 @@ const DC = {
     areas: [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []],
     bombs: [],
     spawns: [],
-    wallRegister: [],
   },
   gameData: {
     bullets: [],
@@ -4799,7 +4798,7 @@ const DC = {
                 defly.TOWER_WIDTH + defly.PLAYER_WIDTH &&
               t.team == p.team
             ) {
-              if(p.connectedTo.id !== undefined){
+              if(p.connectedTo.id !== undefined && !p.isShooting){
                 //connect towers
                 let wallHasToBePlaced = true;
                 t.connectedTo.forEach(c => {if(c.id == p.connectedTo.id)wallHasToBePlaced = false;});
@@ -4808,17 +4807,6 @@ const DC = {
                   this.handleWallPlacement(p.connectedTo, t, p.team);
                 }
               }
-              /*if(p.connectedTo.id != t.id && p.connectedTo.id !== false){
-                let t1 = t[p.connectedTo.id],
-                    t2 = t.id,
-                    wallCanBePlaced = true;
-                DC.mapData.wallRegister.forEach(set => {
-                  if(wallCanBePlaced){
-                    if((set[0] == t1.id && set[1] == t2.id) || (set[1] == t1.id && set[0] == t2.id)) wallCanBePlaced = false;
-                  }
-                })//has to be fixed smh
-                if(wallCanBePlaced) DC.mapData.walls[p.team].push({from:{x:t1.x,y:t1.y,id:t1.id},to:{x:t2.x,y:t2.y,id:t2.id}});
-              }*/ //ignore walls for now
               p.connectedTo.id = t.id;
               p.connectedTo.x = t.x;
               p.connectedTo.y = t.y;
@@ -5193,7 +5181,6 @@ const DC = {
   },
   placeWall: function (from, to, team) {
     //note: if max wall length would be increased, could place false walls
-    DC.mapData.wallRegister.push([from.id, to.id]);
     let cO = this.getClusterOrigin({ x: from.x, y: from.y }),
       hasToBePlaced = true;
     DC.mapData.towerCluster[cO[0]][cO[1]].forEach(t => {
@@ -5529,7 +5516,6 @@ const DC = {
           team: team,
         };
         if (w?.isKothWall) data.isKothWall = true;
-        mD.wallRegister.push([w.from.id, w.to.id]);
         let wallLength = getDistance2d(
           data.from.x,
           data.from.y,
@@ -5773,7 +5759,6 @@ const DC = {
       areas: [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []],
       bombs: [],
       spawns: [],
-      wallRegister: [],
     };
   },
 
