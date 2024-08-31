@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.49c";
+const version = "1.50";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -220,6 +220,39 @@ function getLineIntersection(x1, y1, x2, y2, x3, y3, x4, y4) { //very similar to
         seg1: ua >= 0 && ua <= 1,//not sure what this seg1/2 is about
         seg2: ub >= 0 && ub <= 1
     };
+}
+
+function getLineCircleIntersections(circle, line){
+  let a, b, c, d, u1, u2, ret, retP1, retP2, v1, v2;
+  v1 = {};
+  v2 = {};
+  v1.x = line.p2.x - line.p1.x;
+  v1.y = line.p2.y - line.p1.y;
+  v2.x = line.p1.x - circle.center.x;
+  v2.y = line.p1.y - circle.center.y;
+  b = (v1.x * v2.x + v1.y * v2.y);
+  c = 2 * (v1.x * v1.x + v1.y * v1.y);
+  b *= -2;
+  d = Math.sqrt(b * b - 2 * c * (v2.x * v2.x + v2.y * v2.y - circle.radius * circle.radius));
+  if(isNaN(d)){ // no intercept
+      return [];
+  }
+  u1 = (b - d) / c;  // these represent the unit distance of point one and two on the line
+  u2 = (b + d) / c;    
+  retP1 = {};   // return points
+  retP2 = {}  
+  ret = []; // return array
+  if(u1 <= 1 && u1 >= 0){  // add point if on the line segment
+      retP1.x = line.p1.x + v1.x * u1;
+      retP1.y = line.p1.y + v1.y * u1;
+      ret[0] = retP1;
+  }
+  if(u2 <= 1 && u2 >= 0){  // second add point if on the line segment
+      retP2.x = line.p1.x + v1.x * u2;
+      retP2.y = line.p1.y + v1.y * u2;
+      ret[ret.length] = retP2;
+  }       
+  return ret;
 }
 
 function removePairs(ar) {
@@ -4766,8 +4799,73 @@ const DC = {
   gameTime: 0,
 
   coordToCluster: (coord) => Math.floor(coord / defly.UNIT_WIDTH), //returns cluster position from coord
+
   getClusterOrigin: function (origin = this.player.position) {
     return [this.coordToCluster(origin.x), this.coordToCluster(origin.y)];
+  },
+
+  snapPointIntoMap: function(position){
+    let mD = DC.mapData,x=position.x,y=position.y;
+    switch (mD.shape) {
+      case 0: {
+        //rectangle
+        x = x < 0 ? 0 : x > mD.width ? mD.width : x;
+        y = y < 0 ? 0 : y > mD.height ? mD.height : y;
+        break;
+      }
+      case 1: {
+        //hexagon
+        let cX = mD.width / 2,
+          cY = mD.height / 2,
+          bounds = mD.bounds;
+        //radious = cX
+        for (c = 0; c < 6; c++) {
+          //check whether position is outside hex map bounds
+          if (
+            isIntersecting(
+              x,
+              y,
+              cX,
+              cY,
+              bounds[c * 2],
+              bounds[1 + c * 2],
+              bounds[(2 + c * 2) % 12],
+              bounds[(3 + c * 2) % 12]
+            )
+          ) {
+            let [sin, cos] = [
+                Math.sin((Math.PI / 3) * c),
+                Math.cos((Math.PI / 3) * c),
+              ],
+              [sx, sy] = [x - cX, y - cY];
+            let xC = sx * cos - sy * sin + 0.5 * cX,
+              fraction = (xC > cX ? cX : xC < 0 ? 0 : xC) / cX,
+              deltaX = bounds[(2 + c * 2) % 12] - bounds[c * 2],
+              deltaY = bounds[(3 + c * 2) % 12] - bounds[1 + c * 2],
+              tx = bounds[c * 2] + deltaX * fraction,
+              ty = bounds[1 + c * 2] + deltaY * fraction;
+            x = tx; // < 0 ? 0 : tx > mD.width ? mD.width : tx;
+            y = ty; // < 0 ? 0 : ty > mD.height ? mD.height : ty;
+            break;
+          } else if (x < 0) x = 0;
+          else if (x > mD.width) x = mD.width;
+        }
+        break;
+      }
+      case 2: {
+        //circle
+        let radious = mD.width / 2,
+          xDif = x - radious,
+          yDif = y - radious,
+          e = (xDif ** 2 + yDif ** 2) ** 0.5 / radious;
+        if (e > 1) {
+          x = radious + xDif / e;
+          y = radious + yDif / e;
+        }
+        break;
+      }
+    }
+    return ({x:x,y:y});
   },
 
   updatePlayer: function () {
@@ -4798,7 +4896,7 @@ const DC = {
                 defly.TOWER_WIDTH + defly.PLAYER_WIDTH &&
               t.team == p.team
             ) {
-              if(p.connectedTo.id !== undefined && !p.isShooting){
+              if(p.connectedTo.id !== false && !p.isShooting){
                 //connect towers
                 let wallHasToBePlaced = true;
                 t.connectedTo.forEach(c => {if(c.id == p.connectedTo.id)wallHasToBePlaced = false;});
@@ -4979,7 +5077,7 @@ const DC = {
     //check if player too close to tower, wall
     let x = p.buildPoint.x,
       y = p.buildPoint.y;
-    let cIdx = p.connectedTo.id,
+    let cId = p.connectedTo.id,
       pTeam = p.team;
     let canBuildHere = true;
     let pCluster = DC.getClusterOrigin({x:x,y:y});
@@ -5025,10 +5123,14 @@ const DC = {
       }
       let endTower = p.connectedTo;
       this.innitialDepth = 0;
-      if (typeof cIdx !== "boolean") this.handleWallPlacement(startTower, endTower, pTeam);
+      console.log('ID: ' + cId + ' -- Placing a wall: ' + (! (cId===false)));
+      if (! (cId===false)) {
+        console.log('Placing wall after tower...')
+        this.handleWallPlacement(startTower, endTower, pTeam);
+      }
     }
   },
-  placeTower: function (x, y, team, id = DC.highestId + 1) {
+  placeTower: function (x, y, team, id = Number(DC.highestId) + 1) {
     if (this.highestId < id) this.highestId = id; //!here
     let cO = this.getClusterOrigin({ x: x, y: y });
     DC.mapData.towerCluster[cO[0]][cO[1]].push({
@@ -5164,7 +5266,6 @@ const DC = {
             sId = t.id;
           } else {
             //place wall & exit
-            console.log('WL: placed last wall');
             this.placeWall(
               { x: eX, y: eY, id: eId },
               { x: sX, y: sY, id: sId },
@@ -5173,7 +5274,6 @@ const DC = {
             break;
           }
         } else {
-          console.log('WL: wall end');
           break;
         }
       }
@@ -5317,11 +5417,18 @@ const DC = {
                   bullet.p.y
                 );
                 if (distanceToBullet < defly.BULLET_WIDTH + defly.TOWER_WIDTH) {
-                  bAlive = false;
-                  bullet.l = 0;
-                  if (tower.team != 1) {
-                    DC.deleteTower(tower.id, { x: tower.x, y: tower.y });
-                  } //only if not grey tower
+                  if(tower?.isShielded){
+                    //get intersetion point
+                    let iP = getLineCircleIntersections({radius:defly.BULLET_WIDTH + defly.TOWER_WIDTH,center:{x:tower.x,y:tower.y}},{p1:{x:bullet.p.x,y:bullet.p.y},p2:{x:bullet.p.x-bullet.v.x*DC.localDelta,y:bullet.p.y-bullet.v.y*DC.localDelta}});
+                    bullet.p = iP[0] ? iP[0] : bullet.p;
+
+                  } else {
+                    bAlive = false;
+                    bullet.l = 0;
+                    if (tower.team != 1) {
+                      DC.deleteTower(tower.id, { x: tower.x, y: tower.y });
+                    } //only if not grey tower
+                  }
                 }
               }
             }
@@ -5417,6 +5524,7 @@ const DC = {
       this.player.buildPoint.x = this.player.relativeBuildPoint.x + p.x;
       this.player.buildPoint.y = this.player.relativeBuildPoint.y + p.y;
     }
+    this.player.buildPoint = this.snapPointIntoMap(this.player.buildPoint);
   },
 
   changePlayerTeam: function(newTeam) {
@@ -5762,6 +5870,7 @@ const DC = {
       bombs: [],
       spawns: [],
     };
+    DC.highestId = 0;
   },
 
   draw: function () {
@@ -5901,7 +6010,7 @@ const DC = {
     }
     //draw wall preview \/
     if (
-      typeof this.player.connectedTo.id == "number" &&
+      typeof this.player.connectedTo.id !== "boolean" &&
       !this.player.isShooting
     ) {
       let ct = this.player.connectedTo,
