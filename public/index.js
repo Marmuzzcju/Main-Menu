@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.50";
+const version = "1.51";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -512,12 +512,6 @@ in order to not confuse them with
 any other unrelated functions/variables
 */
 
-let test = {
-  someFunction: function () {
-    DME.highestId++;
-  },
-};
-
 const DME = {
   hotkeys: {
     /*Control: "CONTROL",
@@ -567,6 +561,8 @@ const DME = {
     selectTower2: "",
     selectArea1: "Middle Click",
     selectArea2: "META",
+    enterTestMode1: 'T',
+    enterTestMode2: '',
     zoomOut1: "Scroll Down",
     zoomOut2: "-",
     zoomIn1: "Scroll Up",
@@ -4479,6 +4475,11 @@ const DME = {
                 if (DME.isKeyPressed.CONTROL) DME.pasteChunk();
                 break;
               }
+              case DME.hotkeys.enterTestMode1:
+              case DME.hotkeys.enterTestMode2: {
+                DME.enterTestMode();
+                break;
+              }
               case "ESCAPE": {
                 DME.selectedTowers = [];
                 DME.updateChunkOptions();
@@ -4583,6 +4584,8 @@ const DME = {
 
   enterTestMode: function () {
     //remove editor event listeners
+    DME.deConfig();
+    switchSite('defly-clone',2);
   },
 
   toggleAllEventListeners: function (on = true) {
@@ -4788,8 +4791,8 @@ const DC = {
     },
     tower: {
       buildRange: 0,
-      towerHealth: 1,
-      towerShield: 0,
+      health: 1,
+      shield: 0,
     }
   },
 
@@ -5085,8 +5088,13 @@ const DC = {
       for (let xM = -2; xM < 3; xM++) {
         DC.mapData.towerCluster[pCluster[0] + xM]?.[pCluster[1] + yM]?.forEach(
           (tower) => {
-            if (getDistance2d(tower.x, tower.y, x, y) < defly.GRID_WIDTH)
+            if (getDistance2d(tower.x, tower.y, x, y) < defly.GRID_WIDTH) {
               canBuildHere = false;
+              if(tower.team == p.team) {
+                tower.hp = tower.maxHp;
+                tower.damaged = 0;
+              }
+            }
           }
         );
       }
@@ -5119,18 +5127,16 @@ const DC = {
       let startTower = {
         x: x,
         y: y,
-        id: this.placeTower(x, y, pTeam),
+        id: this.placeTower(x, y, pTeam, p.tower.health),
       }
       let endTower = p.connectedTo;
       this.innitialDepth = 0;
-      console.log('ID: ' + cId + ' -- Placing a wall: ' + (! (cId===false)));
       if (! (cId===false)) {
-        console.log('Placing wall after tower...')
         this.handleWallPlacement(startTower, endTower, pTeam);
       }
     }
   },
-  placeTower: function (x, y, team, id = Number(DC.highestId) + 1) {
+  placeTower: function (x, y, team, hp=1, id = Number(DC.highestId) + 1) {
     if (this.highestId < id) this.highestId = id; //!here
     let cO = this.getClusterOrigin({ x: x, y: y });
     DC.mapData.towerCluster[cO[0]][cO[1]].push({
@@ -5138,6 +5144,9 @@ const DC = {
       y: y,
       id: id,
       team: team,
+      maxHp: hp,
+      hp: hp,
+      damaged: 0,
       connectedTo: [],
       connectedFrom: [],
     });
@@ -5223,7 +5232,6 @@ const DC = {
         }
         if (wallCanBePlaced) {
           if((wallIntersections.walls.length+wallIntersections.towers.length) > 0) {
-            console.log(`WL: snapping - ${wallIntersections.walls.length+wallIntersections.towers.length} interferrences`)
             //'snap' wall and repeat
             let closestIntersection = {
               distance: Infinity,
@@ -5284,14 +5292,9 @@ const DC = {
     let cO = this.getClusterOrigin({ x: from.x, y: from.y }),
       hasToBePlaced = true;
     DC.mapData.towerCluster[cO[0]][cO[1]].forEach(t => {
-      console.log('testing tower')
       if(t.id == from.id){
-        console.log('matching tower')
-        console.log(t)
-        console.log('has to be connected to: ' + to.id)
         t.connectedTo.forEach(c => {if(c.id == to.id)hasToBePlaced = false;});
         t.connectedFrom.forEach(c => {if(c.id == to.id)hasToBePlaced = false;});
-        console.log(hasToBePlaced ? 'connection does not exist' : 'connection does already exist')
       }
     });
     if(hasToBePlaced){
@@ -5426,7 +5429,11 @@ const DC = {
                     bAlive = false;
                     bullet.l = 0;
                     if (tower.team != 1) {
-                      DC.deleteTower(tower.id, { x: tower.x, y: tower.y });
+                      tower.hp -= 1;//why does this work and not crash if -hp doesn't exist?? and why does it crash if I ask for ptional chaining?
+                      if(!tower?.hp) DC.deleteTower(tower.id, { x: tower.x, y: tower.y });
+                      else {
+                        tower.damaged = 1-tower.hp/tower.maxHp;
+                      }
                     } //only if not grey tower
                   }
                 }
@@ -5546,10 +5553,8 @@ const DC = {
         for (let c = 1; c < 8; c++) {
           DC.upgradeCopter(c, 0);
         }
-        document
-          .querySelector("#DC-select-defuse-copter")
-          .classList.add("hidden");
-        document.querySelector("#DC-upgrade-block").classList.remove("hidden");
+        DC.slideUpgradeBlock(1);
+        DC.slideUpgradeBlock(0, 'DC-select-defuse-copter');
         break;
       }
       case 1: {
@@ -5558,10 +5563,8 @@ const DC = {
         for (let c = 1; c < 8; c++) {
           DC.upgradeCopter(c, 0);
         }
-        document
-          .querySelector("#DC-select-defuse-copter")
-          .classList.add("hidden");
-        document.querySelector("#DC-upgrade-block").classList.remove("hidden");
+        DC.slideUpgradeBlock(1);
+        DC.slideUpgradeBlock(0, 'DC-select-defuse-copter');
         break;
       }
       case 2: {
@@ -5570,13 +5573,19 @@ const DC = {
         for (let c = 5; c < 8; c++) {
           DC.upgradeCopter(c, 0);
         }
-        document
-          .querySelector("#DC-select-defuse-copter")
-          .classList.remove("hidden");
-        document.querySelector("#DC-upgrade-block").classList.add("hidden");
+        DC.slideUpgradeBlock(0);
+        DC.slideUpgradeBlock(1, 'DC-select-defuse-copter');
         break;
       }
     }
+  },
+
+  slideUpgradeBlock: function(in_view, target='DC-upgrade-block'){
+    let e = document.querySelector(`#${target}`),
+      action = ['add', 'remove'],
+      m = in_view ?? e.classList.contains('slided-in') ? 0 : 1;
+    e.classList[action[m++%2]]('slided-in');
+    e.classList[action[m%2]]('slided-out');
   },
 
   reloadMap: function () {
@@ -5610,6 +5619,7 @@ const DC = {
         mD.towerCluster[coordToCluster(data.x)][coordToCluster(data.y)].push(
           data
         );
+        if(DC.highestId < t.id) DC.highestId = t.id;
       });
     });
     DC.permanentMapData.bombs.forEach((b) => {
@@ -5838,6 +5848,7 @@ const DC = {
             (value == 8 || !points[value]?.classList.contains("active"))
               ? value - 1
               : value;
+        this.player.tower.health = Math.floor(1+value/2);
         for (let c = 0; c < 8; c++) {
           if (c < newVal) points[c].classList.add("active");
           else points[c].classList.remove("active");
@@ -6093,6 +6104,13 @@ const DC = {
               w * 2
             );
           }
+          if(tower?.damaged) {
+            let w = (defly.TOWER_WIDTH / z) * q;
+            ctx.fillStyle = 'rgb(10,150,10)';
+            ctx.fillRect(t.x-2*w,t.y+1.5*w,4*w,w);
+            ctx.fillStyle = 'rgb(20,230,20)';
+            ctx.fillRect(t.x-2*w,t.y+1.5*w,4*w*(1-tower.damaged),w);
+          }
         });
       }
     }
@@ -6214,6 +6232,11 @@ const DC = {
     ctx.fillText(`s/frame : ${DC.rawDelta}`, w - 150 * q, h - 30 * q);
   },
 
+  enterEditMode: function(){
+    DC.deConfig();
+    switchSite('map-editor', 2);
+  },
+
   handleInput: function (e) {
     let type, input, extra;
     switch (e.type) {
@@ -6288,6 +6311,10 @@ const DC = {
             console.log("TPING");
             DC.player.position.x += DC.player.aimingAt.x - camera.offset.x;
             DC.player.position.y += DC.player.aimingAt.y - camera.offset.y;
+            break;
+          }
+          case 'ESCAPE': {
+            DC.enterEditMode();
             break;
           }
         }
@@ -6418,6 +6445,7 @@ const DC = {
     DC.reloadMap();
     DC.rawDelta = new Date().getTime();
     DC.updateLoop();
+    DC.slideUpgradeBlock(1, DC.gameMode == 'defuse' ? 'DC-select-defuse-copter' : undefined);
   },
 
   deConfig: function () {
@@ -6425,6 +6453,8 @@ const DC = {
     DC.toggleAllEventListeners(false);
     //take position
     DME.focusPoint = structuredClone(DC.player.position);
+    DC.slideUpgradeBlock(0);
+    DC.slideUpgradeBlock(0, 'DC-select-defuse-copter');
     camera.zoom = DME.mapZoom;
   },
 

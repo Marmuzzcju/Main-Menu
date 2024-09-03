@@ -412,12 +412,18 @@ input[type=number]:not(:hover)::-webkit-inner-spin-button {
   width: auto;
   height: auto;
   left: 30px;
-  top: 10px;
   background-color: rgba(10, 10, 10, 0.3);
   border-radius: 10px;
   z-index: 10;
   outline: 1px solid rgba(250,250,250,.6);
   scale: .5;
+  transition: top 1s;
+}
+#DC-select-defuse-copter.slided-in {
+  top: 10px;
+}
+#DC-select-defuse-copter.slided-out {
+  top: -150px;
 }
 #DC-select-defuse-copter > img {
   cursor: pointer;
@@ -433,9 +439,15 @@ input[type=number]:not(:hover)::-webkit-inner-spin-button {
   width: auto;
   height: auto;
   text-align: center;
-  left: 30px;
   bottom: 10px;
   z-index: 10;
+  transition: left 1s;
+}
+#DC-upgrade-block.slided-in {
+  left: 30px;
+}
+#DC-upgrade-block.slided-out {
+  left: -250px;
 }
 #DC-upgrade-block > div {
   margin-bottom: 2px;

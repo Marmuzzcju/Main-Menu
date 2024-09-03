@@ -142,7 +142,7 @@
         <button class="fatButton" id="DME-menu-load-background-image" onclick="document.querySelector('#DME-browse-background-image').click();">Load Background Image</button>
         <button class="fatButtonLeft hidden"  id="DME-menu-remove-background-image" onclick="DME.removeBackgroundImage();">Remove Background Image</button> <br />
         <button class="fatButton" onclick="DME.exportMapPreview();">Get Map Preview</button> </br>
-        <button class="fatButton" onclick="DME.deConfig();switchSite('defly-clone',2);">Test Map</button>
+        <button class="fatButton" onclick="DME.enterTestMode();">Test Map</button>
         <!-- <button class="fatButton" onclick="document.getElementById('distance-overview-table').style.display = 'inline';mapStuff.classList.add('blurred');openMenu=true;">View Distance Table</button> <br /> -->
 			  <!-- <button class="fatButton" onclick="testMap();">Test Map</button><a href="https://marmuzzcju.github.io/Defuse-Clone/" target="_blank" id="linkToMapTest" style="display: none;"></a> <br /> -->
 		  </div>
@@ -172,6 +172,7 @@
         <div><span>Place Bomb B</span><button onclick="DME.changeKeybind('placeBombB1');" id="DME-ch-placeBombB1">2</button><button onclick="DME.changeKeybind('placeBombB2');" id="DME-ch-placeBombB2"></button></div>
         <div><span>Place Red Spawn</span><button onclick="DME.changeKeybind('placeSpawnRed1');" id="DME-ch-placeSpawnRed1">3</button><button onclick="DME.changeKeybind('placeSpawnRed2');" id="DME-ch-placeSpawnRed2"></button></div>
         <div><span>Place Blue Spawn</span><button onclick="DME.changeKeybind('placeSpawnBlue1');" id="DME-ch-placeSpawnBlue1">4</button><button onclick="DME.changeKeybind('placeSpawnBlue2');" id="DME-ch-placeSpawnBlue2"></button></div>
+        <div><span>Enter Test Mode</span><button onclick="DME.changeKeybind('enterTestMode1');" id="DME-ch-enterTestMode1"></button><button onclick="DME.changeKeybind('enterTestMode2');" id="DME-ch-enterTestMode2"></button></div>
         <div><span>Zoom In</span><button id="DME-ch-zoomIn1" disabled>Scroll Up</button><button onclick="DME.changeKeybind('zoomIn2');" id="DME-ch-zoomIn2">+</button></div>
         <div><span>Zoom Out</span><button id="DME-ch-zoomOut1" disabled>Scroll Down</button><button onclick="DME.changeKeybind('zoomOut2');" id="DME-ch-zoomOut2">-</button></div>
         <div><span>Reset Zoom</span><button onclick="DME.changeKeybind('resetZoom1');" id="DME-ch-resetZoom1">=</button><button onclick="DME.changeKeybind('resetZoom2');" id="DME-ch-resetZoom2"></button></div>
@@ -276,10 +277,10 @@
 			  <button onclick="DC.reloadMap();">Reload Map</button><br />
 			  <div>Mode: <select class="clickable" onchange="DC.changeMode(this.value);"><option value="2">Defuse</option><option value="0">FFA</option><option value="1">Teams</option></select></div>
 			  <div>Team: <input id="DC-menu-player-team" type="number" min="1" max="14" value="2" onchange="DC.changePlayerTeam(this.value);"></div>
-			  <button onclick="DC.deConfig();switchSite('map-editor', 2);">Exit</button>
+			  <button onclick="DC.enterEditMode();">Exit</button>
       </div>
       <button id="DC-show-menu" style="font-size:12px; width:60px; position:fixed; top:4%; left:2%; z-index:100;display:none;" onclick="document.querySelector('#DC-menu').style.display = 'inline';this.style.display = 'none';">Show Menu</button>
-      <div id="DC-select-defuse-copter">
+      <div id="DC-select-defuse-copter" class="slided-out">
         <img id="DC-select-defuse-basic" class="DC-copter-selected" onclick="DC.selectDefuseCopter('basic')" src="/public/images/copter-basic.png">
         <img id="DC-select-defuse-shotgun" onclick="DC.selectDefuseCopter('shotgun')" src="/public/images/copter-shotgun.png">
         <img id="DC-select-defuse-drone" onclick="DC.selectDefuseCopter('drone')" src="/public/images/copter-drone.png">
@@ -287,7 +288,8 @@
         <img id="DC-select-defuse-machinegun" onclick="DC.selectDefuseCopter('machinegun')" src="/public/images/copter-machinegun.png">
         <img id="DC-select-defuse-sniper" onclick="DC.selectDefuseCopter('sniper')" src="/public/images/copter-sniper.png">
       </div>
-      <div id="DC-upgrade-block" class="hidden">
+      <div id="DC-slide-upgrade-block" onclick="DC.slideUpgradeBlock();"></div>
+      <div id="DC-upgrade-block" class="slided-out">
         <div id="DC-upgrade-copter-speed">
           <div class="DC-upgrade-line">Player speed</div>
           <div class="DC-upgrade-boxes">
