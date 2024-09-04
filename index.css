@@ -423,7 +423,7 @@ input[type=number]:not(:hover)::-webkit-inner-spin-button {
   top: 10px;
 }
 #DC-select-defuse-copter.slided-out {
-  top: -150px;
+  top: -125px;
 }
 #DC-select-defuse-copter > img {
   cursor: pointer;

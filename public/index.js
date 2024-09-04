@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.51";
+const version = "1.52";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -474,12 +474,14 @@ const defly = {
     bombB: new Image(),
     koth_crown: new Image(),
     shield: new Image(),
+    emp: new Image(),
   },
 };
 defly.images.bombA.src = "/images/defly-defuse-bombSpotA.png";
 defly.images.bombB.src = "/images/defly-defuse-bombSpotB.png";
 defly.images.koth_crown.src = "/images/defuse-koth-crown.svg";
 defly.images.shield.src = "/images/shield.png";
+defly.images.emp.src = "/images/defly-emp.png";
 
 const camera = {
   position: {
@@ -4738,6 +4740,7 @@ const DC = {
   },
   gameData: {
     bullets: [],
+    activeItems: [],
     idToTeam: { id1: 2 }, //DC.gameData.idToTeam[`id${player.id}`] => returns team id for player id
   },
   gameMode: "defuse",
@@ -4779,6 +4782,7 @@ const DC = {
     score: 0,
     isShooting: false,
     wantsToBuild: false,
+    wantsToUsePower: false,
     shootingCooldown: 0,
     //copter: "basic",
     copter: {
@@ -4795,6 +4799,8 @@ const DC = {
       shield: 0,
     }
   },
+
+  animations: [],
 
   rawDelta: 0,
   localDelta: 0,
@@ -5323,6 +5329,31 @@ const DC = {
       //gameData.bullets.push({position : {x : player.position.x, y : player.position.y}, velocity : {x : -20, y : 10}, lifespawn : 5})
       p.shootingCooldown = DC.player.copter.reloadTime;
     }
+
+    //also checking for powers here
+    if(p.wantsToUsePower) {
+      p.wantsToUsePower = false;
+      switch(this.gameMode){
+        case 'defuse':{
+          //check whether can throw emp
+          //...
+          let data = {
+            type: 'emp',
+            x: p.position.x,
+            y: p.position.y,
+            maxVelocity: {
+              x: 2*(p.aimingAt.x - camera.offset.x)*camera.zoom,
+              y: 2*(p.aimingAt.y - camera.offset.y)*camera.zoom,
+            },
+            fuse: 3,
+            radius: 4,
+            team: p.team,
+          }
+          this.gameData.activeItems.push(data);
+          break;
+        }
+      }
+    }
   },
   createBullets: function (
     position,
@@ -5512,7 +5543,52 @@ const DC = {
   },
 
   updateOtherStuff: function () {
+    this.updateActiveItems();
     this.updateBuildPoint();
+  },
+
+  updateActiveItems: function(){
+    let expieredItems = [];
+    this.gameData.activeItems.forEach((i, idx) => {
+      switch(i.type){
+        case 'emp':{
+          i.fuse -= .5*this.localDelta;
+          if(i.fuse > 2){
+            i.x += i.maxVelocity.x*(i.fuse-2)*this.localDelta;
+            i.y += i.maxVelocity.y*(i.fuse-2)*this.localDelta;
+          }
+          i.fuse -= .5*this.localDelta;
+          if(i.fuse <= 0) {
+            //explode emp
+            expieredItems.push(idx);
+            this.explodeArea(i.x,i.y,i.radius,i.team);
+          }
+        }
+      }
+    });
+    expieredItems.forEach((i,c) => {
+      this.gameData.activeItems.splice(i-c,1);
+    })
+  },
+
+  explodeArea: function(x,y,radius,team,invert=false){ //radius in units; invert = only explode from team
+    let cO = this.getClusterOrigin({x:x,y:y});
+    for(let yM=-radius-1;yM<=radius+1;yM++){
+      for(let xM=-radius-1;xM<=radius+1;xM++){
+        this.mapData.towerCluster[cO[0] + xM]?.[cO[1] + yM]?.forEach((t) => {
+          if(t.team != 1 && (t.team==team)==invert && ((t.x-x)**2+(t.y-y)**2)**.5<=radius*defly.UNIT_WIDTH) {
+            this.deleteTower(t.id,{x:t.x,y:t.y});
+          }
+        });
+      }
+    }
+    this.animations.push({
+      type: 'explosion',
+      maxRadius: radius,
+      currentRadius: 0,
+      x: x,
+      y: y,
+    });
   },
 
   updateBuildPoint: function(x,y) {
@@ -5970,6 +6046,33 @@ const DC = {
     let wallWidth = defly.WALL_WIDTH / z;
     let towerWidth = defly.TOWER_WIDTH / z;
 
+    //draw animations - positioning in draw loop may change
+    let expieredAnimations = [];
+    DC.animations.forEach((a,idx) => {
+      switch(a.type){
+        case 'explosion':{
+          a.currentRadius+=a.maxRadius*DC.rawDelta/.5; //'1' = animation time in s
+          if(a.currentRadius > a.maxRadius) {
+            a.currentRadius = a.maxRadius;
+            expieredAnimations.push(idx);
+          }
+          let p = {
+            x: camera.relative.x(a.x),
+            y: camera.relative.y(a.y),
+          };
+          ctx.fillStyle = `rgba(255,90,0,${1-a.currentRadius/a.maxRadius})`;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, a.currentRadius * defly.UNIT_WIDTH * q, 2 * Math.PI, false);
+          ctx.fill();
+          break;
+        }
+      }
+    });
+    expieredAnimations.forEach((a,c) => {
+      DC.animations.splice(a-c,1);
+      console.log('terminated animation...');
+    });
+
     //draw areas
     DC.mapData.areas.forEach((areaSet, idx) => {
       areaSet.forEach((area) => {
@@ -6190,6 +6293,37 @@ const DC = {
       );
       ctx.fill();
     });
+    DC.gameData.activeItems.forEach(i => {
+      switch(i.type){
+        case 'emp':{
+          let width = defly.UNIT_WIDTH / z * q * 1.4,
+            p = {
+              x: camera.relative.x(i.x),
+              y: camera.relative.y(i.y),
+            },
+            img = defly.images.emp,
+            x = p.x,
+            y = p.y,
+            angle = -2*Math.PI*(((i.fuse-2)*.7)**2);
+          if(i.fuse >= 2){
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.drawImage(img, -width / 2, -width / 2, width, width);
+            ctx.rotate(-angle);
+            ctx.translate(-x, -y);
+          } else {
+            ctx.drawImage(
+              img,
+              p.x - width/2,
+              p.y - width/2,
+              width,
+              width
+            );
+          }
+          break;
+        }
+      }
+    })
     ctx.lineWidth = 1;
     ctx.strokeStyle = "red";
     ctx.beginPath();
@@ -6283,18 +6417,22 @@ const DC = {
     switch (type) {
       case "button_down": {
         switch (input) {
+          case "ARROWUP":
           case "W": {
             DC.player.velocity.yN = 1;
             break;
           }
+          case "ARROWLEFT":
           case "A": {
             DC.player.velocity.xN = 1;
             break;
           }
+          case "ARROWDOWN":
           case "S": {
             DC.player.velocity.yP = 1;
             break;
           }
+          case "ARROWRIGHT":
           case "D": {
             DC.player.velocity.xP = 1;
             break;
@@ -6313,6 +6451,10 @@ const DC = {
             DC.player.position.y += DC.player.aimingAt.y - camera.offset.y;
             break;
           }
+          case 'E': {
+            DC.player.wantsToUsePower = true;
+            break;
+          }
           case 'ESCAPE': {
             DC.enterEditMode();
             break;
@@ -6322,18 +6464,22 @@ const DC = {
       }
       case "button_up": {
         switch (input) {
+          case "ARROWUP":
           case "W": {
             DC.player.velocity.yN = 0;
             break;
           }
+          case "ARROWLEFT":
           case "A": {
             DC.player.velocity.xN = 0;
             break;
           }
+          case "ARROWDOWN":
           case "S": {
             DC.player.velocity.yP = 0;
             break;
           }
+          case "ARROWRIGHT":
           case "D": {
             DC.player.velocity.xP = 0;
             break;
