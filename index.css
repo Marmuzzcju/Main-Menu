@@ -225,27 +225,35 @@ button {
   margin-bottom: 3px;
 }
 
-#DME-hotkey-menu {
+#DME-hotkey-menu, #DC-hotkey-menu {
   border-radius: 10px;
   flex-direction: column;
   position: fixed;
-  left: 355px;
-  top: 30px;
   width: 430px;
   background-color: rgba(10, 10, 10, 0.6);
   overflow-y: auto;
+}
+#DME-hotkey-menu {
+  left: 355px;
+  top: 30px;
   height: calc(90% - 30px);
 }
-#DME-hotkey-menu > div {
+#DC-hotkey-menu {
+  z-index: 1;
+  left: 160px;
+  top: 130px;
+  max-height: 400px;
+}
+#DME-hotkey-menu > div, #DC-hotkey-menu > div {
   padding: 2px 0;
   display: flex;
   justify-content: space-around;
 }
-#DME-hotkey-menu > div > span {
+#DME-hotkey-menu > div > span, #DC-hotkey-menu > div > span {
   color: white;
   width: 150px;
 }
-#DME-hotkey-menu > div > button {
+#DME-hotkey-menu > div > button, #DC-hotkey-menu > div > button {
   border-radius: 4px;
   width: 125px;
   height: 23.6px;

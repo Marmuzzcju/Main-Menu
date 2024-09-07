@@ -275,11 +275,24 @@
 			  <span style="font-size:20px;text-align: center;">Menu</span><br />
 			  <button onclick="document.querySelector('#DC-menu').style.display = 'none';document.querySelector('#DC-show-menu').style.display = 'inline';">Hide</button><br />
 			  <button onclick="DC.reloadMap();">Reload Map</button><br />
-			  <div>Mode: <select class="clickable" onchange="DC.changeMode(this.value);"><option value="2">Defuse</option><option value="0">FFA</option><option value="1">Teams</option></select></div>
+			  <button onclick="DC.toggleMenu('hotkey-menu');">Hotkeys</button><br />
+        <div>Mode: <select class="clickable" onchange="DC.changeMode(this.value);"><option value="2">Defuse</option><option value="0">FFA</option><option value="1">Teams</option></select></div>
 			  <div>Team: <input id="DC-menu-player-team" type="number" min="1" max="14" value="2" onchange="DC.changePlayerTeam(this.value);"></div>
 			  <button onclick="DC.enterEditMode();">Exit</button>
       </div>
       <button id="DC-show-menu" style="font-size:12px; width:60px; position:fixed; top:4%; left:2%; z-index:100;display:none;" onclick="document.querySelector('#DC-menu').style.display = 'inline';this.style.display = 'none';">Show Menu</button>
+      <div id="DC-hotkey-menu" style="display: none;">
+        <div style="display:grid;grid-template-areas:'head head head close''sub sub sub sub';padding-bottom:8px;"><div style="grid-area:head;color:white;font-size:22px;">Keybinds</div><div style="grid-area:sub;color:white;font-size:12px;">Click to change, Esc to unbind</div>
+        <button onclick="DC.toggleMenu('hotkey-menu');" style="grid-area:close;width:70px;">Close</button></div>
+        <div><span>Move up</span><button onclick="DC.changeKeybind('MoveUp1');" id="DC-ch-MoveUp1">W</button><button onclick="DC.changeKeybind('MoveUp2');" id="DC-ch-MoveUp2">ARROWUP</button></div>
+        <div><span>Move down</span><button onclick="DC.changeKeybind('MoveDown1');" id="DC-ch-MoveDown1">S</button><button onclick="DC.changeKeybind('MoveDown2');" id="DC-ch-MoveDown2">ARROWDOWN</button></div>
+        <div><span>Move left</span><button onclick="DC.changeKeybind('MoveLeft1');" id="DC-ch-MoveLeft1">A</button><button onclick="DC.changeKeybind('MoveLeft2');" id="DC-ch-MoveLeft2">ARROWLEFT</button></div>
+        <div><span>Move right</span><button onclick="DC.changeKeybind('MoveRight1');" id="DC-ch-MoveRight1">D</button><button onclick="DC.changeKeybind('MoveRight2');" id="DC-ch-MoveRight2">ARROWRIGHT</button></div>
+        <div><span>Build</span><button onclick="DC.changeKeybind('build1');" id="DC-ch-build1">Right Click</button><button onclick="DC.changeKeybind('build2');" id="DC-ch-build2">SPACE</button></div>
+        <div><span>Shoot</span><button onclick="DC.changeKeybind('shoot1');" id="DC-ch-shoot1">Left Click</button><button onclick="DC.changeKeybind('shoot2');" id="DC-ch-shoot2"></button></div>
+        <div><span>Use EMP/Power</span><button onclick="DC.changeKeybind('usePower1');" id="DC-ch-usePower1">E</button><button onclick="DC.changeKeybind('usePower2');" id="DC-ch-usePower2">Middle Click</button></div>
+        <div><button onclick="DC.resetKeybinds();" style="width: 200px;border-radius: 20px;margin: 2px 0px;">Reset Keybinds</button></div>
+      </div>
       <div id="DC-select-defuse-copter" class="slided-out">
         <img id="DC-select-defuse-basic" class="DC-copter-selected" onclick="DC.selectDefuseCopter('basic')" src="/public/images/copter-basic.png">
         <img id="DC-select-defuse-shotgun" onclick="DC.selectDefuseCopter('shotgun')" src="/public/images/copter-shotgun.png">

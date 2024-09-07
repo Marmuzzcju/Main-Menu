@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.52";
+const version = "1.53";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -123,6 +123,10 @@ window.onbeforeunload = () => {
     switch (currentSite) {
       case "DME": {
         DME.deConfig();
+        break;
+      }
+      case 'DC': {
+        DC.deConfig();
         break;
       }
     }
@@ -4720,6 +4724,32 @@ const DME = {
 };
 
 const DC = {
+  hotkeys: {
+    MoveUp1: 'W',
+    MoveUp2: 'ARROWUP',
+    MoveLeft1: 'A',
+    MoveLeft2: 'ARROWLEFT',
+    MoveDown1: 'S',
+    MoveDown2: 'ARROWDOWN',
+    MoveRight1: 'D',
+    MoveRight2: 'ARROWRIGHT',
+    build1: 'Right Click',
+    build2: 'SPACE',
+    shoot1: 'Left Click',
+    shoot2: '',
+    usePower1: 'E',
+    usePower2: 'Middle Click',
+  },
+  defaultHotkeys: {},
+  changeKeybind: {
+    isChanging: false,
+    binding: "",
+    element: "",
+  },
+  specialKeyInputs: {
+    [' ']: 'SPACE',
+  },
+  blockInput: false,
   permanentMapData: {
     width: 1000,
     height: 1000,
@@ -5057,6 +5087,7 @@ const DC = {
                   bA.x += normalizer * rightVector[0];
                   bA.y += normalizer * rightVector[1];
                 } else {
+                  this.explodeArea(pP.x,pP.y,5,p.team,true);//5 = radius, has to be bound to player experience points later
                   //enemy wall, die
                 }
               }
@@ -5295,6 +5326,7 @@ const DC = {
   },
   placeWall: function (from, to, team) {
     //note: if max wall length would be increased, could place false walls
+    //if(from.id == to.id) return;
     let cO = this.getClusterOrigin({ x: from.x, y: from.y }),
       hasToBePlaced = true;
     DC.mapData.towerCluster[cO[0]][cO[1]].forEach(t => {
@@ -6371,7 +6403,100 @@ const DC = {
     switchSite('map-editor', 2);
   },
 
+  toggleMenu: function(menu){
+    let m = document.querySelector(`#DC-${menu}`);
+    m.style.display = m.style.display == 'none' ? 'inline' : 'none';
+  },
+
+  changeKeybind: function (key) {
+    console.log(`Trying to update ${key}`);
+    if (this.changeKeybind.isChanging) {
+      this.changeKeybind.element.innerText =
+        this.hotkeys[this.changeKeybind.binding];
+      this.changeKeybind.element.style.fontSize = "16px";
+    }
+    this.blockInput = true;
+    this.changeKeybind.isChanging = true;
+    this.changeKeybind.binding = key;
+    this.changeKeybind.element = document.querySelector(`#DC-ch-${key}`);
+    this.changeKeybind.element.style.fontSize = "12px";
+    this.changeKeybind.element.innerText = "press any key";
+    this.changeKeybind.element.blur();
+    onkeydown = function (event) {
+      if (!DC.changeKeybind.isChanging) {
+        return;
+      }
+      assignNewKeybind(event.key.toUpperCase());
+      return;
+    };
+    onmousedown = function (event) {
+      if (!DC.changeKeybind.isChanging) {
+        return;
+      }
+      let mKeys = ["Left Click", "Middle Click", "Right Click"];
+      let newBind = mKeys?.[event.button]
+        ? mKeys[event.button]
+        : `Button ${event.button}`;
+      assignNewKeybind(newBind);
+      return;
+    };
+    function assignNewKeybind(newBindValue) {
+      let newBind =
+        newBindValue == "ESCAPE"
+          ? ""
+          : DC.specialKeyInputs.hasOwnProperty(newBindValue)
+          ? DC.specialKeyInputs[newBindValue]
+          : newBindValue;
+      DC.changeKeybind.element.innerText = newBind;
+      DC.changeKeybind.element.style.fontSize = "16px";
+      DC.changeKeybind.isChanging = false;
+      DC.hotkeys[DC.changeKeybind.binding] = newBind;
+      DC.blockInput = false;
+      DC.markDoubledKeybinds();
+      return;
+    }
+  },
+  markDoubledKeybinds: function () {
+    let markedKeys = [],
+      nonMarkedKeys = [],
+      doubledKeys = [],
+      hotkeyClone = [];
+    idsClone = [];
+    Object.entries(DC.hotkeys).forEach((key, idx) => {
+      hotkeyClone.push(key[1]);
+      idsClone.push(key[0]);
+    });
+    let l = hotkeyClone.length;
+    for (let c = 0; c < l; c++) {
+      let key = hotkeyClone[0];
+      let id = idsClone[0];
+      hotkeyClone.shift();
+      idsClone.shift();
+      if (key == "") continue;
+      if (hotkeyClone.includes(key) || doubledKeys.includes(key)) {
+        markedKeys.push(id);
+        doubledKeys.push(key);
+      } else nonMarkedKeys.push(id);
+    }
+    markedKeys.forEach((key) => {
+      document.querySelector(`#DC-ch-${key}`).style.color = "red";
+    });
+    nonMarkedKeys.forEach((key) => {
+      document.querySelector(`#DC-ch-${key}`).style.color = "black";
+    });
+  },
+  resetKeybinds: function () {
+    this.hotkeys = structuredClone(this.defaultHotkeys);
+    Object.entries(this.hotkeys).forEach((entrie) => {
+      let t = document.querySelector(`#DC-ch-${entrie[0]}`);
+      if (t != undefined) {
+        t.innerText = entrie[1];
+      }
+    });
+  },
+
   handleInput: function (e) {
+    if(DC.blockInput) return;
     let type, input, extra;
     switch (e.type) {
       case "mousedown": {
@@ -6405,7 +6530,7 @@ const DC = {
       }
       case "keydown": {
         type = "button_down";
-        input = e.key.toLocaleUpperCase();
+        input = DC.specialKeyInputs.hasOwnProperty(e.key) ? DC.specialKeyInputs[e.key] : e.key.toLocaleUpperCase();
         break;
       }
       case "keyup": {
@@ -6417,42 +6542,45 @@ const DC = {
     switch (type) {
       case "button_down": {
         switch (input) {
-          case "ARROWUP":
-          case "W": {
+          case DC.hotkeys.MoveUp1:
+          case DC.hotkeys.MoveUp2: {
             DC.player.velocity.yN = 1;
             break;
           }
-          case "ARROWLEFT":
-          case "A": {
+          case DC.hotkeys.MoveLeft1:
+          case DC.hotkeys.MoveLeft2: {
             DC.player.velocity.xN = 1;
             break;
           }
-          case "ARROWDOWN":
-          case "S": {
+          case DC.hotkeys.MoveDown1:
+          case DC.hotkeys.MoveDown2: {
             DC.player.velocity.yP = 1;
             break;
           }
-          case "ARROWRIGHT":
-          case "D": {
+          case DC.hotkeys.MoveRight1:
+          case DC.hotkeys.MoveRight2: {
             DC.player.velocity.xP = 1;
             break;
           }
-          case "Left Click": {
+          case DC.hotkeys.shoot1:
+          case DC.hotkeys.shoot2: {
             DC.player.isShooting = true;
             break;
           }
-          case "Right Click": {
+          case DC.hotkeys.build1:
+          case DC.hotkeys.build2: {
             DC.player.wantsToBuild = true;
+            break;
+          }
+          case DC.hotkeys.usePower1:
+          case DC.hotkeys.usePower2: {
+            DC.player.wantsToUsePower = true;
             break;
           }
           case "Double Click": {
             console.log("TPING");
             DC.player.position.x += DC.player.aimingAt.x - camera.offset.x;
             DC.player.position.y += DC.player.aimingAt.y - camera.offset.y;
-            break;
-          }
-          case 'E': {
-            DC.player.wantsToUsePower = true;
             break;
           }
           case 'ESCAPE': {
@@ -6464,27 +6592,28 @@ const DC = {
       }
       case "button_up": {
         switch (input) {
-          case "ARROWUP":
-          case "W": {
+          case DC.hotkeys.MoveUp1:
+          case DC.hotkeys.MoveUp2: {
             DC.player.velocity.yN = 0;
             break;
           }
-          case "ARROWLEFT":
-          case "A": {
+          case DC.hotkeys.MoveLeft1:
+          case DC.hotkeys.MoveLeft2: {
             DC.player.velocity.xN = 0;
             break;
           }
-          case "ARROWDOWN":
-          case "S": {
+          case DC.hotkeys.MoveDown1:
+          case DC.hotkeys.MoveDown2: {
             DC.player.velocity.yP = 0;
             break;
           }
-          case "ARROWRIGHT":
-          case "D": {
+          case DC.hotkeys.MoveRight1:
+          case DC.hotkeys.MoveRight2: {
             DC.player.velocity.xP = 0;
             break;
           }
-          case "Left Click": {
+          case DC.hotkeys.shoot1:
+          case DC.hotkeys.shoot2: {
             DC.player.isShooting = false;
             break;
           }
@@ -6584,6 +6713,27 @@ const DC = {
         break;
       }
     }
+    DC.defaultHotkeys = structuredClone(DC.hotkeys);
+    if(hasLocalStorage){
+      if (!localStorage.getItem("DChotkeys")) {
+        localStorage.setItem("DChotkeys", JSON.stringify(DC.hotkeys));
+      } else {
+        let storedHotkeys = JSON.parse(localStorage.getItem("DChotkeys"));
+        console.log(storedHotkeys);
+        Object.entries(storedHotkeys).forEach((key) => {
+          if (DC.hotkeys.hasOwnProperty(key[0])) DC.hotkeys[key[0]] = key[1];
+        });
+      }
+      Array.from(
+        document.querySelectorAll("#DC-hotkey-menu > div > button")
+      ).forEach((button) => {
+        if (DC.hotkeys?.[button.id.replace("DC-ch-", "")]) {
+          button.innerHTML = DC.hotkeys[button.id.replace("DC-ch-", "")];
+        }
+      });
+      DC.markDoubledKeybinds();
+    }
+
     camera.zoom = defly.STANDARD_ZOOM;
     DC.toggleAllEventListeners(true);
     currentSite = "DC";
@@ -6602,6 +6752,8 @@ const DC = {
     DC.slideUpgradeBlock(0);
     DC.slideUpgradeBlock(0, 'DC-select-defuse-copter');
     camera.zoom = DME.mapZoom;
+    
+    localStorage.setItem("DChotkeys", JSON.stringify(DC.hotkeys));
   },
 
   updateLoop: function () {
