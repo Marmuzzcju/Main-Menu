@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.53";
+const version = "1.54";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -588,6 +588,7 @@ const DME = {
     CONTROL: false,
     SHIFT: false,
     ENTER: false,
+    ALT: false,
     MoveUp: false,
     MoveDown: false,
     MoveLeft: false,
@@ -1720,14 +1721,16 @@ const DME = {
     } else {
       let closestTower = this.getClosestTower(x, y);
       if (closestTower.distance < defly.TOWER_WIDTH) {
-        if (this.isKeyPressed.CONTROL) {
+        if(this.isKeyPressed.ALT){
+          this.selectTowersByColor(this.mapData.towers[closestTower.index].color);
+        } else if (this.isKeyPressed.CONTROL) {
           this.selectedTowers.push(closestTower.index);
           this.selectedTowers = removePairs(this.selectedTowers);
           //remove pairs; if one tower was already selected -> unselect
         } else {
           this.selectedTowers = [closestTower.index];
         }
-      } else if (!this.isKeyPressed.CONTROL) {
+      } else if (!this.isKeyPressed.CONTROL && !this.isKeyPressed.ALT) {
         this.selectedTowers = [];
       }
     }
@@ -1771,6 +1774,16 @@ const DME = {
         break;
       }
     }
+  },
+
+  selectTowersByColor: function(color) {
+    this.selectedTowers = [];
+    this.mapData.towers.forEach(t => {
+        if(t.color == color) {
+            this.selectedTowers.push(this.getIndexFromId(t.id));
+        }
+    });
+    this.updateChunkOptions();
   },
 
   //action here
@@ -4387,6 +4400,10 @@ const DME = {
                 DME.isKeyPressed.ENTER = true;
                 break;
               }
+              case "ALT": {
+                DME.isKeyPressed.ALT = true;
+                break;
+              }
               case DME.hotkeys.toggleSnap1:
               case DME.hotkeys.toggleSnap2: {
                 let c = document.querySelector(
@@ -4529,6 +4546,10 @@ const DME = {
               }
               case "ENTER": {
                 DME.isKeyPressed.ENTER = false;
+                break;
+              }
+              case "ALT": {
+                DME.isKeyPressed.ALT = false;
                 break;
               }
               case DME.hotkeys.toggleSnap1:
