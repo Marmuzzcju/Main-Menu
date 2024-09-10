@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.54";
+const version = "1.54b";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -2375,12 +2375,24 @@ const DME = {
           newMapData[1].split(",").length < 4 ? [] : newMapData[1].split(",");
 
         //bomb spots
-        let bombData = newMapData[2].split(",");
-        for (let c = 0; bombData.length > c + 1; c += 2) {
-          this.placeSpecial(c / 2 + 1, {
-            x: bombData[0 + c] * defly.UNIT_WIDTH,
-            y: bombData[1 + c] * defly.UNIT_WIDTH,
-          });
+        let setTwo = newMapData[2].split(";");
+        if(setTwo.length == 2){//supports single B bomb spot
+          for (let c = 0; c < 2; c++) {
+            let bombData = setTwo[c].split(",");
+            if(bombData.length < 2) continue;
+            this.placeSpecial(c + 1, {
+              x: bombData[0] * defly.UNIT_WIDTH,
+              y: bombData[1] * defly.UNIT_WIDTH,
+            });
+          }
+        } else {
+          let bombData = newMapData[2].split(",");
+          for (let c = 0; bombData.length > c + 1; c += 2) {
+            this.placeSpecial(c / 2 + 1, {
+              x: bombData[0 + c] * defly.UNIT_WIDTH,
+              y: bombData[1 + c] * defly.UNIT_WIDTH,
+            });
+          }
         }
 
         //defuse spawns
@@ -2507,8 +2519,8 @@ const DME = {
           text += `\nKOTH ${d.koth[0] / uW.toRounded(6)} ${
             d.koth[1] / uW.toRounded(6)
           } ${d.koth[2] / uW.toRounded(6)} ${d.koth[3] / uW.toRounded(6)}`;
-        d?.bombs?.forEach((b, c) => {
-          text += `\nt ${c} ${(b.x / uW).toRounded(6)} ${(b.y / uW).toRounded(
+        d?.bombs?.forEach(b => {
+          text += `\nt ${b.t} ${(b.x / uW).toRounded(6)} ${(b.y / uW).toRounded(
             6
           )}`;
         });
@@ -2547,8 +2559,8 @@ const DME = {
             : ""
         }|`;
         let bombData = "";
-        d?.bombs?.forEach((b, c) => {
-          bombData += `${c ? "," : ""}${(b.x / uW).toRounded(6)},${(
+        d?.bombs?.forEach(b => {
+          bombData += `${b.t ? ";" : ""}${(b.x / uW).toRounded(6)},${(
             b.y / uW
           ).toRounded(6)}`;
         });
@@ -2606,7 +2618,7 @@ const DME = {
         ntC++;
         if (t.id > -3) {
           if (!copy?.bombs) copy.bombs = [];
-          copy.bombs.push({ x: t.x, y: t.y /*,t:t.id>-2?'a':'b'*/ });
+          copy.bombs[t.id>-2?0:1] = { x: t.x, y: t.y, t:t.id>-2?0:1 };
         } else {
           if (!copy?.spawns) copy.spawns = [];
           copy.spawns.push({ x: t.x, y: t.y, t: t.id, r: t.rotation });
@@ -5751,8 +5763,8 @@ const DC = {
         if(DC.highestId < t.id) DC.highestId = t.id;
       });
     });
-    DC.permanentMapData.bombs.forEach((b) => {
-      mD.bombs.push({ x: b.x, y: b.y });
+    DC.permanentMapData.bombs.forEach((b,i) => {
+      mD.bombs[i] = ({ x: b.x, y: b.y });
     });
     DC.permanentMapData.spawns.forEach((s) => {
       mD.spawns.push({ t: s.t, x: s.x, y: s.y, rotation: s.rotation });
@@ -6323,7 +6335,7 @@ const DC = {
           x: camera.relative.x(bomb.x),
           y: camera.relative.y(bomb.y),
         },
-        img = idx ? defly.images.bombA : defly.images.bombB;
+        img = idx ? defly.images.bombB : defly.images.bombA;
       ctx.drawImage(
         img,
         t.x - bombRadius,
@@ -6689,7 +6701,7 @@ const DC = {
             DC.permanentMapData.towers[t.color].push(data);
           } else {
             if (t.id > -3) {
-              DC.permanentMapData.bombs[2 + t.id] = { x: t.x, y: t.y };
+              DC.permanentMapData.bombs[-t.id-1] = { x: t.x, y: t.y };
             } else {
               DC.permanentMapData.spawns.push({
                 t: 6 + t.id,
