@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.54b";
+const version = "1.55";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -404,8 +404,11 @@ const defly = {
   PLAYER_WIDTH: 10,
   GRID_WIDTH: 44,
   UNIT_WIDTH: 22, //GRID_WIDTH / 2
+  BOMB_RADIUS: 144, //GRID_WIDTH * 3
   MAX_WALL_LENGTH: 660, //GRID_WIDTH * 15
   STANDARD_ZOOM: 1, //this will be relative to screen size
+  PLANTING_TIME: 5,
+  DEFUSING_TIME: 10,
   updateUnits: function (newUnitWidth) {
     this.UNIT_WIDTH = newUnitWidth;
     this.GRID_WIDTH = 2 * newUnitWidth;
@@ -506,6 +509,12 @@ const camera = {
       ((ogY - camera.position.y) / camera.zoom + camera.offset.y) *
       camera.quality,
   },
+  real: {
+    x: (ogX) =>
+      (ogX / camera.quality - camera.offset.x) * camera.zoom + camera.position.x,
+    y: (ogY) =>
+      (ogY / camera.quality - camera.offset.y) * camera.zoom + camera.position.y,
+  }
 };
 
 /*
@@ -2919,7 +2928,11 @@ const DME = {
           ctx.fillRect(t.x - sS, t.y - sS, 2 * sS, 2 * sS);
           //triangle, based on spawn rotation
           ctx.fillStyle = defly.colors.standard[col];
+          ctx.font = `${20 * fract}px Verdana`;
+          ctx.textAlign = 'center';
           ctx.beginPath();
+          let xReverse=false,
+            shift=false;
           switch (tower.rotation) {
             case 0: {
               ctx.moveTo(t.x - tS, t.y);
@@ -2931,23 +2944,43 @@ const DME = {
               ctx.moveTo(t.x + tS, t.y);
               ctx.lineTo(t.x - tS, t.y - tS);
               ctx.lineTo(t.x - tS, t.y + tS);
+              xReverse=true;
               break;
             }
             case 2: {
               ctx.moveTo(t.x, t.y - tS);
               ctx.lineTo(t.x - tS, t.y + tS);
               ctx.lineTo(t.x + tS, t.y + tS);
+              shift=true;
               break;
             }
             case 3: {
               ctx.moveTo(t.x, t.y + tS);
               ctx.lineTo(t.x - tS, t.y - tS);
               ctx.lineTo(t.x + tS, t.y - tS);
+              shift=true;
+              xReverse=true;
               break;
+            }
+          }
+          let p=1,
+            o=t.y+7*fract;
+          for(let w=0;w<4;w+=1){
+            for(let h=0;h<4;h+=1){
+              let xVal = xReverse ? 3-w : w,
+                x = shift ? h : xVal,
+                y = shift ? xVal : h;
+              ctx.fillText(
+                `${p}`,
+                t.x + sS*((x/1.5)-1),
+                o + sS*(((y)/1.5)-1)
+              );
+              p++;
             }
           }
           ctx.closePath();
           ctx.fill();
+          ctx.textAlign='start';
         }
       }
     });
@@ -4013,7 +4046,11 @@ const DME = {
           ctx.fillRect(t.x - sS, t.y - sS, 2 * sS, 2 * sS);
           //triangle, based on spawn rotation
           ctx.fillStyle = defly.colors.standard[col];
+          ctx.font = `${20 / mz * q}px Verdana`;
+          ctx.textAlign = 'center';
           ctx.beginPath();
+          let xReverse=false,
+            shift=false;
           switch (tower.rotation) {
             case 0: {
               ctx.moveTo(t.x - tS, t.y);
@@ -4025,23 +4062,43 @@ const DME = {
               ctx.moveTo(t.x + tS, t.y);
               ctx.lineTo(t.x - tS, t.y - tS);
               ctx.lineTo(t.x - tS, t.y + tS);
+              xReverse=true;
               break;
             }
             case 2: {
               ctx.moveTo(t.x, t.y - tS);
               ctx.lineTo(t.x - tS, t.y + tS);
               ctx.lineTo(t.x + tS, t.y + tS);
+              shift=true;
               break;
             }
             case 3: {
               ctx.moveTo(t.x, t.y + tS);
               ctx.lineTo(t.x - tS, t.y - tS);
               ctx.lineTo(t.x + tS, t.y - tS);
+              shift=true;
+              xReverse=true;
               break;
+            }
+          }
+          let p=1,
+            o=t.y+7/mz*q;
+          for(let w=0;w<4;w+=1){
+            for(let h=0;h<4;h+=1){
+              let xVal = xReverse ? 3-w : w,
+                x = shift ? h : xVal,
+                y = shift ? xVal : h;
+              ctx.fillText(
+                `${p}`,
+                t.x + sS*((x/1.5)-1),
+                o + sS*(((y)/1.5)-1)
+              );
+              p++;
             }
           }
           ctx.closePath();
           ctx.fill();
+          ctx.textAlign = 'start';
           //l, r, o, u
         }
 
@@ -4807,61 +4864,87 @@ const DC = {
     idToTeam: { id1: 2 }, //DC.gameData.idToTeam[`id${player.id}`] => returns team id for player id
   },
   gameMode: "defuse",
+  gamePhase: 'casual',
+  defuseData: {
+    timer: 5,
+    planted: false,
+    planting: [
+      {
+        plantId: 0,
+        defuseId: 0,
+        charge: 0,
+      },
+      {
+        plantId: 0,
+        defuseId: 0,
+        charge: 0,
+      },
+    ]
+  },
+  allowPlayerMovement: true,
   highestId: 0,
   innitialDepth: 0,//used while looping through snap wall
+  players: [
+    {
+      position: {
+        x: 0,
+        y: 0,
+      },
+      aimingAt: {
+        x: 0,
+        y: 0,
+      },
+      buildPoint: {
+        x: 0,
+        y: 0,
+      },
+      relativeBuildPoint: {
+        x: 0,
+        y: 0,
+      },
+      velocity: {
+        xN: 0,
+        xP: 0,
+        yN: 0,
+        yP: 0,
+      },
+      hasMoved: false,
+      isStuck: false,
+      connectedTo: {
+        id: false,
+        x: 0,
+        y: 0,
+      },
+      team: 2,
+      id: 1,
+      money: 1000,
+      score: 0,
+      isShooting: false,
+      wantsToBuild: false,
+      wantsToUsePower: false,
+      shootingCooldown: 0,
+      //copter: "basic",
+      copter: {
+        copterSpeed: 260,
+        bulletSpeed: 260,
+        bulletLifespan: 1.7,
+        reloadTime: 0.75,
+        inaccuracy: 0,
+        bulletCount: 1,
+      },
+      tower: {
+        buildRange: 0,
+        health: 1,
+        shield: 0,
+      },
+      isAlive: true,
+      isBot: false,
+    },
+  ],
 
-  player: {
-    position: {
-      x: 0,
-      y: 0,
-    },
-    aimingAt: {
-      x: 0,
-      y: 0,
-    },
-    buildPoint: {
-      x: 0,
-      y: 0,
-    },
-    relativeBuildPoint: {
-      x: 0,
-      y: 0,
-    },
-    velocity: {
-      xN: 0,
-      xP: 0,
-      yN: 0,
-      yP: 0,
-    },
-    isStuck: false,
-    connectedTo: {
-      id: false,
-      x: 0,
-      y: 0,
-    },
-    team: 2,
-    id: 1,
-    money: 1000,
-    score: 0,
-    isShooting: false,
-    wantsToBuild: false,
-    wantsToUsePower: false,
-    shootingCooldown: 0,
-    //copter: "basic",
-    copter: {
-      copterSpeed: 260,
-      bulletSpeed: 260,
-      bulletLifespan: 1.7,
-      reloadTime: 0.75,
-      inaccuracy: 0,
-      bulletCount: 1,
-    },
-    tower: {
-      buildRange: 0,
-      health: 1,
-      shield: 0,
-    }
-  },
+  bots: [],
+
+  highestPlayerId: 1,
 
   animations: [],
 
@@ -4869,10 +4952,11 @@ const DC = {
   localDelta: 0,
   MAX_DELTA: 0.1,
   gameTime: 0,
+  frameCounter: 0,
 
   coordToCluster: (coord) => Math.floor(coord / defly.UNIT_WIDTH), //returns cluster position from coord
 
-  getClusterOrigin: function (origin = this.player.position) {
+  getClusterOrigin: function (origin = this.players[0].position) {
     return [this.coordToCluster(origin.x), this.coordToCluster(origin.y)];
   },
 
@@ -4945,154 +5029,168 @@ const DC = {
     DC.checkShoot();
     DC.checkBuild();
   },
-  updatePlayerPosition: function () {
-    let p = DC.player;
-    if (typeof p.isStuck == "boolean") {
-      //update position
-      let xVel = p.velocity.xP - p.velocity.xN,
-        yVel = p.velocity.yP - p.velocity.yN,
-        xModif = xVel * (yVel ? 0.71 : 1),
-        yModif = yVel * (xVel ? 0.71 : 1);
-      p.position.x += xModif * DC.player.copter.copterSpeed * DC.localDelta;
-      p.position.y += yModif * DC.player.copter.copterSpeed * DC.localDelta;
-
-      //check if on top of tower: connect
-      let pCluster = DC.getClusterOrigin({x:this.player.buildPoint.x,y:this.player.buildPoint.y});
-      for (let yM = -1; yM < 2; yM++) {
-        for (let xM = -1; xM < 2; xM++) {
-          DC.mapData.towerCluster[pCluster[0] + xM]?.[
-            pCluster[1] + yM
-          ]?.forEach((t) => {
-            if (
-              getDistance2d(p.buildPoint.x, p.buildPoint.y, t.x, t.y) <
-                defly.TOWER_WIDTH + defly.PLAYER_WIDTH &&
-              t.team == p.team
-            ) {
-              if(p.connectedTo.id !== false && !p.isShooting){
-                //connect towers
-                let wallHasToBePlaced = true;
-                t.connectedTo.forEach(c => {if(c.id == p.connectedTo.id)wallHasToBePlaced = false;});
-                t.connectedFrom.forEach(c => {if(c.id == p.connectedTo.id)wallHasToBePlaced = false;});
-                if(wallHasToBePlaced){
-                  this.handleWallPlacement(p.connectedTo, t, p.team);
-                }
-              }
-              p.connectedTo.id = t.id;
-              p.connectedTo.x = t.x;
-              p.connectedTo.y = t.y;
-            }
-          });
-        }
-      }
-      DC.checkPlayerWallCollision();
-    } else {
-      p.position.x +=
-        p.isStuck.x * DC.player.copter.copterSpeed * DC.localDelta;
-      p.position.y +=
-        p.isStuck.y * DC.player.copter.copterSpeed * DC.localDelta;
-      DC.checkPlayerWallCollision();
-    }
-    //if player is outside map...
-    switch (DC.mapData.shape) {
-      case 0: {
-        //rectangle
-        p.position.x =
-          p.position.x < 0
-            ? 0
-            : p.position.x > DC.mapData.width
-            ? DC.mapData.width
-            : p.position.x;
-        p.position.y =
-          p.position.y < 0
-            ? 0
-            : p.position.y > DC.mapData.height
-            ? DC.mapData.height
-            : p.position.y;
-        break;
-      }
-      case 1: {
-        //hexagon
-        let cX = DC.mapData.width / 2,
-          cY = DC.mapData.height / 2,
-          pX = p.position.x,
-          pY = p.position.y;
-        bounds = DC.mapData.bounds;
-        //radious = cX
-        for (c = 0; c < 6; c++) {
-          //check whether position is outside hex map bounds
-          if (
-            isIntersecting(
-              pX,
-              pY,
-              cX,
-              cY,
-              bounds[c * 2],
-              bounds[1 + c * 2],
-              bounds[(2 + c * 2) % 12],
-              bounds[(3 + c * 2) % 12]
-            )
-          ) {
-            let [sin, cos] = [
-                Math.sin((Math.PI / 3) * c),
-                Math.cos((Math.PI / 3) * c),
-              ],
-              [x, y] = [pX - cX, pY - cY];
-            let xC = x * cos - y * sin + 0.5 * cX,
-              fraction = (xC > cX ? cX : xC < 0 ? 0 : xC) / cX,
-              deltaX = bounds[(2 + c * 2) % 12] - bounds[c * 2],
-              deltaY = bounds[(3 + c * 2) % 12] - bounds[1 + c * 2],
-              tx = bounds[c * 2] + deltaX * fraction,
-              ty = bounds[1 + c * 2] + deltaY * fraction;
-            p.position.x = tx; // < 0 ? 0 : tx > DC.mapData.width ? DC.mapData.width : tx;
-            p.position.y = ty; // < 0 ? 0 : ty > DC.mapData.height ? DC.mapData.height : ty;
-            break;
-          } else if (pX < 0) p.position.x = 0;
-          else if (pX > DC.mapData.width) p.position.x = DC.mapData.width;
-        }
-        break;
-      }
-      case 2: {
-        //circle
-        let radious = DC.mapData.width / 2,
-          xDif = p.position.x - radious,
-          yDif = p.position.y - radious,
-          e = (xDif ** 2 + yDif ** 2) ** 0.5 / radious;
-        if (e > 1) {
-          p.position.x = radious + xDif / e;
-          p.position.y = radious + yDif / e;
-        }
-        break;
-      }
-    }
-    camera.position.x = p.position.x;
-    camera.position.y = p.position.y;
+  updateBots: function() {
+    if(!(DC.frameCounter%5)) DC.updateBotMind();//update every 5 frames
+    /*DC.updateBotPosition();
+    DC.checkBotShoot();
+    DC.checkBotBuild();*/
   },
-  checkPlayerWallCollision: function () {
-    let p = DC.player;
-    p.isStuck = false;
+  updateBotMind: function () {
+    this.players.forEach(b => {
+      if(b.isBot && b.isAlive){
+        let p = this.players[0];
+        b.velocity.x = p.position.x-b.position.x;
+        b.velocity.y = p.position.y-b.position.y;
+        if(((b.position.x-p.position.x)**2+(b.position.y-p.position.y)**2)**.5 < 10*defly.GRID_WIDTH) {
+          b.aimingAt.x = p.position.x-b.position.x;
+          b.aimingAt.y = p.position.y-b.position.y;
+          b.isShooting = true;
+        } else {
+          b.isShooting = false;
+        }
+      }
+    });
+
+  },
+  updatePlayerPosition: function () {
+    DC.players.forEach((p, imp) => {
+      p.hasMoved = false;
+      if (p.isStuck === false && this.allowPlayerMovement) {
+        //update position
+        if(p.isBot){
+          let normalizer = 1/(p.velocity.x**2+p.velocity.y**2)**.5;
+          normalizer = isNaN(0*normalizer) ? 0 : normalizer;
+          p.position.x += p.velocity.x * normalizer * p.copter.copterSpeed * DC.localDelta;
+          p.position.y += p.velocity.y * normalizer * p.copter.copterSpeed * DC.localDelta;
+          p.hasMoved = !!normalizer;
+        } else {
+          let xVel = p.velocity.xP - p.velocity.xN,
+            yVel = p.velocity.yP - p.velocity.yN,
+            xModif = xVel * (yVel ? 0.71 : 1),
+            yModif = yVel * (xVel ? 0.71 : 1);
+          p.position.x += xModif * p.copter.copterSpeed * DC.localDelta;
+          p.position.y += yModif * p.copter.copterSpeed * DC.localDelta;
+          p.hasMoved = !!(xModif || yModif);
+        }
+  
+        //check if on top of tower: connect
+        let pCluster = DC.getClusterOrigin({x:p.buildPoint.x,y:p.buildPoint.y});
+        for (let yM = -1; yM < 2; yM++) {
+          for (let xM = -1; xM < 2; xM++) {
+            DC.mapData.towerCluster[pCluster[0] + xM]?.[
+              pCluster[1] + yM
+            ]?.forEach((t) => {
+              if (
+                getDistance2d(p.buildPoint.x, p.buildPoint.y, t.x, t.y) <
+                  defly.TOWER_WIDTH + defly.PLAYER_WIDTH &&
+                t.team == p.team
+              ) {
+                if(p.connectedTo.id !== false && !p.isShooting){
+                  //connect towers
+                  let wallHasToBePlaced = true;
+                  t.connectedTo.forEach(c => {if(c.id == p.connectedTo.id)wallHasToBePlaced = false;});
+                  t.connectedFrom.forEach(c => {if(c.id == p.connectedTo.id)wallHasToBePlaced = false;});
+                  if(wallHasToBePlaced){
+                    this.handleWallPlacement(p.connectedTo, t, p.team);
+                  }
+                }
+                p.connectedTo.id = t.id;
+                p.connectedTo.x = t.x;
+                p.connectedTo.y = t.y;
+              }
+            });
+          }
+        }
+        p.isStuck = DC.getPlayerWallCollision(p.position, p.team, p.id);
+      } else if(this.allowPlayerMovement){
+        p.position.x +=
+          p.isStuck.x * p.copter.copterSpeed * DC.localDelta;
+        p.position.y +=
+          p.isStuck.y * p.copter.copterSpeed * DC.localDelta;
+        p.hasMoved = true;
+        p.isStuck = DC.getPlayerWallCollision(p.position, p.team, p.id);
+      }
+      //if player is outside map...
+      p.position = this.snapPointIntoMap(p.position);
+      
+      if(!imp){
+        camera.position.x = p.position.x;
+        camera.position.y = p.position.y;
+      }
+    });
+  },
+  /*updateBotPosition: function(){
+    this.bots.forEach(b => {
+      if(b.isStuck === false && this.allowPlayerMovement){
+        //update position
+        let normalizer = 1/(b.velocity.x**2+b.velocity.y**2)**.5;
+        normalizer = isNaN(0*normalizer) ? 0 : normalizer;
+        b.position.x += b.velocity.x * normalizer * b.copter.copterSpeed * DC.localDelta;
+        b.position.y += b.velocity.y * normalizer * b.copter.copterSpeed * DC.localDelta;
+  
+        //check if on top of tower: connect
+        let pCluster = DC.getClusterOrigin({x:b.buildPoint.x,y:b.buildPoint.y});
+        for (let yM = -1; yM < 2; yM++) {
+          for (let xM = -1; xM < 2; xM++) {
+            DC.mapData.towerCluster[pCluster[0] + xM]?.[
+              pCluster[1] + yM
+            ]?.forEach((t) => {
+              if (
+                getDistance2d(b.buildPoint.x, b.buildPoint.y, t.x, t.y) <
+                  defly.TOWER_WIDTH + defly.PLAYER_WIDTH &&
+                t.team == b.team
+              ) {
+                if(b.connectedTo.id !== false && !b.isShooting){
+                  //connect towers
+                  let wallHasToBePlaced = true;
+                  t.connectedTo.forEach(c => {if(c.id == b.connectedTo.id)wallHasToBePlaced = false;});
+                  t.connectedFrom.forEach(c => {if(c.id == b.connectedTo.id)wallHasToBePlaced = false;});
+                  if(wallHasToBePlaced){
+                    this.handleWallPlacement(b.connectedTo, t, b.team);
+                  }
+                }
+                b.connectedTo.id = t.id;
+                b.connectedTo.x = t.x;
+                b.connectedTo.y = t.y;
+              }
+            });
+          }
+        }
+        b.isStuck = DC.getPlayerWallCollision(b.position, b.team, b.id);
+      } else if(this.allowPlayerMovement){
+        b.position.x +=
+          b.isStuck.x * b.copter.copterSpeed * DC.localDelta;
+        b.position.y +=
+          b.isStuck.y * b.copter.copterSpeed * DC.localDelta;
+        b.isStuck = DC.getPlayerWallCollision(b.position);
+      }
+      b.position = this.snapPointIntoMap(b.position, b.team, b.id);
+    });
+  },*/
+  getPlayerWallCollision: function (pos, team, id) {
+    let isStuck = false;
     let bA = { x: 0, y: 0 },
       bC = 0;
-    pP = p.position;
 
-    let pCluster = DC.getClusterOrigin();
+    let pCluster = DC.getClusterOrigin(pos);
     for (let yM = -30; yM < 31; yM++) {
       //limmited to standard max wall length
       for (let xM = -30; xM < 31; xM++) {
         DC.mapData.wallCluster[pCluster[0] + xM]?.[pCluster[1] + yM]?.forEach(
           (wall) => {
-            if (wall.team != p.team) {
+            if (wall.team != team) {
               let distance = getDistanceToLine2d(
                 wall.from.x,
                 wall.from.y,
                 wall.to.x,
                 wall.to.y,
-                pP.x,
-                pP.y
+                pos.x,
+                pos.y
               );
               if (distance < defly.WALL_WIDTH / 2 + defly.PLAYER_WIDTH) {
                 //colliding
                 if (wall.team == 1) {
-                  p.isStuck = true;
+                  isStuck = true;
                   //grey wall, bounce player
                   bC++;
                   let wallVector = [
@@ -5104,14 +5202,14 @@ const DC = {
                       getDistance2d(
                         rightVector[0] + wall.from.x,
                         rightVector[1] + wall.from.y,
-                        pP.x,
-                        pP.y
+                        pos.x,
+                        pos.y
                       ) <
                       getDistance2d(
                         -rightVector[0] + wall.from.x,
                         -rightVector[1] + wall.from.y,
-                        pP.x,
-                        pP.y
+                        pos.x,
+                        pos.y
                       )
                         ? 1
                         : -1,
@@ -5120,8 +5218,8 @@ const DC = {
                   bA.x += normalizer * rightVector[0];
                   bA.y += normalizer * rightVector[1];
                 } else {
-                  this.explodeArea(pP.x,pP.y,5,p.team,true);//5 = radius, has to be bound to player experience points later
                   //enemy wall, die
+                  this.killPlayer(id);
                 }
               }
             }
@@ -5130,81 +5228,83 @@ const DC = {
       }
     }
 
-    if (p.isStuck) {
+    if (isStuck) {
       if ((bA.x ** 2 + bA.y ** 2) ** 0.5 == 0) {
-        p.isStuck = false;
+        isStuck = false;
       } else {
         let normalizer = 1 / (bA.x ** 2 + bA.y ** 2) ** 0.5;
-        p.isStuck = {
+        isStuck = {
           x: normalizer * bA.x,
           y: normalizer * bA.y,
         };
       }
     }
+    return isStuck;
   },
   checkBuild: function () {
-    let p = DC.player;
-    if (!p.wantsToBuild) return;
-    p.wantsToBuild = false;
-    if (p.isShooting) return;
-    //check if player too close to tower, wall
-    let x = p.buildPoint.x,
-      y = p.buildPoint.y;
-    let cId = p.connectedTo.id,
-      pTeam = p.team;
-    let canBuildHere = true;
-    let pCluster = DC.getClusterOrigin({x:x,y:y});
-    for (let yM = -2; yM < 3; yM++) {
-      for (let xM = -2; xM < 3; xM++) {
-        DC.mapData.towerCluster[pCluster[0] + xM]?.[pCluster[1] + yM]?.forEach(
-          (tower) => {
-            if (getDistance2d(tower.x, tower.y, x, y) < defly.GRID_WIDTH) {
-              canBuildHere = false;
-              if(tower.team == p.team) {
-                tower.hp = tower.maxHp;
-                tower.damaged = 0;
-              }
-            }
-          }
-        );
-      }
-    }
-    if (canBuildHere) {
+    DC.players.forEach(p => {
+      if (!p.wantsToBuild) return;
+      p.wantsToBuild = false;
+      if (p.isShooting) return;
+      //check if player too close to tower, wall
+      let x = p.buildPoint.x,
+        y = p.buildPoint.y;
+      let cId = p.connectedTo.id,
+        pTeam = p.team;
+      let canBuildHere = true;
       let pCluster = DC.getClusterOrigin({x:x,y:y});
-      for (let yM = -30; yM < 31; yM++) {
-        for (let xM = -30; xM < 31; xM++) {
-          DC.mapData.wallCluster[pCluster[0] + xM]?.[pCluster[1] + yM]?.forEach(
-            (wall) => {
-              if (
-                wall.team != 1 &&
-                getDistanceToLine2d(
-                  wall.from.x,
-                  wall.from.y,
-                  wall.to.x,
-                  wall.to.y,
-                  x,
-                  y
-                ) <
-                  defly.WALL_WIDTH + defly.TOWER_WIDTH
-              )
+      for (let yM = -2; yM < 3; yM++) {
+        for (let xM = -2; xM < 3; xM++) {
+          DC.mapData.towerCluster[pCluster[0] + xM]?.[pCluster[1] + yM]?.forEach(
+            (tower) => {
+              if (getDistance2d(tower.x, tower.y, x, y) < defly.GRID_WIDTH) {
                 canBuildHere = false;
+                if(tower.team == p.team) {
+                  tower.hp = tower.maxHp;
+                  tower.damaged = 0;
+                }
+              }
             }
           );
         }
       }
-    }
-    if (canBuildHere) {
-      let startTower = {
-        x: x,
-        y: y,
-        id: this.placeTower(x, y, pTeam, p.tower.health),
+      if (canBuildHere) {
+        let pCluster = DC.getClusterOrigin({x:x,y:y});
+        for (let yM = -30; yM < 31; yM++) {
+          for (let xM = -30; xM < 31; xM++) {
+            DC.mapData.wallCluster[pCluster[0] + xM]?.[pCluster[1] + yM]?.forEach(
+              (wall) => {
+                if (
+                  wall.team != 1 &&
+                  getDistanceToLine2d(
+                    wall.from.x,
+                    wall.from.y,
+                    wall.to.x,
+                    wall.to.y,
+                    x,
+                    y
+                  ) <
+                    defly.WALL_WIDTH + defly.TOWER_WIDTH
+                )
+                  canBuildHere = false;
+              }
+            );
+          }
+        }
       }
-      let endTower = p.connectedTo;
-      this.innitialDepth = 0;
-      if (! (cId===false)) {
-        this.handleWallPlacement(startTower, endTower, pTeam);
+      if (canBuildHere) {
+        let startTower = {
+          x: x,
+          y: y,
+          id: this.placeTower(x, y, pTeam, p.tower.health),
+        }
+        let endTower = p.connectedTo;
+        this.innitialDepth = 0;
+        if (! (cId===false)) {
+          this.handleWallPlacement(startTower, endTower, pTeam);
+        }
       }
-    }
+    });
   },
   placeTower: function (x, y, team, hp=1, id = Number(DC.highestId) + 1) {
     if (this.highestId < id) this.highestId = id; //!here
@@ -5257,7 +5357,7 @@ const DC = {
                   tower.y
                 );
                 if (tDtWall < defly.WALL_WIDTH + defly.TOWER_WIDTH) {
-                  if (tower.team != this.player.team) {
+                  if (tower.team != this.players[0].team) {
                     wallCanBePlaced = false;
                   } else {
                     wallIntersections.towers.push(tower);
@@ -5290,7 +5390,7 @@ const DC = {
                     wall.to.y
                   )
                 ) {
-                  if (wall.team != this.player.team) {
+                  if (wall.team != this.players[0].team) {
                     wallCanBePlaced = false;
                   } else {
                     wallIntersections.walls.push(wall);
@@ -5378,48 +5478,73 @@ const DC = {
     }
   },
   checkShoot: function () {
-    let p = DC.player;
-    if (p.shootingCooldown > 0) p.shootingCooldown -= DC.localDelta;
-    if (p.isShooting && p.shootingCooldown <= 0) {
-      //spawn a bullet
-      DC.createBullets(
-        p.position,
-        p.aimingAt,
-        p.copter.inaccuracy,
-        p.copter.bulletSpeed,
-        p.copter.bulletLifespan,
-        p.copter.bulletCount,
-        p.id
-      );
-      //gameData.bullets.push({position : {x : player.position.x, y : player.position.y}, velocity : {x : -20, y : 10}, lifespawn : 5})
-      p.shootingCooldown = DC.player.copter.reloadTime;
-    }
-
-    //also checking for powers here
-    if(p.wantsToUsePower) {
-      p.wantsToUsePower = false;
-      switch(this.gameMode){
-        case 'defuse':{
-          //check whether can throw emp
-          //...
-          let data = {
-            type: 'emp',
-            x: p.position.x,
-            y: p.position.y,
-            maxVelocity: {
-              x: 2*(p.aimingAt.x - camera.offset.x)*camera.zoom,
-              y: 2*(p.aimingAt.y - camera.offset.y)*camera.zoom,
-            },
-            fuse: 3,
-            radius: 4,
-            team: p.team,
+    DC.players.forEach(p => {
+      let aim = {
+        x: p.aimingAt.x  - camera.offset.x,
+        y: p.aimingAt.y  - camera.offset.y,
+      }
+      if(p.isBot) aim = p.aimingAt;
+      if (p.shootingCooldown > 0) p.shootingCooldown -= DC.localDelta;
+      if (p.isShooting && p.shootingCooldown <= 0) {
+        //spawn a bullet
+        DC.createBullets(
+          p.position,
+          aim,
+          p.copter.inaccuracy,
+          p.copter.bulletSpeed,
+          p.copter.bulletLifespan,
+          p.copter.bulletCount,
+          p.id
+        );
+        //gameData.bullets.push({position : {x : player.position.x, y : player.position.y}, velocity : {x : -20, y : 10}, lifespawn : 5})
+        p.shootingCooldown = p.copter.reloadTime;
+      }
+  
+      //also checking for powers here
+      if(p.wantsToUsePower) {
+        p.wantsToUsePower = false;
+        switch(this.gameMode){
+          case 'defuse':{
+            //check whether can throw emp
+            //...
+            let data = {
+              type: 'emp',
+              x: p.position.x,
+              y: p.position.y,
+              maxVelocity: {
+                x: 2*(aim.x)*camera.zoom,
+                y: 2*(aim.y - camera.offset.y)*camera.zoom,
+              },
+              fuse: 3,
+              radius: 5,
+              team: p.team,
+            }
+            this.gameData.activeItems.push(data);
+            break;
           }
-          this.gameData.activeItems.push(data);
-          break;
         }
       }
-    }
+    });
   },
+  /*checkBotShoot: function(){
+    DC.bots.forEach(b => {
+      if (b.shootingCooldown > 0) b.shootingCooldown -= DC.localDelta;
+      if (b.isShooting && b.shootingCooldown <= 0) {
+        //spawn a bullet
+        DC.createBullets(
+          b.position,
+          b.aimingAt,
+          b.copter.inaccuracy,
+          b.copter.bulletSpeed,
+          b.copter.bulletLifespan,
+          b.copter.bulletCount,
+          b.id
+        );
+        //gameData.bullets.push({position : {x : player.position.x, y : player.position.y}, velocity : {x : -20, y : 10}, lifespawn : 5})
+        b.shootingCooldown = b.copter.reloadTime;
+      }
+    });
+  },*/
   createBullets: function (
     position,
     aim,
@@ -5429,11 +5554,10 @@ const DC = {
     bulletCount,
     owner
   ) {
-    let offset = camera.offset;
     for (let c = -((bulletCount - 1) / 2); c < (bulletCount - 1) / 2 + 1; c++) {
-      let left = aim.x >= offset.x ? 0 : Math.PI;
+      let left = aim.x >= 0 ? 0 : Math.PI;
       let shootingAngle =
-        Math.atan((aim.y - offset.y) / (aim.x - offset.x)) + left;
+        Math.atan((aim.y) / (aim.x)) + left;
       shootingAngle +=
         randomFloat(-Math.PI * inaccuracy, Math.PI * inaccuracy) +
         inaccuracy * c * 2 * Math.PI;
@@ -5465,80 +5589,94 @@ const DC = {
       bullet.p.y += bullet.v.y * DC.localDelta;
       //check for collisions with walls, players, towers
 
-      //walls
-      let cO = this.getClusterOrigin(bullet.p);
-      for (let yM = -30; yM < 31; yM++) {
-        for (let xM = -30; xM < 31; xM++) {
-          DC.mapData.wallCluster[cO[0] + xM]?.[cO[1] + yM]?.forEach((wall) => {
-            if (wall.team != bullet.t && notBounced) {
-              let xT1 = wall.from.x;
-              let yT1 = wall.from.y;
-              let xT2 = wall.to.x;
-              let yT2 = wall.to.y;
-              let bulletDistanceToWall = getDistanceToLine2d(
-                xT1,
-                yT1,
-                xT2,
-                yT2,
-                bullet.p.x,
-                bullet.p.y
-              );
-              if (
-                bulletDistanceToWall * 2 <=
-                defly.WALL_WIDTH + defly.BULLET_WIDTH
-              ) {
-                notBounced = false;
-                bounceAngle += DC.getBounceBulletAngle(
-                  bullet.v,
-                  { x: xT1, y: yT1 },
-                  { x: xT2, y: yT2 }
-                );
-              }
-            }
-          });
-        }
-      }
-      if (!notBounced) {
-        bullet.v = DC.bounceBullet(bullet.v, bounceAngle);
-      }
-
-      //towers
       let bAlive = true;
-      for (let yM = -1; yM < 2; yM++) {
-        for (let xM = -1; xM < 2; xM++) {
-          DC.mapData.towerCluster[cO[0] + xM]?.[cO[1] + yM]?.forEach(
-            (tower) => {
-              if (tower.team != bullet.t && bAlive) {
-                let distanceToBullet = getDistance2d(
-                  tower.x,
-                  tower.y,
+      //players/bots
+      let pB = bullet.p;
+      this.players.forEach(p => {
+        if(bullet.t != p.team && bAlive){
+          let pP=p.position;
+          if(getDistance2d(pB.x,pB.y,pP.x,pP.y) < defly.BULLET_WIDTH + defly.PLAYER_WIDTH){
+            //player ded (unless active shield)
+            this.killPlayer(p.id);
+            bAlive = false;
+          }
+        }
+      });
+
+      if(bAlive){
+        //walls
+        let cO = this.getClusterOrigin(bullet.p);
+        for (let yM = -30; yM < 31; yM++) {
+          for (let xM = -30; xM < 31; xM++) {
+            DC.mapData.wallCluster[cO[0] + xM]?.[cO[1] + yM]?.forEach((wall) => {
+              if (wall.team != bullet.t && notBounced) {
+                let xT1 = wall.from.x;
+                let yT1 = wall.from.y;
+                let xT2 = wall.to.x;
+                let yT2 = wall.to.y;
+                let bulletDistanceToWall = getDistanceToLine2d(
+                  xT1,
+                  yT1,
+                  xT2,
+                  yT2,
                   bullet.p.x,
                   bullet.p.y
                 );
-                if (distanceToBullet < defly.BULLET_WIDTH + defly.TOWER_WIDTH) {
-                  if(tower?.isShielded){
-                    //get intersetion point
-                    let iP = getLineCircleIntersections({radius:defly.BULLET_WIDTH + defly.TOWER_WIDTH,center:{x:tower.x,y:tower.y}},{p1:{x:bullet.p.x,y:bullet.p.y},p2:{x:bullet.p.x-bullet.v.x*DC.localDelta,y:bullet.p.y-bullet.v.y*DC.localDelta}});
-                    bullet.p = iP[0] ? iP[0] : bullet.p;
+                if (
+                  bulletDistanceToWall * 2 <=
+                  defly.WALL_WIDTH + defly.BULLET_WIDTH
+                ) {
+                  notBounced = false;
+                  bounceAngle += DC.getBounceBulletAngle(
+                    bullet.v,
+                    { x: xT1, y: yT1 },
+                    { x: xT2, y: yT2 }
+                  );
+                }
+              }
+            });
+          }
+        }
+        if (!notBounced) {
+          bullet.v = DC.bounceBullet(bullet.v, bounceAngle);
+        }
 
-                  } else {
-                    bAlive = false;
-                    bullet.l = 0;
-                    if (tower.team != 1) {
-                      tower.hp -= 1;//why does this work and not crash if -hp doesn't exist?? and why does it crash if I ask for ptional chaining?
-                      if(!tower?.hp) DC.deleteTower(tower.id, { x: tower.x, y: tower.y });
-                      else {
-                        tower.damaged = 1-tower.hp/tower.maxHp;
-                      }
-                    } //only if not grey tower
+        //towers
+        for (let yM = -1; yM < 2; yM++) {
+          for (let xM = -1; xM < 2; xM++) {
+            DC.mapData.towerCluster[cO[0] + xM]?.[cO[1] + yM]?.forEach(
+              (tower) => {
+                if (tower.team != bullet.t && bAlive) {
+                  let distanceToBullet = getDistance2d(
+                    tower.x,
+                    tower.y,
+                    bullet.p.x,
+                    bullet.p.y
+                  );
+                  if (distanceToBullet < defly.BULLET_WIDTH + defly.TOWER_WIDTH) {
+                    if(tower?.isShielded){
+                      //get intersetion point
+                      let iP = getLineCircleIntersections({radius:defly.BULLET_WIDTH + defly.TOWER_WIDTH,center:{x:tower.x,y:tower.y}},{p1:{x:bullet.p.x,y:bullet.p.y},p2:{x:bullet.p.x-bullet.v.x*DC.localDelta,y:bullet.p.y-bullet.v.y*DC.localDelta}});
+                      bullet.p = iP[0] ? iP[0] : bullet.p;
+
+                    } else {
+                      bAlive = false;
+                      if (tower.team != 1) {
+                        tower.hp -= 1;//why does this work and not crash if -hp doesn't exist?? and why does it crash if I ask for ptional chaining?
+                        if(!tower?.hp) DC.deleteTower(tower.id, { x: tower.x, y: tower.y });
+                        else {
+                          tower.damaged = 1-tower.hp/tower.maxHp;
+                        }
+                      } //only if not grey tower
+                    }
                   }
                 }
               }
-            }
-          );
+            );
+          }
         }
       }
-
+      if(!bAlive) bullet.l = 0;
       bullet.l -= DC.localDelta;
       if (bullet.l <= 0) fadedBullets.push(bIndex);
     });
@@ -5571,7 +5709,7 @@ const DC = {
         tower = structuredClone(t);
         //delete tower
         this.mapData.towerCluster[cP[0]][cP[1]].splice(idx, 1);
-        if(id == this.player.connectedTo.id) this.player.connectedTo.id = false;
+        this.players.forEach(p => {if(p.connectedTo.id == id)p.connectedTo.id = false;});
       }
     });
     tower.connectedTo.forEach((con) => {
@@ -5607,9 +5745,20 @@ const DC = {
     });
   },
 
+  killPlayer: function(playerId) {
+    this.players.forEach(p => {
+      if(p.id == playerId) {
+        this.explodeArea(p.position.x,p.position.y,5,p.team,true);//5 = radius, has to be bound to player experience points later
+        p.isAlive = false;
+        p.score = 0;
+      }
+    })
+  },
+
   updateOtherStuff: function () {
     this.updateActiveItems();
     this.updateBuildPoint();
+    this.updatePhases();
   },
 
   updateActiveItems: function(){
@@ -5637,16 +5786,25 @@ const DC = {
   },
 
   explodeArea: function(x,y,radius,team,invert=false){ //radius in units; invert = only explode from team
-    let cO = this.getClusterOrigin({x:x,y:y});
+    let cO = this.getClusterOrigin({x:x,y:y}),
+      towersToDelete = [];
     for(let yM=-radius-1;yM<=radius+1;yM++){
       for(let xM=-radius-1;xM<=radius+1;xM++){
         this.mapData.towerCluster[cO[0] + xM]?.[cO[1] + yM]?.forEach((t) => {
           if(t.team != 1 && (t.team==team)==invert && ((t.x-x)**2+(t.y-y)**2)**.5<=radius*defly.UNIT_WIDTH) {
-            this.deleteTower(t.id,{x:t.x,y:t.y});
+            let deletionData = {
+              id: t.id,
+              x:t.x,
+              y:t.y,
+            };
+            towersToDelete.push(deletionData);
           }
         });
       }
     }
+    towersToDelete.forEach(t => {
+      this.deleteTower(t.id,{x:t.x,y:t.y,});
+    });
     this.animations.push({
       type: 'explosion',
       maxRadius: radius,
@@ -5657,30 +5815,133 @@ const DC = {
   },
 
   updateBuildPoint: function(x,y) {
+    let p = DC.players[0];
     if(typeof (y) == 'number'){
       let v = [(x-camera.offset.x)*camera.zoom,(y-camera.offset.y)*camera.zoom],
           n = (v[0]**2+v[1]**2)**.5,
-          b = this.player.tower.buildRange,
+          b = p.tower.buildRange,
           m = n < b ? 1 : b / n,
-          p = this.player.position;
-      this.player.relativeBuildPoint.x = v[0] * m;
-      this.player.relativeBuildPoint.y = v[1] * m;
-      this.player.buildPoint.x = p.x + v[0] * m;
-      this.player.buildPoint.y = p.y + v[1] * m;
+          pos = p.position;
+      p.relativeBuildPoint.x = v[0] * m;
+      p.relativeBuildPoint.y = v[1] * m;
+      p.buildPoint.x = pos.x + v[0] * m;
+      p.buildPoint.y = pos.y + v[1] * m;
     } else {
-      let p = this.player.position;
-      this.player.buildPoint.x = this.player.relativeBuildPoint.x + p.x;
-      this.player.buildPoint.y = this.player.relativeBuildPoint.y + p.y;
+      let pos = p.position;
+      p.buildPoint.x = p.relativeBuildPoint.x + pos.x;
+      p.buildPoint.y = p.relativeBuildPoint.y + pos.y;
     }
-    this.player.buildPoint = this.snapPointIntoMap(this.player.buildPoint);
+    p.buildPoint = this.snapPointIntoMap(p.buildPoint);
+  },
+
+  updatePhases: function(){
+    switch(this.gameMode){
+      case 'defuse':{
+        switch(this.gamePhase){
+          case 'casual':{
+            break;
+          }
+          case 'pre-round':{
+            this.defuseData.timer -= this.localDelta;
+            if(this.defuseData.timer <= 0) {
+              this.allowPlayerMovement = true;
+              this.gamePhase = 'pre-plant';
+              this.defuseData.timer += 180; //3 min
+            }
+            break;
+          }
+          case 'pre-plant':{
+            this.defuseData.timer -= this.localDelta;
+            this.players.forEach(p => {
+              if(p.team == 3){ //red
+                this.defuseData.planting.forEach((Bp, idx) => {
+                  if(Bp.plantId === p.id) {
+                    if(p.hasMoved) {
+                      Bp.plantId = -1; //disabled for this tick
+                      Bp.charge = 0;
+                    } else Bp.charge += this.localDelta / defly.PLANTING_TIME;
+                  } else if(!p.hasMoved && Bp.plantId === 0) {
+                    let pos = p.position, bomb = this.mapData.bombs[idx];
+                    if(getDistance2d(pos.x,pos.y,bomb.x,bomb.y) < defly.BOMB_RADIUS) {
+                      Bp.plantId = p.id;
+                      Bp.charge = this.localDelta / defly.PLANTING_TIME;
+                    }
+                  }
+                  if(Bp.charge >= 1) {
+                    Bp.charge = 1;
+                    this.defuseData.planted = true;
+                    this.gamePhase = 'post-plant';
+                    this.defuseData.timer = 60;
+                  }
+                });
+              }
+            });
+            this.defuseData.planting.forEach(b => {if(b.plantId === -1) b.plantId = 0;});
+            if(this.defuseData.timer <= 0) {
+              this.gamePhase = 'post-round';
+              this.defuseData.timer += 5;
+            }
+            break;
+          }
+          case 'post-plant':{
+            this.defuseData.timer -= this.localDelta;
+            this.players.forEach(p => {
+              if(p.team == 2){ //blue
+                this.defuseData.planting.forEach((Bp, idx) => {
+                  if(Bp.charge){
+                    if(Bp.defuseId === p.id) {
+                      if(p.hasMoved) {
+                        Bp.defuseId = -1; //disabled for this tick
+                        Bp.charge = 1;
+                      } else Bp.charge -= this.localDelta / defly.DEFUSING_TIME;
+                    } else if(!p.hasMoved && Bp.charge === 1) {
+                      let pos = p.position, bomb = this.mapData.bombs[idx];
+                      if(getDistance2d(pos.x,pos.y,bomb.x,bomb.y) < defly.BOMB_RADIUS) {
+                        Bp.defuseId = p.id;
+                        Bp.charge = 1 - this.localDelta / defly.DEFUSING_TIME;
+                      }
+                    }
+                    if(Bp.charge <= 0) {
+                      Bp.charge = 0;
+                      this.defuseData.planted = false;
+                      this.gamePhase = 'post-round';
+                      this.defuseData.timer = 5;
+                    }
+                  }
+                });
+              }
+            });
+            this.defuseData.planting.forEach(b => {if(b.defuseId === -1) b.defuseId = 0;});
+            if(this.defuseData.timer <= 0) {
+              //explode bomb
+              //this.explodeArea(...)
+              this.gamePhase = 'post-round';
+              this.defuseData.timer += 5;
+            }
+            break;
+          }
+          case 'post-round':{
+            this.defuseData.timer -= this.localDelta;
+            if(this.defuseData.timer <= 0) {
+              this.allowPlayerMovement = false;
+              this.prepareDefuseRound();
+              this.gamePhase = 'pre-round';
+              this.defuseData.timer += 10;
+            }
+            break;
+          }
+        }
+      }
+    }
   },
 
   changePlayerTeam: function(newTeam) {
     let realTeam = newTeam < 1 ? 1 : newTeam > 14 ? 14 : Math.floor(newTeam);
-    if(this.player.team != realTeam){
-      this.player.team = realTeam;
-      this.gameData.idToTeam[`id${this.player.id}`]=realTeam;
-      this.player.connectedTo.id = false;
+    let p = DC.players[0];
+    if(p.team != realTeam){
+      p.team = realTeam;
+      this.gameData.idToTeam[`id${p.id}`]=realTeam;
+      p.connectedTo.id = false;
     }
     document.querySelector('#DC-menu-player-team').value = realTeam;
   },
@@ -5694,8 +5955,8 @@ const DC = {
         for (let c = 1; c < 8; c++) {
           DC.upgradeCopter(c, 0);
         }
-        DC.slideUpgradeBlock(1);
-        DC.slideUpgradeBlock(0, 'DC-select-defuse-copter');
+        DC.slideUpgradeBlock(0);
+        DC.slideUpgradeBlock(1, 'DC-select-defuse-copter');
         break;
       }
       case 1: {
@@ -5704,8 +5965,8 @@ const DC = {
         for (let c = 1; c < 8; c++) {
           DC.upgradeCopter(c, 0);
         }
-        DC.slideUpgradeBlock(1);
-        DC.slideUpgradeBlock(0, 'DC-select-defuse-copter');
+        DC.slideUpgradeBlock(0);
+        DC.slideUpgradeBlock(1, 'DC-select-defuse-copter');
         break;
       }
       case 2: {
@@ -5714,17 +5975,99 @@ const DC = {
         for (let c = 5; c < 8; c++) {
           DC.upgradeCopter(c, 0);
         }
-        DC.slideUpgradeBlock(0);
-        DC.slideUpgradeBlock(1, 'DC-select-defuse-copter');
+        DC.slideUpgradeBlock(1);
+        DC.slideUpgradeBlock(0, 'DC-select-defuse-copter');
         break;
       }
     }
   },
 
+  prepareDefuseRound: function() {
+    this.reloadMap();
+    this.defuseData.planting.forEach(Bp => {
+      Bp.charge = 0;
+      Bp.plantId = 0;
+      Bp.defuseId = 0;
+    });
+    let bC = 0,
+      rC = 0;
+    this.players.forEach(p => {
+      let t = p.team == 3 ? 1 : 0,s;
+      this.mapData.spawns.forEach(spawn => {
+        if(spawn.t == p.team){
+          s = spawn;
+        }
+      });
+      if(s){
+        let w=(t?rC:bC)%4,
+          h=Math.floor((t?rC:bC)/4),
+          r=4.5*defly.UNIT_WIDTH,
+          xReverse=s.rotation%2,
+          shift=(s.rotation-1)>0,
+          xV=xReverse ? 3-w : w,
+          x = shift ? h : xV,
+          y = shift ? xV : h;
+        p.position.x = ((x/1.5)-1)*r + s.x;
+        p.position.y = ((y/1.5)-1)*r + s.y;
+        console.log(s.rotation);
+      } else console.log('spawn does not exist')
+      if(t) {
+        rC++;
+      } else bC++;
+    });
+  },
+
+  spawnBot: function(position, team){
+    this.highestPlayerId++;
+    let botData = {
+      position: {
+        x: position.x,
+        y: position.y,
+      },
+      aimingAt: {x: 0,y: 0},
+      buildPoint: {x: 0,y: 0},
+      relativeBuildPoint: {x: 0,y: 0},
+      velocity: {x:1,y:0},
+      hasMoved: false,
+      isStuck: false,
+      connectedTo: {
+        id: false,
+        x: 0,
+        y: 0,
+      },
+      team: team,
+      id: this.highestPlayerId,
+      money: 1000,
+      score: 0,
+      isShooting: false,
+      wantsToBuild: false,
+      wantsToUsePower: false,
+      shootingCooldown: 0,
+      //copter: "basic",
+      copter: {
+        copterSpeed: 160,
+        bulletSpeed: 260,
+        bulletLifespan: 1.7,
+        reloadTime: 0.75,
+        inaccuracy: 0,
+        bulletCount: 1,
+      },
+      tower: {
+        buildRange: 0,
+        health: 1,
+        shield: 0,
+      },
+      isAlive: true,
+      isBot: true,
+    };
+    this.players.push(botData);
+    this.gameData.idToTeam[`id${this.highestPlayerId}`] = team;
+  },
+
   slideUpgradeBlock: function(in_view, target='DC-upgrade-block'){
     let e = document.querySelector(`#${target}`),
       action = ['add', 'remove'],
-      m = in_view ?? e.classList.contains('slided-in') ? 0 : 1;
+      m = in_view ?? (e.classList.contains('slided-in') ? 1 : 0);
     e.classList[action[m++%2]]('slided-in');
     e.classList[action[m%2]]('slided-out');
   },
@@ -5757,9 +6100,14 @@ const DC = {
           connectedFrom: [],
         };
         if (t?.isKothTower) data.isKothTower = true;
-        mD.towerCluster[coordToCluster(data.x)][coordToCluster(data.y)].push(
-          data
-        );
+        try{
+          mD.towerCluster[coordToCluster(data.x)][coordToCluster(data.y)].push(
+            data
+          );
+        } catch(err) {
+          console.log('!! ERROR PLACING TOWER !!');
+          console.log(data);
+        }
         if(DC.highestId < t.id) DC.highestId = t.id;
       });
     });
@@ -5845,7 +6193,7 @@ const DC = {
         mD.areas[team].push(data);
       });
     });
-    DC.player.connectedTo.id = false;
+    DC.players[0].connectedTo.id = false;
   },
   pushNewWallConnections: function(from, to) {
     let mD = this.mapData,
@@ -5870,13 +6218,14 @@ const DC = {
     document
       .querySelector(`#DC-select-defuse-copter > .DC-copter-selected`)
       .classList.remove("DC-copter-selected");
-    DC.player.copter = structuredClone(defly.defuseCopter[newCopter]);
+    DC.players[0].copter = structuredClone(defly.defuseCopter[newCopter]);
     document
       .querySelector(`#DC-select-defuse-${newCopter}`)
       .classList.add("DC-copter-selected");
   },
 
   upgradeCopter: function (upgrade, value) {
+    let p = this.players[0];
     switch (upgrade) {
       case 1: {
         //player speed
@@ -5888,7 +6237,7 @@ const DC = {
             (value == 8 || !points[value]?.classList.contains("active"))
               ? value - 1
               : value;
-        this.player.copter.copterSpeed = 132 + (64 / 8) * newVal; //very rough approximation...
+        p.copter.copterSpeed = 132 + (64 / 8) * newVal; //very rough approximation...
         for (let c = 0; c < 8; c++) {
           if (c < newVal) points[c].classList.add("active");
           else points[c].classList.remove("active");
@@ -5905,7 +6254,7 @@ const DC = {
             (value == 8 || !points[value]?.classList.contains("active"))
               ? value - 1
               : value;
-        this.player.copter.bulletLifespan = 1.9 + (1 / 8) * newVal; //very rough approximation...
+        p.copter.bulletLifespan = 1.9 + (1 / 8) * newVal; //very rough approximation...
         for (let c = 0; c < 8; c++) {
           if (c < newVal) points[c].classList.add("active");
           else points[c].classList.remove("active");
@@ -5922,7 +6271,7 @@ const DC = {
             (value == 8 || !points[value]?.classList.contains("active"))
               ? value - 1
               : value;
-        this.player.copter.bulletSpeed = 200 + (100 / 8) * newVal; //very rough approximation...
+        p.copter.bulletSpeed = 200 + (100 / 8) * newVal; //very rough approximation...
         for (let c = 0; c < 8; c++) {
           if (c < newVal) points[c].classList.add("active");
           else points[c].classList.remove("active");
@@ -5939,7 +6288,7 @@ const DC = {
             (value == 8 || !points[value]?.classList.contains("active"))
               ? value - 1
               : value;
-        this.player.copter.reloadTime = 0.7 - (0.3 / 8) * newVal; //very rough approximation...
+        p.copter.reloadTime = 0.7 - (0.3 / 8) * newVal; //very rough approximation...
         for (let c = 0; c < 8; c++) {
           if (c < newVal) points[c].classList.add("active");
           else points[c].classList.remove("active");
@@ -5956,7 +6305,7 @@ const DC = {
             (value == 8 || !points[value]?.classList.contains("active"))
               ? value - 1
               : value;
-        this.player.tower.buildRange = 0.5 * defly.UNIT_WIDTH * newVal; //very rough approximation...
+        p.tower.buildRange = 0.5 * defly.UNIT_WIDTH * newVal; //very rough approximation...
         for (let c = 0; c < 8; c++) {
           if (c < newVal) points[c].classList.add("active");
           else points[c].classList.remove("active");
@@ -5989,7 +6338,7 @@ const DC = {
             (value == 8 || !points[value]?.classList.contains("active"))
               ? value - 1
               : value;
-        this.player.tower.health = Math.floor(1+value/2);
+        p.tower.health = Math.floor(1+value/2);
         for (let c = 0; c < 8; c++) {
           if (c < newVal) points[c].classList.add("active");
           else points[c].classList.remove("active");
@@ -6031,7 +6380,8 @@ const DC = {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     let z = camera.zoom,
-      q = camera.quality;
+      q = camera.quality,
+      p = this.players[0];
     //draw map background
     ctx.fillStyle = DME.visuals.grid_BGC;
     ctx.fillRect(
@@ -6102,10 +6452,10 @@ const DC = {
 
     let mc = DME.mouseCoords.snapped;
     let [pX, pY] = [
-      camera.relative.x(this.player.position.x),
-      camera.relative.y(this.player.position.y),
+      camera.relative.x(p.position.x),
+      camera.relative.y(p.position.y),
     ],
-      [bX, bY] = [camera.relative.x(this.player.buildPoint.x),camera.relative.y(this.player.buildPoint.y)];
+      [bX, bY] = [camera.relative.x(p.buildPoint.x),camera.relative.y(p.buildPoint.y)];
     let cO = this.getClusterOrigin();
 
     let wallWidth = defly.WALL_WIDTH / z;
@@ -6136,6 +6486,39 @@ const DC = {
     expieredAnimations.forEach((a,c) => {
       DC.animations.splice(a-c,1);
       console.log('terminated animation...');
+    });
+
+    //draw bombs
+    DC.mapData.bombs.forEach((bomb, idx) => {
+      let c = this.defuseData.planting[idx].charge,
+        bombRadius = ((6 * defly.UNIT_WIDTH) / z) * q,
+        t = {
+          x: camera.relative.x(bomb.x),
+          y: camera.relative.y(bomb.y),
+        },
+        img = idx ? defly.images.bombB : defly.images.bombA;
+      if(c){
+        ctx.fillStyle = `rgba(255,0,0,.3)`;
+        ctx.beginPath();
+        ctx.moveTo(t.x,t.y);
+        ctx.arc(t.x, t.y, bombRadius, -.5*Math.PI, Math.PI * (2*c - .5), false);
+        ctx.fill();
+      }
+      let currentAlpha = ctx.globalAlpha;
+      if (DC.gameMode != "defuse") ctx.globalAlpha = 0.2 * currentAlpha;
+      ctx.drawImage(
+        img,
+        t.x - bombRadius,
+        t.y - bombRadius,
+        2 * bombRadius,
+        2 * bombRadius
+      );
+      ctx.globalAlpha = currentAlpha;
+      ctx.fillStyle = "black";
+      ctx.font = `${3 + 6 * q}px Verdana`;
+      ctx.fillText(
+        `Charge: ${c.toRounded(3)}`, t.x-20, t.y+90
+      );
     });
 
     //draw areas
@@ -6189,13 +6572,13 @@ const DC = {
     }
     //draw wall preview \/
     if (
-      typeof this.player.connectedTo.id !== "boolean" &&
-      !this.player.isShooting
+      p.connectedTo.id !== false &&
+      !p.isShooting
     ) {
-      let ct = this.player.connectedTo,
+      let ct = p.connectedTo,
         length = getDistance2d(
-          this.player.buildPoint.x,
-          this.player.buildPoint.y,
+          p.buildPoint.x,
+          p.buildPoint.y,
           ct.x,
           ct.y
         );
@@ -6206,7 +6589,7 @@ const DC = {
               ? 1
               : (15 * defly.GRID_WIDTH - length) / (3 * defly.GRID_WIDTH);
         ctx.globalAlpha = 0.5;
-        ctx.strokeStyle = defly.colors.standard[this.player.team];
+        ctx.strokeStyle = defly.colors.standard[p.team];
         ctx.lineWidth = (wallWidth - 4 / z) * widthModif * q;
         ctx.beginPath();
         ctx.moveTo(camera.relative.x(ct.x), camera.relative.y(ct.y));
@@ -6217,7 +6600,7 @@ const DC = {
           [camera.relative.x(ct.x), camera.relative.y(ct.y)],
           (wallWidth / 2 - 1 / z) * widthModif * q
         );
-        ctx.strokeStyle = defly.colors.darkened[this.player.team];
+        ctx.strokeStyle = defly.colors.darkened[p.team];
         ctx.lineWidth = (2 / z) * widthModif * q;
         ctx.beginPath();
         ctx.moveTo(borderLines.line1[0][0], borderLines.line1[0][1]);
@@ -6282,6 +6665,7 @@ const DC = {
         });
       }
     }
+    //draw spawns
     DC.mapData.spawns.forEach((spawn, idx) => {
       let currentAlpha = ctx.globalAlpha;
       if (DC.gameMode != "defuse") ctx.globalAlpha = 0.2 * currentAlpha;
@@ -6296,7 +6680,11 @@ const DC = {
       ctx.fillRect(t.x - sS, t.y - sS, 2 * sS, 2 * sS);
       //triangle, based on spawn rotation
       ctx.fillStyle = defly.colors.standard[col];
+      ctx.font = `${20 / z * q}px Verdana`;
+      ctx.textAlign = 'center';
       ctx.beginPath();
+      let xReverse=false,
+        shift=false;
       switch (spawn.rotation) {
         case 0: {
           ctx.moveTo(t.x - tS, t.y);
@@ -6308,43 +6696,61 @@ const DC = {
           ctx.moveTo(t.x + tS, t.y);
           ctx.lineTo(t.x - tS, t.y - tS);
           ctx.lineTo(t.x - tS, t.y + tS);
+          xReverse=true;
           break;
         }
         case 2: {
           ctx.moveTo(t.x, t.y - tS);
           ctx.lineTo(t.x - tS, t.y + tS);
           ctx.lineTo(t.x + tS, t.y + tS);
+          shift=true;
           break;
         }
         case 3: {
           ctx.moveTo(t.x, t.y + tS);
           ctx.lineTo(t.x - tS, t.y - tS);
           ctx.lineTo(t.x + tS, t.y - tS);
+          shift=true;
+          xReverse=true;
           break;
+        }
+      }
+      let p=1,
+        o=t.y+7/z*q;
+      for(let w=0;w<4;w+=1){
+        for(let h=0;h<4;h+=1){
+          let xVal = xReverse ? 3-w : w,
+            x = shift ? h : xVal,
+            y = shift ? xVal : h;
+          ctx.fillText(
+            `${p}`,
+            t.x + sS*((x/1.5)-1),
+            o + sS*(((y)/1.5)-1)
+          );
+          p++;
         }
       }
       ctx.closePath();
       ctx.fill();
+      ctx.textAlign='start';
       ctx.globalAlpha = currentAlpha;
     });
-    DC.mapData.bombs.forEach((bomb, idx) => {
-      let currentAlpha = ctx.globalAlpha;
-      if (DC.gameMode != "defuse") ctx.globalAlpha = 0.2 * currentAlpha;
-      let bombRadius = ((6 * defly.UNIT_WIDTH) / z) * q,
-        t = {
-          x: camera.relative.x(bomb.x),
-          y: camera.relative.y(bomb.y),
-        },
-        img = idx ? defly.images.bombB : defly.images.bombA;
-      ctx.drawImage(
-        img,
-        t.x - bombRadius,
-        t.y - bombRadius,
-        2 * bombRadius,
-        2 * bombRadius
-      );
-      ctx.globalAlpha = currentAlpha;
-    });
+    //draw tower preview \/
+    if (!p.isShooting) {
+      let gA = ctx.globalAlpha;
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = defly.colors.standard[p.team];
+      ctx.beginPath();
+      ctx.arc(bX, bY, towerWidth * q, 2 * Math.PI, false);
+      ctx.fill();
+      //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
+      ctx.lineWidth = (2 / z) * q;
+      ctx.strokeStyle = defly.colors.standard[p.team];
+      ctx.beginPath();
+      ctx.arc(bX, bY, (towerWidth - 1 / z) * q, 2 * Math.PI, false);
+      ctx.stroke();
+      ctx.globalAlpha = gA;
+    }
     DC.gameData.bullets.forEach((bullet) => {
       ctx.beginPath();
       ctx.fillStyle = defly.colors.standard[bullet.t];
@@ -6388,47 +6794,49 @@ const DC = {
           break;
         }
       }
-    })
+    });
     ctx.lineWidth = 1;
-    ctx.strokeStyle = "red";
+    DC.players.forEach(p => {
+      ctx.strokeStyle = defly.colors.standard[p.team];
+      ctx.beginPath();
+      ctx.arc(camera.relative.x(p.position.x), camera.relative.y(p.position.y), (defly.PLAYER_WIDTH / z) * q, 2 * Math.PI, false);
+      /*ctx.moveTo(pX, pY);
+      ctx.lineTo(p.aimingAt.x, p.aimingAt.y);*/
+      ctx.stroke();
+    });
+    /*ctx.strokeStyle = defly.colors.standard[p.team];;
     ctx.beginPath();
     ctx.arc(pX, pY, (defly.PLAYER_WIDTH / z) * q, 2 * Math.PI, false);
     ctx.moveTo(pX, pY);
-    ctx.lineTo(DC.player.aimingAt.x, DC.player.aimingAt.y);
-    ctx.stroke();
-    //draw tower preview \/
-    if (!this.player.isShooting) {
-      let gA = ctx.globalAlpha;
-      ctx.globalAlpha = 0.5;
-      ctx.fillStyle = defly.colors.standard[this.player.team];
-      ctx.beginPath();
-      ctx.arc(bX, bY, towerWidth * q, 2 * Math.PI, false);
-      ctx.fill();
-      //draw tower twice, once bit darker to create the darkened edge of the tower, just like wall
-      ctx.lineWidth = (2 / z) * q;
-      ctx.strokeStyle = defly.colors.standard[this.player.team];
-      ctx.beginPath();
-      ctx.arc(bX, bY, (towerWidth - 1 / z) * q, 2 * Math.PI, false);
-      ctx.stroke();
-      ctx.globalAlpha = gA;
+    ctx.lineTo(p.aimingAt.x, p.aimingAt.y);
+    ctx.stroke();*/
+
+    //defuse timer & similiar stuff
+    let h = canvas.height;
+    let w = canvas.width;
+    switch(this.gameMode){
+      case 'defuse':{
+        ctx.fillStyle = 'black';
+        ctx.font = `${8 + 12 * q}px Verdana`;
+        let t = Math.floor(this.defuseData.timer)+1,
+          minutes = t/60,
+          seconds = t%60,
+          decMin = Math.floor(minutes/10),
+          min = Math.floor(minutes%10),
+          decSec = Math.floor(seconds/10),
+          sec = seconds%10;
+        ctx.fillText(`${decMin}${min}:${decSec}${sec} (${this.gamePhase})`, w/2 - 150 * q, 30 * q);
+      }
     }
 
     //draw info
-    let h = canvas.height;
-    let w = canvas.width;
     ctx.fillStyle = "black";
-    ctx.font = `${4 + 8 * q}px Verdana`;
+    ctx.font = `${4 + 7 * q}px Verdana`;
     ctx.fillText(
-      `display size: ${canvas.width}x${canvas.height}`,
-      w - 150 * q,
-      h - 70 * q
+      `version: ${version}  size: ${canvas.width}x${canvas.height}  fps: ${(1 / DC.rawDelta).toFixed(2)}  spf: ${DC.rawDelta}`,
+      15 * q,
+      h - 15 * q
     );
-    ctx.fillText(
-      `frames/s: ${(1 / DC.rawDelta).toFixed(2)}`,
-      w - 150 * q,
-      h - 50 * q
-    );
-    ctx.fillText(`s/frame : ${DC.rawDelta}`, w - 150 * q, h - 30 * q);
   },
 
   enterEditMode: function(){
@@ -6530,7 +6938,7 @@ const DC = {
 
   handleInput: function (e) {
     if(DC.blockInput) return;
-    let type, input, extra;
+    let type, input, extra, p = DC.players[0];
     switch (e.type) {
       case "mousedown": {
         type = "button_down";
@@ -6577,43 +6985,43 @@ const DC = {
         switch (input) {
           case DC.hotkeys.MoveUp1:
           case DC.hotkeys.MoveUp2: {
-            DC.player.velocity.yN = 1;
+            p.velocity.yN = 1;
             break;
           }
           case DC.hotkeys.MoveLeft1:
           case DC.hotkeys.MoveLeft2: {
-            DC.player.velocity.xN = 1;
+            p.velocity.xN = 1;
             break;
           }
           case DC.hotkeys.MoveDown1:
           case DC.hotkeys.MoveDown2: {
-            DC.player.velocity.yP = 1;
+            p.velocity.yP = 1;
             break;
           }
           case DC.hotkeys.MoveRight1:
           case DC.hotkeys.MoveRight2: {
-            DC.player.velocity.xP = 1;
+            p.velocity.xP = 1;
             break;
           }
           case DC.hotkeys.shoot1:
           case DC.hotkeys.shoot2: {
-            DC.player.isShooting = true;
+            p.isShooting = true;
             break;
           }
           case DC.hotkeys.build1:
           case DC.hotkeys.build2: {
-            DC.player.wantsToBuild = true;
+            p.wantsToBuild = true;
             break;
           }
           case DC.hotkeys.usePower1:
           case DC.hotkeys.usePower2: {
-            DC.player.wantsToUsePower = true;
+            p.wantsToUsePower = true;
             break;
           }
           case "Double Click": {
             console.log("TPING");
-            DC.player.position.x += DC.player.aimingAt.x - camera.offset.x;
-            DC.player.position.y += DC.player.aimingAt.y - camera.offset.y;
+            p.position.x += p.aimingAt.x - camera.offset.x;
+            p.position.y += p.aimingAt.y - camera.offset.y;
             break;
           }
           case 'ESCAPE': {
@@ -6627,35 +7035,35 @@ const DC = {
         switch (input) {
           case DC.hotkeys.MoveUp1:
           case DC.hotkeys.MoveUp2: {
-            DC.player.velocity.yN = 0;
+            p.velocity.yN = 0;
             break;
           }
           case DC.hotkeys.MoveLeft1:
           case DC.hotkeys.MoveLeft2: {
-            DC.player.velocity.xN = 0;
+            p.velocity.xN = 0;
             break;
           }
           case DC.hotkeys.MoveDown1:
           case DC.hotkeys.MoveDown2: {
-            DC.player.velocity.yP = 0;
+            p.velocity.yP = 0;
             break;
           }
           case DC.hotkeys.MoveRight1:
           case DC.hotkeys.MoveRight2: {
-            DC.player.velocity.xP = 0;
+            p.velocity.xP = 0;
             break;
           }
           case DC.hotkeys.shoot1:
           case DC.hotkeys.shoot2: {
-            DC.player.isShooting = false;
+            p.isShooting = false;
             break;
           }
         }
         break;
       }
       case "mouse_move": {
-        DC.player.aimingAt.x = e.clientX;
-        DC.player.aimingAt.y = e.clientY;
+        p.aimingAt.x = e.clientX;
+        p.aimingAt.y = e.clientY;
         DC.updateBuildPoint(e.clientX,e.clientY);
         break;
       }
@@ -6680,7 +7088,7 @@ const DC = {
         //remove map editor event listeners
         DME.toggleAllEventListeners(false);
         //take position & quality from editor
-        DC.player.position = structuredClone(DME.focusPoint);
+        DC.players[0].position = structuredClone(DME.focusPoint);
         camera.position = structuredClone(DME.focusPoint);
         camera.offset = structuredClone(DME.focusOffset);
         camera.quality = DME.visuals.quality;
@@ -6774,16 +7182,16 @@ const DC = {
     DC.reloadMap();
     DC.rawDelta = new Date().getTime();
     DC.updateLoop();
-    DC.slideUpgradeBlock(1, DC.gameMode == 'defuse' ? 'DC-select-defuse-copter' : undefined);
+    DC.slideUpgradeBlock(0, DC.gameMode == 'defuse' ? 'DC-select-defuse-copter' : undefined);
   },
 
   deConfig: function () {
     //add map editor event listeners for clone event listeners
     DC.toggleAllEventListeners(false);
     //take position
-    DME.focusPoint = structuredClone(DC.player.position);
-    DC.slideUpgradeBlock(0);
-    DC.slideUpgradeBlock(0, 'DC-select-defuse-copter');
+    DME.focusPoint = structuredClone(DC.players[0].position);
+    DC.slideUpgradeBlock(1);
+    DC.slideUpgradeBlock(1, 'DC-select-defuse-copter');
     camera.zoom = DME.mapZoom;
     
     localStorage.setItem("DChotkeys", JSON.stringify(DC.hotkeys));
@@ -6802,6 +7210,7 @@ const DC = {
       do {
         DC.localDelta = DC.rawDelta > DC.MAX_DELTA ? DC.MAX_DELTA : DC.rawDelta;
         DC.updatePlayer();
+        DC.updateBots();
         DC.updateBullets();
         DC.updateOtherStuff();
         DC.rawDelta -= DC.MAX_DELTA;
@@ -6809,6 +7218,7 @@ const DC = {
         if (counter > 1 && counter < 10)
           console.log(`Counter smh: ${counter} - Delta: ${DC.rawDelta}`);
       } while (DC.rawDelta > DC.MAX_DELTA && counter < 100);
+      DC.frameCounter++;
       DC.rawDelta = timeLog.delta;
       DC.draw();
       DC.rawDelta = timeLog.time;

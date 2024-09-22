@@ -271,14 +271,18 @@
     </div>
     <div id="defly-clone" class="hidden main-page">
       Defly-emulator
-      <div id="DC-menu">
-			  <span style="font-size:20px;text-align: center;">Menu</span><br />
-			  <button onclick="document.querySelector('#DC-menu').style.display = 'none';document.querySelector('#DC-show-menu').style.display = 'inline';">Hide</button><br />
-			  <button onclick="DC.reloadMap();">Reload Map</button><br />
-			  <button onclick="DC.toggleMenu('hotkey-menu');">Hotkeys</button><br />
-        <div>Mode: <select class="clickable" onchange="DC.changeMode(this.value);"><option value="2">Defuse</option><option value="0">FFA</option><option value="1">Teams</option></select></div>
-			  <div>Team: <input id="DC-menu-player-team" type="number" min="1" max="14" value="2" onchange="DC.changePlayerTeam(this.value);"></div>
-			  <button onclick="DC.enterEditMode();">Exit</button>
+      <div id="DC-control-pannel" class="slided-out">
+			  <button id="DC-c-p-slide" onclick="DC.slideUpgradeBlock(undefined, 'DC-control-pannel');let e=document.querySelector('#DC-c-p-slide-rotate');;e.style.rotate=`${e.style.rotate.split('deg')[0]-180}deg`"><div id="DC-c-p-slide-rotate">></div></button>
+			  <div class="content">
+          <div style="font-size:20px;text-align: center;">Control Pannel</div><br />
+          <button onclick="DC.reloadMap();">Reload Map</button><br />
+          <button onclick="DC.toggleMenu('hotkey-menu');">Hotkeys</button><br />
+          <div>Mode: <select class="clickable" onchange="DC.changeMode(this.value);"><option value="2">Defuse</option><option value="0">FFA</option><option value="1">Teams</option></select></div>
+          <button onclick="DC.gamePhase = 'post-round';DC.defuseData.timer=0;">Start Defuse Round</button><br />
+          <button onclick="DC.gamePhase = 'casual';">Exit Defuse Round</button><br />
+          <div>Team: <input id="DC-menu-player-team" type="number" min="1" max="14" value="2" onchange="DC.changePlayerTeam(this.value);"></div>
+          <button onclick="DC.enterEditMode();">Exit</button>
+        </div>
       </div>
       <button id="DC-show-menu" style="font-size:12px; width:60px; position:fixed; top:4%; left:2%; z-index:100;display:none;" onclick="document.querySelector('#DC-menu').style.display = 'inline';this.style.display = 'none';">Show Menu</button>
       <div id="DC-hotkey-menu" style="display: none;">
