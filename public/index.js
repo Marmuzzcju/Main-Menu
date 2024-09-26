@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.55";
+const version = "1.56";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -628,6 +628,7 @@ const DME = {
     showTowerShields: true,
     centerMapOnLoad: true,
     showBackgroundImage: true,
+    backgroundImageOppacity: 1,
     useDeflyImages: false,
     backgroundImage: new Image(),
     keepBackgroundImageRatio: false,
@@ -3712,6 +3713,8 @@ const DME = {
       this.visuals.showBackgroundImage &&
       this.visuals?.backgroundImage?.src
     ) {
+      let aO = ctx.globalAlpha;
+      ctx.globalAlpha = this.visuals.backgroundImageOppacity;
       if (this.visuals.keepBackgroundImageRatio) {
         let img = this.visuals.backgroundImage,
           imgWidthRatio = img.width / img.height,
@@ -3736,6 +3739,7 @@ const DME = {
           (this.mapData.height / mz) * q
         );
       }
+      ctx.globalAlpha = aO;
     }
     ctx.strokeStyle = this.visuals.grid_lineC;
     if (Number(this.visuals.grid_line_width)) {
@@ -4917,7 +4921,11 @@ const DC = {
       },
       team: 2,
       id: 1,
-      money: 1000,
+      money: {
+        total: 1000,
+        spend: 0,
+        earned: 0,
+      },
       score: 0,
       isShooting: false,
       wantsToBuild: false,
@@ -5513,7 +5521,7 @@ const DC = {
               y: p.position.y,
               maxVelocity: {
                 x: 2*(aim.x)*camera.zoom,
-                y: 2*(aim.y - camera.offset.y)*camera.zoom,
+                y: 2*(aim.y)*camera.zoom,
               },
               fuse: 3,
               radius: 5,
@@ -5526,25 +5534,6 @@ const DC = {
       }
     });
   },
-  /*checkBotShoot: function(){
-    DC.bots.forEach(b => {
-      if (b.shootingCooldown > 0) b.shootingCooldown -= DC.localDelta;
-      if (b.isShooting && b.shootingCooldown <= 0) {
-        //spawn a bullet
-        DC.createBullets(
-          b.position,
-          b.aimingAt,
-          b.copter.inaccuracy,
-          b.copter.bulletSpeed,
-          b.copter.bulletLifespan,
-          b.copter.bulletCount,
-          b.id
-        );
-        //gameData.bullets.push({position : {x : player.position.x, y : player.position.y}, velocity : {x : -20, y : 10}, lifespawn : 5})
-        b.shootingCooldown = b.copter.reloadTime;
-      }
-    });
-  },*/
   createBullets: function (
     position,
     aim,
@@ -5751,6 +5740,14 @@ const DC = {
         this.explodeArea(p.position.x,p.position.y,5,p.team,true);//5 = radius, has to be bound to player experience points later
         p.isAlive = false;
         p.score = 0;
+        switch(this.gameMode){
+          case 'defuse':{
+            p.money.total -= p.money.spend;
+            p.money.spend = 0;
+            //select default gear
+            break;
+          }
+        }
       }
     })
   },
@@ -5872,6 +5869,9 @@ const DC = {
                     this.defuseData.planted = true;
                     this.gamePhase = 'post-plant';
                     this.defuseData.timer = 60;
+                    //give player who planted +1k score & $
+                    p.score += 1000;
+                    p.money.earned += 1000;
                   }
                 });
               }
@@ -5906,6 +5906,8 @@ const DC = {
                       this.defuseData.planted = false;
                       this.gamePhase = 'post-round';
                       this.defuseData.timer = 5;
+                      p.score += 4000;
+                      p.money.earned += 4000;
                     }
                   }
                 });
@@ -5917,6 +5919,9 @@ const DC = {
               //this.explodeArea(...)
               this.gamePhase = 'post-round';
               this.defuseData.timer += 5;
+              let p = this.players[this.getPlayerIndexFromId(this.defuseData.planted.plantId)];
+              p.score += 2000;
+              p.money.earned += 2000;
             }
             break;
           }
@@ -6014,6 +6019,10 @@ const DC = {
       if(t) {
         rC++;
       } else bC++;
+      //update money
+      p.money.total = Math.min(p.money.total + p.money.earned, 6000);
+      p.money.earned = 0;
+      p.isAlive = true;
     });
   },
 
@@ -6037,7 +6046,11 @@ const DC = {
       },
       team: team,
       id: this.highestPlayerId,
-      money: 1000,
+      money: {
+        total: 1000,
+        spend: 0,
+        earned: 0,
+      },
       score: 0,
       isShooting: false,
       wantsToBuild: false,
@@ -6517,7 +6530,7 @@ const DC = {
       ctx.fillStyle = "black";
       ctx.font = `${3 + 6 * q}px Verdana`;
       ctx.fillText(
-        `Charge: ${c.toRounded(3)}`, t.x-20, t.y+90
+        `Charge: ${c.toRounded(3)}`, t.x-30*q/z, t.y+90*q/z
       );
     });
 
@@ -6797,12 +6810,34 @@ const DC = {
     });
     ctx.lineWidth = 1;
     DC.players.forEach(p => {
+      let pX = camera.relative.x(p.position.x), pY = camera.relative.y(p.position.y);
       ctx.strokeStyle = defly.colors.standard[p.team];
       ctx.beginPath();
-      ctx.arc(camera.relative.x(p.position.x), camera.relative.y(p.position.y), (defly.PLAYER_WIDTH / z) * q, 2 * Math.PI, false);
-      /*ctx.moveTo(pX, pY);
-      ctx.lineTo(p.aimingAt.x, p.aimingAt.y);*/
+      ctx.arc(pX, pY, (defly.PLAYER_WIDTH / z) * q, 2 * Math.PI, false);
+      ctx.moveTo(pX, pY);
+      if(p.isBot){
+        ctx.lineTo(camera.relative.x(p.position.x + p.aimingAt.x), camera.relative.y(p.position.y + p.aimingAt.y));
+      } else {
+        ctx.lineTo(p.aimingAt.x, p.aimingAt.y);
+      }
       ctx.stroke();
+      ctx.fillStyle = "black";
+      ctx.font = `${4 + 7 * q}px Verdana`;
+      ctx.fillText(
+        `score: ${p.score}`,
+        pX + 15 * q,
+        pY - 15 * q
+      );
+      ctx.fillText(
+        `money: ${p.money.total}`,
+        pX + 15 * q,
+        pY
+      );
+      ctx.fillText(
+        `earned: ${p.money.earned}`,
+        pX + 15 * q,
+        pY + 15 * q
+      );
     });
     /*ctx.strokeStyle = defly.colors.standard[p.team];;
     ctx.beginPath();

@@ -215,6 +215,10 @@
           <input type="checkbox" id="DME-toggle-visuals-showBackgroundImage" class="clickable" onchange="DME.visuals.showBackgroundImage = this.checked;" checked>
         </div>
         <div>
+          <span>Background Image Oppacity:</span>
+          <input type="range" min="0" max="1" step="0.01" value="1" oninput="DME.visuals.backgroundImageOppacity = this.value">
+        </div>
+        <div>
           <span>Keep image ratio:</span>
           <input type="checkbox" id="DME-toggle-visuals-keepBackgroundImageRatio" class="clickable" onchange="DME.visuals.keepBackgroundImageRatio = this.checked;">
         </div>
