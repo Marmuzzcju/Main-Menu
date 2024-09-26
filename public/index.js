@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.56";
+const version = "1.56b";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -4744,7 +4744,7 @@ const DME = {
           }
         });
         Array.from(
-          document.querySelectorAll("#DME-visuals-menu input[type='color'")
+          document.querySelectorAll("#DME-visuals-menu input[type='color'], #DME-visuals-menu input[type='range']")
         ).forEach((colorInp) => {
           let val = DME.visuals?.[colorInp.id.replace("DME-edit-visuals-", "")];
           if (val) {
