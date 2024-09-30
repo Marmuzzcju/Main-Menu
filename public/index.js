@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.56b";
+const version = "1.57b";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -528,6 +528,7 @@ any other unrelated functions/variables
 */
 
 const DME = {
+  innitialConfigComplete: false,
   hotkeys: {
     /*Control: "CONTROL",
     Shift: "SHIFT",
@@ -2406,14 +2407,29 @@ const DME = {
         }
 
         //defuse spawns
-        let spawnData = newMapData[3].split(",");
-        for (let c = 0; spawnData.length > c + 1; c += 4) {
-          this.placeSpecial(undefined, {
-            x: (Number(spawnData[0 + c]) + 4.5) * defly.UNIT_WIDTH,
-            y: (Number(spawnData[1 + c]) + 4.5) * defly.UNIT_WIDTH,
-            t: Number(spawnData[2 + c]),
-            r: Number(spawnData[3 + c]),
+        let spawnData = newMapData[3].split(","),
+          subSets = newMapData[3].split(';');
+        if(subSets.length > 1){
+          subSets.forEach((spawn, c) => {
+            let sd = spawn.split(",");
+            if(sd.length > 1) {
+              this.placeSpecial(undefined, {
+                x: (Number(sd[0]) + 4.5) * defly.UNIT_WIDTH,
+                y: (Number(sd[1]) + 4.5) * defly.UNIT_WIDTH,
+                t: -(c+3),
+                r: Number(sd[2]),
+              });
+            }
           });
+        } else {
+          for (let c = 0; spawnData.length > c + 1; c += 4) {
+            this.placeSpecial(undefined, {
+              x: (Number(spawnData[0 + c]) + 4.5) * defly.UNIT_WIDTH,
+              y: (Number(spawnData[1 + c]) + 4.5) * defly.UNIT_WIDTH,
+              t: Number(spawnData[2 + c]),
+              r: Number(spawnData[3 + c]),
+            });
+          }
         }
 
         //towers (and walls)
@@ -2534,8 +2550,8 @@ const DME = {
             6
           )}`;
         });
-        d?.spawns?.forEach((b, c) => {
-          text += `\ns ${c + 1} ${(b.x / uW - 4.5).toRounded(6)} ${(
+        d?.spawns?.forEach(b => {
+          text += `\ns ${b.t+5} ${(b.x / uW - 4.5).toRounded(6)} ${(
             b.y / uW -
             4.5
           ).toRounded(6)}${b.r ? " " + b.r : ""}`;
@@ -2574,8 +2590,8 @@ const DME = {
             b.y / uW
           ).toRounded(6)}`;
         });
-        let spawnData = "";
-        d?.spawns?.forEach((b, c) => {
+        let spawnData = '';
+        d?.spawns?.forEach((b,c) => {
           spawnData += `${c ? "," : ""}${(b.x / uW - 4.5).toRounded(6)},${(
             b.y / uW -
             4.5
@@ -4709,70 +4725,72 @@ const DME = {
     this.specialKeyInputs = {};
     this.specialKeyInputs[" "] = "SPACE";
 
-    DME.defaultHotkeys = structuredClone(DME.hotkeys);
-    DME.defaultVisuals = JSON.parse(JSON.stringify(DME.visuals));
-    DME.defaultVisuals.backgroundImage = new Image();
-    DME.visuals.backgroundImage = new Image();
-    if (hasLocalStorage) {
-      localStorage.setItem("Last loaded version", version);
-      if (!localStorage.getItem("DMEhotkeys")) {
-        localStorage.setItem("DMEhotkeys", JSON.stringify(DME.hotkeys));
-      } else {
-        let storedHotkeys = JSON.parse(localStorage.getItem("DMEhotkeys"));
-        console.log(storedHotkeys);
-        Object.entries(storedHotkeys).forEach((key) => {
-          if (DME.hotkeys.hasOwnProperty(key[0])) DME.hotkeys[key[0]] = key[1];
-        });
-      }
-      if (!localStorage.getItem("DME-visuals")) {
-        localStorage.setItem("DME-visuals", JSON.stringify(DME.visuals));
-      } else {
-        let visuals = JSON.parse(localStorage.getItem("DME-visuals"));
-        Object.entries(visuals).forEach((key) => {
-          if (key[0] != "backgroundImage") DME.visuals[key[0]] = key[1];
-        });
-        let q = Number(DME.visuals.quality);
-        DME.visuals.quality = 1;
-        DME.changeQuality(q);
-        Array.from(
-          document.querySelectorAll("#DME-visuals-menu input[type='checkbox'")
-        ).forEach((checkbox) => {
-          let val =
-            DME.visuals?.[checkbox.id.replace("DME-toggle-visuals-", "")];
-          if (val != undefined) {
-            checkbox.checked = !!val;
-          }
-        });
-        Array.from(
-          document.querySelectorAll("#DME-visuals-menu input[type='color'], #DME-visuals-menu input[type='range']")
-        ).forEach((colorInp) => {
-          let val = DME.visuals?.[colorInp.id.replace("DME-edit-visuals-", "")];
-          if (val) {
-            colorInp.value = val;
-          }
-        });
-        if (DME.visuals.custom_preset.hasBeenSet)
-          document
-            .querySelectorAll("#DME-edit-visuals-C-preset option")[3]
-            .removeAttribute("disabled");
-        document.querySelector("#DME-edit-visuals-grid_line_width").value =
-          DME.visuals.grid_line_width;
-      }
-      Array.from(
-        document.querySelectorAll("#DME-hotkey-menu > div > button")
-      ).forEach((button) => {
-        if (DME.hotkeys?.[button.id.replace("DME-ch-", "")]) {
-          button.innerHTML = DME.hotkeys[button.id.replace("DME-ch-", "")];
+    if(!this.innitialConfigComplete){
+      DME.defaultHotkeys = structuredClone(DME.hotkeys);
+      DME.defaultVisuals = JSON.parse(JSON.stringify(DME.visuals));
+      DME.defaultVisuals.backgroundImage = new Image();
+      DME.visuals.backgroundImage = new Image();
+      if (hasLocalStorage) {
+        localStorage.setItem("Last loaded version", version);
+        if (!localStorage.getItem("DMEhotkeys")) {
+          localStorage.setItem("DMEhotkeys", JSON.stringify(DME.hotkeys));
+        } else {
+          let storedHotkeys = JSON.parse(localStorage.getItem("DMEhotkeys"));
+          console.log(storedHotkeys);
+          Object.entries(storedHotkeys).forEach((key) => {
+            if (DME.hotkeys.hasOwnProperty(key[0])) DME.hotkeys[key[0]] = key[1];
+          });
         }
-      });
-      if (!localStorage.getItem("DMEauto-saved-map")) {
-        localStorage.setItem("DMEauto-saved-map", "210,120|||||");
-      } else {
-        DME.loadMap(localStorage.getItem("DMEauto-saved-map"), "compact");
-      }
-
-      if (!localStorage.getItem("DMEsaved-map-list")) {
-        localStorage.setItem("DMEsaved-map-list", JSON.stringify(["Empty"]));
+        if (!localStorage.getItem("DME-visuals")) {
+          localStorage.setItem("DME-visuals", JSON.stringify(DME.visuals));
+        } else {
+          let visuals = JSON.parse(localStorage.getItem("DME-visuals"));
+          Object.entries(visuals).forEach((key) => {
+            if (key[0] != "backgroundImage") DME.visuals[key[0]] = key[1];
+          });
+          let q = Number(DME.visuals.quality);
+          DME.visuals.quality = 1;
+          DME.changeQuality(q);
+          Array.from(
+            document.querySelectorAll("#DME-visuals-menu input[type='checkbox'")
+          ).forEach((checkbox) => {
+            let val =
+              DME.visuals?.[checkbox.id.replace("DME-toggle-visuals-", "")];
+            if (val != undefined) {
+              checkbox.checked = !!val;
+            }
+          });
+          Array.from(
+            document.querySelectorAll("#DME-visuals-menu input[type='color'], #DME-visuals-menu input[type='range']")
+          ).forEach((colorInp) => {
+            let val = DME.visuals?.[colorInp.id.replace("DME-edit-visuals-", "")];
+            if (val) {
+              colorInp.value = val;
+            }
+          });
+          if (DME.visuals.custom_preset.hasBeenSet)
+            document
+              .querySelectorAll("#DME-edit-visuals-C-preset option")[3]
+              .removeAttribute("disabled");
+          document.querySelector("#DME-edit-visuals-grid_line_width").value =
+            DME.visuals.grid_line_width;
+        }
+        Array.from(
+          document.querySelectorAll("#DME-hotkey-menu > div > button")
+        ).forEach((button) => {
+          if (DME.hotkeys?.[button.id.replace("DME-ch-", "")]) {
+            button.innerHTML = DME.hotkeys[button.id.replace("DME-ch-", "")];
+          }
+        });
+        if (!localStorage.getItem("DMEauto-saved-map")) {
+          localStorage.setItem("DMEauto-saved-map", "210,120|||||");
+        } else {
+          DME.loadMap(localStorage.getItem("DMEauto-saved-map"), "compact");
+        }
+  
+        if (!localStorage.getItem("DMEsaved-map-list")) {
+          localStorage.setItem("DMEsaved-map-list", JSON.stringify(["Empty"]));
+        }
       }
     }
     this.markDoubledKeybinds();
@@ -4797,6 +4815,8 @@ const DME = {
 
     this.updateCanvas();
     this.updateChunkOptions();
+
+    this.innitialConfigComplete = true;
   },
 
   deConfig: function () {
@@ -5852,26 +5872,30 @@ const DC = {
             this.players.forEach(p => {
               if(p.team == 3){ //red
                 this.defuseData.planting.forEach((Bp, idx) => {
-                  if(Bp.plantId === p.id) {
-                    if(p.hasMoved) {
-                      Bp.plantId = -1; //disabled for this tick
-                      Bp.charge = 0;
-                    } else Bp.charge += this.localDelta / defly.PLANTING_TIME;
-                  } else if(!p.hasMoved && Bp.plantId === 0) {
-                    let pos = p.position, bomb = this.mapData.bombs[idx];
-                    if(getDistance2d(pos.x,pos.y,bomb.x,bomb.y) < defly.BOMB_RADIUS) {
-                      Bp.plantId = p.id;
-                      Bp.charge = this.localDelta / defly.PLANTING_TIME;
+                  let bomb = this.mapData.bombs[idx];
+                  if(!!bomb) {
+                    if(Bp.plantId === p.id) {
+                      if(p.hasMoved) {
+                        Bp.plantId = -1; //disabled for this tick
+                        Bp.charge = 0;
+                      } else Bp.charge += this.localDelta / defly.PLANTING_TIME;
+                    } else if(!p.hasMoved && Bp.plantId === 0) {
+                      let pos = p.position;
+                      if(getDistance2d(pos.x,pos.y,bomb.x,bomb.y) < defly.BOMB_RADIUS) {
+                        Bp.plantId = p.id;
+                        Bp.charge = this.localDelta / defly.PLANTING_TIME;
+                      }
                     }
-                  }
-                  if(Bp.charge >= 1) {
-                    Bp.charge = 1;
-                    this.defuseData.planted = true;
-                    this.gamePhase = 'post-plant';
-                    this.defuseData.timer = 60;
-                    //give player who planted +1k score & $
-                    p.score += 1000;
-                    p.money.earned += 1000;
+                    if(Bp.charge >= 1) {
+                      Bp.charge = 1;
+                      this.defuseData.planted = true;
+                      this.gamePhase = 'post-plant';
+                      this.defuseData.timer = 60;
+                      //give player who planted +1k score & $
+                      p.score += 1000;
+                      p.money.earned += 1000;
+                    }
+
                   }
                 });
               }
@@ -5888,14 +5912,15 @@ const DC = {
             this.players.forEach(p => {
               if(p.team == 2){ //blue
                 this.defuseData.planting.forEach((Bp, idx) => {
-                  if(Bp.charge){
+                  let bomb = this.mapData.bombs[idx];
+                  if(!!bomb && Bp.charge) {
                     if(Bp.defuseId === p.id) {
                       if(p.hasMoved) {
                         Bp.defuseId = -1; //disabled for this tick
                         Bp.charge = 1;
                       } else Bp.charge -= this.localDelta / defly.DEFUSING_TIME;
                     } else if(!p.hasMoved && Bp.charge === 1) {
-                      let pos = p.position, bomb = this.mapData.bombs[idx];
+                      let pos = p.position;
                       if(getDistance2d(pos.x,pos.y,bomb.x,bomb.y) < defly.BOMB_RADIUS) {
                         Bp.defuseId = p.id;
                         Bp.charge = 1 - this.localDelta / defly.DEFUSING_TIME;
