@@ -142,6 +142,7 @@
         <button class="fatButton" id="DME-menu-load-background-image" onclick="document.querySelector('#DME-browse-background-image').click();">Load Background Image</button>
         <button class="fatButtonLeft hidden"  id="DME-menu-remove-background-image" onclick="DME.removeBackgroundImage();">Remove Background Image</button> <br />
         <button class="fatButton" onclick="DME.exportMapPreview();">Get Map Preview</button> </br>
+        <button class="fatButton" onclick="DME.showCoopSetup();">Co-op</button> </br>
         <button class="fatButton" onclick="DME.enterTestMode();">Test Map</button>
         <!-- <button class="fatButton" onclick="document.getElementById('distance-overview-table').style.display = 'inline';mapStuff.classList.add('blurred');openMenu=true;">View Distance Table</button> <br /> -->
 			  <!-- <button class="fatButton" onclick="testMap();">Test Map</button><a href="https://marmuzzcju.github.io/Defuse-Clone/" target="_blank" id="linkToMapTest" style="display: none;"></a> <br /> -->
@@ -271,6 +272,22 @@
         X: <span id="DME-coords-info-x">0</span>
         &nbsp;&nbsp;Y: <span id="DME-coords-info-y">0</span>
       </div>
+      <div id="DME-coop-menu" style="display: none;">
+        <div class="content">
+          <div class="segment">
+            <div class="title">Host Co-op Session</div>
+            <button id="DME-coop-menu-host-button" onclick="DME.hostCoop();">Host Co-op</button><span class="text"> Session id: <span id="DME-coop-menu-generated-id">-</span> <button class="small" onclick="DME.copySessionId();">Copy id</button></span></br>
+          </div>
+          <div class="segment">
+            <div class="title">Join Co-op session</div>
+            Session id: <input type="text" id="DME-coop-menu-join-id"><button id="DME-coop-menu-join-button" onclick="DME.joinCoop();">Join</button></br>
+          </div>
+          <button class="close" onclick="DME.showCoopSetup(0);">Close</button>
+        </div>
+        <div class="loading">
+          <div class="text">Loading...</div>
+        </div>
+      </div>
       <div id="DME-file-drop" ondrop="DME.handleFileDrop(event);this.removeAttribute('drag_active');event.preventDefault();" ondragleave="this.removeAttribute('drag_active', true);">Drop File</div>
     </div>
     <div id="defly-clone" class="hidden main-page">
@@ -282,7 +299,7 @@
           <button onclick="DC.reloadMap();">Reload Map</button><br />
           <button onclick="DC.toggleMenu('hotkey-menu');">Hotkeys</button><br />
           <div>Mode: <select class="clickable" onchange="DC.changeMode(this.value);"><option value="2">Defuse</option><option value="0">FFA</option><option value="1">Teams</option></select></div>
-          <button onclick="DC.gamePhase = 'post-round';DC.defuseData.timer=0;">Start Defuse Round</button><br />
+          <button onclick="DC.innitiateDefuseRound();">Start Defuse Round</button><br />
           <button onclick="DC.gamePhase = 'casual';">Exit Defuse Round</button><br />
           <div>Team: <input id="DC-menu-player-team" type="number" min="1" max="14" value="2" onchange="DC.changePlayerTeam(this.value);"></div>
           <button onclick="DC.enterEditMode();">Exit</button>
@@ -308,6 +325,248 @@
         <img id="DC-select-defuse-minisnipe" onclick="DC.selectDefuseCopter('minisnipe')" src="/public/images/copter-minisnipe.png">
         <img id="DC-select-defuse-machinegun" onclick="DC.selectDefuseCopter('machinegun')" src="/public/images/copter-machinegun.png">
         <img id="DC-select-defuse-sniper" onclick="DC.selectDefuseCopter('sniper')" src="/public/images/copter-sniper.png">
+      </div>
+      <div id="DC-defuse-shop" style="display: none;">
+        <div class="content">
+          <div class="title">Defuse shop mf</div>
+          <table>
+            <tbody><tr>
+                <td>Vehicle</td>
+                <td><img id="DC-buy-defuse-basic" onclick="DC.buyDefuseGear(0, 'basic');" class="selected" src="/public/images/copter-basic.png"></td>
+                <td><img id="DC-buy-defuse-shotgun" onclick="DC.buyDefuseGear(0, 'shotgun');" src="/public/images/copter-shotgun.png" class=""></td>
+                <td><img id="DC-buy-defuse-drone" onclick="DC.buyDefuseGear(0, 'drone');" src="/public/images/copter-drone.png" class=""></td>
+                <td><img id="DC-buy-defuse-minisnipe" onclick="DC.buyDefuseGear(0, 'minisnipe');" src="/public/images/copter-minisnipe.png" class=""></td>
+                <td><img id="DC-buy-defuse-machinegun" onclick="DC.buyDefuseGear(0, 'machinegun');" src="/public/images/copter-machinegun.png" class=""></td>
+                <td><img id="DC-buy-defuse-sniper" onclick="DC.buyDefuseGear(0, 'sniper');" src="/public/images/copter-sniper.png" class=""></td>
+            </tr>
+            <tr>
+                <td>Value</td>
+                <td>$0</td>
+                <td>$2000</td>
+                <td>$1000</td>
+                <td>$2000</td>
+                <td>$3000</td>
+                <td>$4000</td>
+            </tr>
+            <tr>
+                <td>Player speed</td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:100%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:66.66%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:66.66%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:50%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:0%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:16.66%"></div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td>Bullet range</td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:50%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:0%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:33.33%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:66.66%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:16.66%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:100%"></div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td>Bullet speed</td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:0%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:0%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:12.5%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:25%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:0%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:100%"></div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td>Fire rate</td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:62.5%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:50%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:75%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:62.5%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:90%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:0%"></div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td>Accuracy</td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:100%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:0%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:66.66%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:83.33%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:50%"></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="bar" style="width:96.66%"></div>
+                    </div>
+                </td>
+            </tr></tbody>
+          </table>
+          <div class="items">
+            <div class="item">
+                <div class="title">Shield <span id="DC-defuse-shop-items-playerShield">0</span>/1</div>
+                <div class="image"><img src="/public/images/defly-player-shield.png"></div>
+                <div class="price">
+                    <button onclick="DC.buyDefuseGear(1, 'playerShield');">+</button>
+                    <button onclick="DC.buyDefuseGear(1, 'playerShield', 1);">-</button> $3000
+                </div>
+            </div>
+            <div class="item">
+                <div class="title">EMP Grenade <span id="DC-defuse-shop-items-emp">0</span>/2</div>
+                <div class="image"><img src="/public/images/defly-emp.png"></div>
+                <div class="price">
+                    <button onclick="DC.buyDefuseGear(1, 'emp');">+</button>
+                    <button onclick="DC.buyDefuseGear(1, 'emp', 1);">-</button> $1000
+                </div>
+            </div>
+            <div class="item">
+                <div class="title">Tower HP <span id="DC-defuse-shop-items-towerHealth">0</span>/1</div>
+                <div class="image"><img src="/public/images/defly-tower-health.png"></div>
+                <div class="price">
+                    <button onclick="DC.buyDefuseGear(2, 'towerHealth');">+</button>
+                    <button onclick="DC.buyDefuseGear(2, 'towerHealth', 1);">-</button> $2000
+                </div>
+            </div>
+            <div class="item">
+                <div class="title">Tower Shield <span id="DC-defuse-shop-items-towerShield">0</span>/2</div>
+                <div class="image"><img src="/public/images/defly-tower-shield.png"></div>
+                <div class="price">
+                    <button onclick="DC.buyDefuseGear(2, 'towerShield');">+</button>
+                    <button onclick="DC.buyDefuseGear(2, 'towerShield', 1);">-</button> $2000
+                </div>
+            </div>
+            <div class="item">
+                <div class="title">Build distance <span id="DC-defuse-shop-items-buildRange">0</span>/2</div>
+                <div class="image"><img src="/public/images/defly-build-range.png"></div>
+                <div class="price">
+                    <button onclick="DC.buyDefuseGear(2, 'buildRange');">+</button>
+                    <button onclick="DC.buyDefuseGear(2, 'buildRange', 1);">-</button> $3000
+                </div>
+            </div>
+          </div>
+          <div class="info">
+            <span class="money">Gear value: $<span class="money-spend">0</span> - Money left: $<span class="money-left">1000</span><span class="money-earned">you earned $<span class="money-earned-value">0</span> last round</span></span>
+            <button onclick="document.querySelector('#DC-defuse-shop').style.display='none';">Ready to Play</button>
+            <div class="note">(gear value + money left is capped at $6000)</div>
+          </div>
+          <div class="stats">
+            <div>Kills: <span class="kills">0</span></div>
+            <div>Deaths: <span class="deaths">0</span></div>
+            <div>Rounds won: <span class="rounds-won">0/-1</span></div>
+          </div>
+        </div>
       </div>
       <div id="DC-slide-upgrade-block" onclick="DC.slideUpgradeBlock();"></div>
       <div id="DC-upgrade-block" class="slided-out">
@@ -406,6 +665,7 @@
     </div>
     <canvas id="main-canvas" class="hidden"></canvas>
     <div class="screen-overlay-fade"></div>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script defer src="index.js"></script>
   </body>
 </html>

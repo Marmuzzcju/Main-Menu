@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.56b";
+const version = "1.57";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -341,6 +341,28 @@ function updateFOV() {
   }
 }
 
+function coppyToClipboard(text) {
+  //coppies text to clipboard
+
+  // Create a temporary element for copying
+  let templ = document.createElement("textarea");
+  templ.value = text;
+  if (templ.value === "-") {
+    document.body.removeChild(templ);
+    return;
+  }
+  document.body.appendChild(templ);
+
+  // Select the text and copy it to the clipboard
+  templ.select();
+  document.execCommand("copy");
+
+  // Remove the temporary element
+  document.body.removeChild(templ);
+
+  //thanks to alex for this code =)
+}
+
 /*
 defly related functions & variables/constants
 */
@@ -426,6 +448,7 @@ const defly = {
       reloadTime: 0.75,
       inaccuracy: 0,
       bulletCount: 1,
+      cost: 0,
     },
     drone: {
       copterSpeed: 230,
@@ -434,6 +457,7 @@ const defly = {
       reloadTime: 0.5,
       inaccuracy: 0.06,
       bulletCount: 1,
+      cost: 1000,
     },
     shotgun: {
       copterSpeed: 230,
@@ -442,6 +466,7 @@ const defly = {
       reloadTime: 1,
       inaccuracy: 0.03,
       bulletCount: 5,
+      cost: 2000,
     },
     minisnipe: {
       copterSpeed: 210,
@@ -450,6 +475,7 @@ const defly = {
       reloadTime: 0.75,
       inaccuracy: 0.03,
       bulletCount: 1,
+      cost: 2000,
     },
     machinegun: {
       copterSpeed: 175,
@@ -458,6 +484,7 @@ const defly = {
       reloadTime: 0.2,
       inaccuracy: 0.08,
       bulletCount: 1,
+      cost: 3000,
     },
     sniper: {
       copterSpeed: 180,
@@ -466,6 +493,7 @@ const defly = {
       reloadTime: 2,
       inaccuracy: 0.004,
       bulletCount: 1,
+      cost: 4000,
     },
     weapon7: {
       copterSpeed: 180,
@@ -474,6 +502,29 @@ const defly = {
       reloadTime: 1.2,
       inaccuracy: 0,
       bulletCount: 1,
+      cost: 3000,
+    },
+  },
+  items: {
+    emp: {
+      cost: 1000,
+      maxValue: 2,
+    },
+    playerShield: {
+      cost: 3000,
+      maxValue: 1,
+    },
+    towerHealth: {
+      cost: 2000,
+      maxValue: 1,
+    },
+    towerShield: {
+      cost: 2000,
+      maxValue: 2,
+    },
+    buildRange: {
+      cost: 3000,
+      maxValue: 2,
     },
   },
   images: {
@@ -482,6 +533,10 @@ const defly = {
     koth_crown: new Image(),
     shield: new Image(),
     emp: new Image(),
+    buildRange: new Image(),
+    playerShield: new Image(),
+    towerShield: new Image(),
+    towerHealth: new Image(),
   },
 };
 defly.images.bombA.src = "/images/defly-defuse-bombSpotA.png";
@@ -489,6 +544,10 @@ defly.images.bombB.src = "/images/defly-defuse-bombSpotB.png";
 defly.images.koth_crown.src = "/images/defuse-koth-crown.svg";
 defly.images.shield.src = "/images/shield.png";
 defly.images.emp.src = "/images/defly-emp.png";
+defly.images.buildRange.src = "/images/defly-build-range.png";
+defly.images.playerShield.src = "/images/defly-player-shield.png";
+defly.images.towerShield.src = "/images/defly-tower-shield.png";
+defly.images.towerHealth.src = "/images/defly-tower-health.png";
 
 const camera = {
   position: {
@@ -725,8 +784,22 @@ const DME = {
 
   selectedColor: 1,
 
-  placeTower: function () {
-    let mc = this.mouseCoords.snapped;
+  //coop stuff
+  coop: {
+    isHosting: false,
+    isJoined: false,
+    isConnected: false,
+    conn: undefined,
+    peer: undefined,
+    id: undefined,
+    log: true,
+    isLoading: false,
+  },
+
+  placeTower: function (mc = this.mouseCoords.snapped, color = this.selectedColor, selectedTowers = this.selectedTowers, isUserInput = true) {
+    this.coopCloneAction('placeTower',{mc:mc,color:color,selectedTowers:selectedTowers});
+    let coopLog = this.coop.log;
+    this.coop.log = false;
     let closestTower = this.getClosestTower(mc.x, mc.y);
     let towerId = this.highestId;
     let logWalls = false;
@@ -735,7 +808,7 @@ const DME = {
       towerId = this.mapData.towers[closestTower.index].id;
       logWalls = true;
     } else {
-      this.createTower(mc.x, mc.y, this.selectedColor, towerId);
+      this.createTower(mc.x, mc.y, color, towerId);
     }
     let previousState = this.logState;
     this.logState = 0;
@@ -748,7 +821,7 @@ const DME = {
         existingWalls.push(wall.from.id);
       }
     });
-    this.selectedTowers.forEach((towerIndex) => {
+    selectedTowers.forEach((towerIndex) => {
       let id = this.mapData.towers[towerIndex].id;
       //create a wall from each selected tower to new one
       //only if such wall didn´t exist yet
@@ -758,24 +831,27 @@ const DME = {
     });
     this.logState = previousState;
     if (logWalls && loggedWalls.length > 0)
-      this.logAction({ action: "create", type: "walls", ids: loggedWalls });
-    this.selectedTowers = [this.getIndexFromId(towerId)];
+      this.handleActionLog({ action: "create", type: "walls", ids: loggedWalls });
+    if(isUserInput) this.selectedTowers = [this.getIndexFromId(towerId)];
     this.updateChunkOptions();
+    this.coop.log = coopLog;
   },
 
   //action here
   createTower: function (x, y, color, id) {
+    this.coopCloneAction('createTower',{x:x,y:y,color:color,id:id});
     DME.mapData.towers.push({ x: x, y: y, color: color, id: id });
     //check if tower is inside koth bounds
     let k = this.mapData.koth;
     if (k && color == 1 && x >= k[0] && x <= k[2] && y >= k[1] && y <= k[3])
       this.mapData.towers.at(-1).isKothTower = true;
     DME.highestId = id > DME.highestId ? id + 1 : DME.highestId + 1;
-    this.logAction({ action: "create", type: "tower", id: id });
+    this.handleActionLog({ action: "create", type: "tower", id: id });
   },
 
   //action here
   createWall: function (fromId, toId) {
+    this.coopCloneAction('createWall',{fromId:fromId,toId:toId});
     let tower1 = DME.getIndexFromId(fromId);
     let tower2 = DME.getIndexFromId(toId);
     let towers = DME.mapData.towers;
@@ -790,7 +866,7 @@ const DME = {
       to: { x: x2, y: y2, id: toId },
       color: col,
     });
-    this.logAction({
+    this.handleActionLog({
       action: "create",
       type: "walls",
       ids: [{ from: fromId, to: toId }],
@@ -950,6 +1026,7 @@ const DME = {
 
   //action here
   createArea: function (ids) {
+    this.coopCloneAction('createArea',{ids:ids});
     let nodes = [];
     let towers = DME.mapData.towers;
     ids.forEach((id) => {
@@ -964,16 +1041,16 @@ const DME = {
       ? "koth"
       : towers[DME.getIndexFromId(ids[0])].color;
     DME.mapData.areas.push({ length: ids.length, color: color, nodes: nodes });
-    this.logAction({ action: "create", type: "area", ids: ids });
+    this.handleActionLog({ action: "create", type: "area", ids: ids });
   },
 
   /*
   bomb
   */
-  placeSpecial: function (id, coords) {
+  placeSpecial: function (id, mc = this.mouseCoords.snapped) {
+    this.coopCloneAction('placeSpecial',{id:id,mc:mc});
     //id: 1 = bomb A; 2 = bomb B; 3 = spawn red; 4 = spawn blue
-    let mc = coords ?? this.mouseCoords.snapped,
-      idx = this.getIndexFromId(-id);
+    let idx = this.getIndexFromId(-id);
     if (idx < 0) {
       if (id < 3)
         DME.mapData.towers.push({
@@ -988,18 +1065,18 @@ const DME = {
           x: mc.x,
           y: mc.y,
           color: 3,
-          id: coords?.t ?? -id,
+          id: mc?.t ?? -id,
           isNotTower: true,
-          rotation: coords?.r ? Number(coords.r) : 0,
+          rotation: mc?.r ? Number(mc.r) : 0,
         });
-      this.logAction({ action: "create", type: "tower", id: -id });
+      this.handleActionLog({ action: "create", type: "tower", id: -id });
     } else {
       let o = this.mapData.towers[idx];
       if (id > 2 && o.x == mc.x && o.y == mc.y) {
         DME.mapData.towers[idx].rotation =
           ++DME.mapData.towers[idx].rotation % 4;
       } else {
-        this.logAction({
+        this.handleActionLog({
           action: "modify",
           type: "move",
           ids: [-id],
@@ -1018,10 +1095,13 @@ const DME = {
   ...
   */
 
-  shieldTowers: function () {
+  shieldTowers: function (targetTowers = this.selectedTowers) {
+    this.coopCloneAction('shieldTowers',{targetTowers:targetTowers});
+    let coopLog = this.coop.log;
+    this.coop.log = false;
     let ls = this.logState;
     this.logState = 0;
-    this.selectedTowers.forEach((idx) => {
+    targetTowers.forEach((idx) => {
       let t = this.mapData.towers[idx];
       if (!t?.isShielded && t.color == 1) {
         this.createTower(t.x, t.y, 1, this.highestId);
@@ -1033,11 +1113,12 @@ const DME = {
       }
     });
     this.logState = ls;
-    this.logAction({
+    this.handleActionLog({
       action: "create",
       type: "chunk",
-      ids: [this.highestId - 2, this.highestId - 1],
+      ids: [this.highestId - 2, this.highestId - 1]
     });
+    this.coop.log = coopLog;
   },
 
   updateWalls: function (ids = false) {
@@ -1183,23 +1264,27 @@ const DME = {
     });
   },
   //action here - if paste chunk, we cannot catch the single build steps but rather whole chunk
-  pasteChunk: function (x, y) {
+  pasteChunk: function (mc = this.mouseCoords.snapped, cC = this.copiedChunk, cId = this.highestId) {
+    this.coopCloneAction('pasteChunk',{mc:mc,cC:cC, cId:cId});
+    let coopLog = this.coop.log;
+    this.coop.log = false;
     let previousState = this.logState;
     this.logState = 0;
-    x = x ? x : this.mouseCoords.snapped.x;
-    y = y ? y : this.mouseCoords.snapped.y;
-    let cId = this.highestId;
-    let cC = this.copiedChunk;
+    x = mc.x;
+    y = mc.y;
     let loggedIds = [];
     cC.towers.forEach((t) => {
+      let fX = t.x - cC.width / 2 + x,
+        fY = t.y - cC.height / 2 + y,
+        fId = t.id + cId;
       if (t.id > 0) {
         this.createTower(
-          t.x - cC.width / 2 + x,
-          t.y - cC.height / 2 + y,
+          fX,
+          fY,
           t.color,
-          t.id + cId
+          fId
         );
-        loggedIds.push(t.id + cId);
+        loggedIds.push(fId);
       } else {
         let modif =
           this.getIndexFromId(t.id) == -1
@@ -1207,20 +1292,22 @@ const DME = {
             : t.id == -1 || t.id == -3
             ? -1
             : 1;
-        if (this.getIndexFromId(t.id + modif) < 0) {
+        fId = t.id + modif;
+        if (this.getIndexFromId(fId) < 0) {
           //doesn´t exist already, just place down
           let pos = {
-            x: t.x - cC.width / 2 + x,
-            y: t.y - cC.height / 2 + y,
+            x: fX,
+            y: fY,
           };
           if (t?.rotation) pos.r = t.rotation;
-          this.placeSpecial(-(t.id + modif), pos);
-          loggedIds.push(t.id + modif);
+          this.placeSpecial(-(fId), pos);
+          loggedIds.push(fId);
         }
       }
     });
     cC.walls.forEach((w) => {
-      this.createWall(w[0] + cId, w[1] + cId);
+      let f = w[0] + cId, t = w[1] + cId
+      this.createWall(f, t);
     });
     cC.areas.forEach((a) => {
       let frIds = [];
@@ -1230,9 +1317,151 @@ const DME = {
       this.createArea(frIds);
     });
     this.logState = previousState;
-    this.logAction({ action: "create", type: "chunk", ids: loggedIds });
+    this.handleActionLog({ action: "create", type: "chunk", ids: loggedIds });
+    this.coop.log = coopLog;
   },
 
+  placeChunk: function(data){
+    this.coopCloneAction('placeChunk',{data:data});
+    let coopLog = this.coop.log;
+    this.coop.log = false;
+
+    this.logState = 0;
+    let tIds = [];
+    actionToModify.towers.forEach((t) => {
+      if (t.id > 0) {
+        this.createTower(t.x, t.y, t.color, t.id);
+      }
+      else {
+        let coords = { x: t.x, y: t.y };
+        if (t?.rotation) coords.r = t.rotation;
+        this.placeSpecial(-t.id, coords);
+      }
+      tIds.push(t.id);
+    });
+    actionToModify.walls.forEach((w) => {
+      this.createWall(w.from, w.to);
+    });
+    actionToModify.areas.forEach((ids) => {
+      this.createArea(ids);
+    });
+    this.logState = ls;
+    this.handleActionLog({ action: "create", type: "chunk", ids: tIds });
+    this.coop.log = coopLog;
+  },
+
+  handleActionLog: function(action,specs) {
+    this.logAction(action);
+    if(false && this.coop.isConnected && this.logState != 0){
+      let command = 'UA';//user action
+      let data;
+      switch(action.action){
+        case "create": {
+          switch(action.type){
+            case 'tower':{
+              data = {action:'create',type:'tower',data:{id:action.id,x:specs.x,y:specs.y,color:specs.color}};
+              break;
+            }
+            case 'walls':{
+              data = {action:'create',type:'walls',ids:action.ids};
+              break;
+            }
+            case 'area':{
+              data = {action:'create',type:'area',ids:action.ids};
+              break;
+            }
+            case 'chunk':{
+              data = {action:'create',type:'area',data:specs};
+              break;
+            }
+          }
+          break;
+        }
+        case "modify": {
+          switch (action.type) {
+            case "resize": {
+              data = {
+                action: 'modify',
+                type: 'resize',
+                idxs: specs,
+                origin: action.origin,
+                x: action.x,
+                y: action.y
+              }
+              break;
+            }
+            case "move": {
+              data = {
+                action: 'modify',
+                type: 'move',
+                idxs: specs,
+                x: action.x,
+                y: action.y
+              };
+              break;
+            }
+            case "rotate": {
+              data = {
+                action: 'modify',
+                type: 'move',
+                idxs: action.idxs,
+                properties: action.properties,
+              };
+              break;
+            }
+            case "color": {
+              if(specs){
+                data = {
+                  action: 'modify',
+                  type: 'unColor',
+                  towers: action.towers,
+                };
+              } else {
+                data = {
+                  action: 'modify',
+                  type: 'color',
+                  idx: specs.idx,
+                  color: specs.color
+                };
+              }
+              break;
+            }
+          }
+          break;
+        }
+        case "delete": {
+          switch(action.type){
+            case 'towers':{
+              data = {
+                action: 'delete',
+                type: 'towers',
+                idxs: specs
+              };
+              break;
+            }
+            case 'walls':{
+              data = {
+                action: 'delete',
+                type: 'walls',
+                ids: action.ids
+              };
+              break;
+            }
+            case 'area':{
+              data = {
+                action: 'delete',
+                type: 'area',//or "areas"
+                ids: action.ids
+              };
+              break;
+            }
+          }
+          break;
+        }
+      }
+      this.coopSend(command, data);
+    }
+  },
   logAction: function (action) {
     //since this function is called anytime selected towers are modified, we can call update tower info here
     this.updateTowerInfo();
@@ -1309,17 +1538,23 @@ const DME = {
       }
     }
   },
-  modifyLastAction: function (time) {
+  modifyLastAction: function (time, forcedAction) {
     if (
       (!time && this.lastActions.length <= this.undoneDepth) ||
       (time && this.undoneDepth < 1)
     )
       return;
-    this.undoneDepth += 1 - time;
-    let actionToModify = this.lastActions.at(-this.undoneDepth),
-      ls = 2 + time;
-    this.undoneDepth -= time;
-    this.logState = ls;
+    let actionToModify;
+    if(!!forcedAction){
+      actionToModify = forcedAction;
+      this.logState = 0;
+    } else {
+      this.undoneDepth += 1 - time;
+      actionToModify = this.lastActions.at(-this.undoneDepth),
+        ls = 2 + time;
+      this.undoneDepth -= time;
+      this.logState = ls;
+    }
     switch (actionToModify.action) {
       case "create": {
         switch (actionToModify.type) {
@@ -1366,19 +1601,7 @@ const DME = {
             break;
           }
           case "color": {
-            let towers = this.mapData.towers,
-              newLoggedData = [];
-            actionToModify.towers.forEach((data) => {
-              let t = towers[data.ar];
-              newLoggedData.push({ ar: data.ar, color: t.color });
-              t.color = data.color;
-            });
-            this.logAction({
-              action: "modify",
-              type: "color",
-              towers: newLoggedData,
-            });
-            this.updateTowerInfo();
+            this.uncollorTowers(actionToModify.towers);
           }
         }
         break;
@@ -1386,28 +1609,10 @@ const DME = {
       case "delete": {
         switch (actionToModify.type) {
           case "towers": {
-            this.logState = 0;
-            let tIds = [];
-            actionToModify.towers.forEach((t) => {
-              if (t.id > 0) this.createTower(t.x, t.y, t.color, t.id);
-              else {
-                let coords = { x: t.x, y: t.y };
-                if (t?.rotation) coords.r = t.rotation;
-                this.placeSpecial(-t.id, coords);
-              }
-              tIds.push(t.id);
-            });
-            actionToModify.walls.forEach((w) => {
-              this.createWall(w.from, w.to);
-            });
-            actionToModify.areas.forEach((ids) => {
-              this.createArea(ids);
-            });
-            this.logState = ls;
-            this.logAction({ action: "create", type: "chunk", ids: tIds });
+            this.placeChunk(actionToModify);
             break;
           }
-          case "walls": {
+          case "walls": {//this may be alright as walls rarely delete as bunch / can be send multiple times
             this.logState = 0;
             let ids = [];
             actionToModify.ids.forEach((set) => {
@@ -1415,7 +1620,7 @@ const DME = {
               this.createWall(set.from, set.to);
             });
             this.logState = ls;
-            this.logAction({ action: "create", type: "walls", ids: ids });
+            this.handleActionLog({ action: "create", type: "walls", ids: ids });
             break;
           }
           case "area": {
@@ -1625,6 +1830,7 @@ const DME = {
     origin,
     towersToMod = this.selectedTowers
   ) {
+    this.coopCloneAction('resizeChunk',{xDelta:xDelta,yDelta:yDelta,origin:origin,towersToMod:towersToMod});
     if (towersToMod.length < 1) return;
     xDelta = origin?.z
       ? xDelta
@@ -1666,7 +1872,7 @@ const DME = {
     this.updateChunkOptions();
     if (this.mapData.koth.length > 3) this.updateKothTowers();
     if (s) {
-      this.logAction({
+      this.handleActionLog({
         action: "modify",
         type: "resize",
         ids: loggedIds,
@@ -1675,7 +1881,7 @@ const DME = {
         y: yDelta,
       });
     } else {
-      this.logAction({
+      this.handleActionLog({
         action: "modify",
         type: "move",
         ids: loggedIds,
@@ -1686,6 +1892,7 @@ const DME = {
   },
 
   recolorChunk: function (newColor, targetTowers = this.selectedTowers) {
+    this.coopCloneAction('recolorChunk',{newColor:newColor,targetTowers:targetTowers});
     let towers = this.mapData.towers,
       loggedData = [],
       ids = [];
@@ -1714,11 +1921,28 @@ const DME = {
     document.querySelector("#DME-towers-info-color-dropdown").value = newColor;
     this.updateWalls(ids);
     this.updateAreas(ids);
-    this.logAction({
+    this.handleActionLog({
       action: "modify",
       type: "color",
       towers: loggedData,
     });
+  },
+
+  uncollorTowers: function(towers){
+    this.coopCloneAction('uncollorTowers',{towers:towers});
+    let mTowers = this.mapData.towers,
+      newLoggedData = [];
+    towers.forEach((data) => {
+      let t = mTowers[data.ar];
+      newLoggedData.push({ ar: data.ar, color: t.color });
+      t.color = data.color;
+    });
+    this.handleActionLog({
+      action: "modify",
+      type: "color",
+      towers: newLoggedData,
+    });
+    this.updateTowerInfo();  
   },
 
   selectTower: function () {
@@ -1799,6 +2023,7 @@ const DME = {
 
   //action here
   deleteTowers: function (towerIdx = this.selectedTowers) {
+    this.coopCloneAction('deleteTowers',{towerIdx:towerIdx});
     let loggedTowers = [];
     let loggedWalls = [];
     let loggedAreas = [];
@@ -1862,7 +2087,7 @@ const DME = {
       newSelectedTowers.splice(idx - c, 1);
     });
     this.selectedTowers = newSelectedTowers;
-    this.logAction({
+    this.handleActionLog({
       action: "delete",
       type: "towers",
       towers: loggedTowers,
@@ -1873,9 +2098,9 @@ const DME = {
     if (loggedAreas.length) this.updateShields();
   },
 
-  deleteTargetWall: function () {
-    let mc = this.mouseCoords.relative,
-      [x, y] = [mc.x, mc.y],
+  deleteTargetWall: function (mc = this.mouseCoords.relative) {
+    this.coopCloneAction('deleteTargetWall',{mc:mc});
+    let [x, y] = [mc.x, mc.y],
       wallsToDelete = [],
       wallIds = [];
     this.mapData.walls.forEach((wall, index) => {
@@ -1912,7 +2137,7 @@ const DME = {
             area.nodes.forEach((n) => {
               ids.push(n.id);
             });
-            this.logAction({ action: "delete", type: "area", ids: ids });
+            this.handleActionLog({ action: "delete", type: "area", ids: ids },[index]);
           }
         });
       });
@@ -1920,7 +2145,7 @@ const DME = {
     areasToDelete.forEach((idx, c) => {
       this.mapData.areas.splice(idx - c, 1);
     });
-    this.logAction({
+    this.handleActionLog({
       action: "delete",
       type: "walls",
       ids: wallIds,
@@ -1928,7 +2153,8 @@ const DME = {
   },
 
   deleteWalls: function (ids) {
-    //note: if deleted wall is part of area, delete area as well (<- to be added)
+    this.coopCloneAction('deleteWalls',{ids:ids});
+    //note: if deleted wall is part of area, delete area as well (<- to be added) edit: wtf? why didn't I add this yet
     let wallIdentifiers = [];
     this.mapData.walls.forEach((w) => {
       wallIdentifiers.push(`${w.from.id},${w.to.id}`);
@@ -1944,7 +2170,7 @@ const DME = {
     wallsToDelete.forEach((idx, c) => {
       this.mapData.walls.splice(idx - c, 1);
     });
-    this.logAction({
+    this.handleActionLog({
       action: "delete",
       type: "walls",
       ids: ids,
@@ -1952,6 +2178,7 @@ const DME = {
   },
 
   deleteArea: function (ids) {
+    this.coopCloneAction('deleteArea',{ids:ids});
     let areaIdentifiers = [];
     this.mapData.areas.forEach((a) => {
       let ideText = ``;
@@ -1974,10 +2201,11 @@ const DME = {
       this.mapData.areas.splice(idx - c, 1);
     });
     this.updateShields();
-    this.logAction({ action: "delete", type: "area", ids: ids });
+    this.handleActionLog({ action: "delete", type: "area", ids: ids });
   },
 
   rotateChunk: function (properties, towers = this.selectedTowers) {
+    this.coopCloneAction('rotateChunk',{properties:properties,towers:towers});
     let centre = properties?.centre ?? this.getCentreOfChunk(towers);
     if (!properties?.angle) {
       alert("Error: missing angle");
@@ -1997,7 +2225,7 @@ const DME = {
     this.updateWalls(wIds);
     this.updateAreas(aIds);
     this.updateChunkOptions();
-    this.logAction({
+    this.handleActionLog({
       action: "modify",
       type: "rotate",
       idxs: towers,
@@ -2006,6 +2234,9 @@ const DME = {
   },
 
   mirrorChunk: function (properties, towers = this.selectedTowers) {
+    this.coopCloneAction('mirrorChunk',{properties:properties,towers:towers});
+    let coopLog = this.coop.log;
+    this.coop.log = false;
     let d = properties.direction,
       mirrorAxies =
         this.getOuterMostPositionsOfChunk(towers)[properties.direction],
@@ -2041,8 +2272,8 @@ const DME = {
           if (this.getIndexFromId(t.id + modif) < 0) {
             //doesn´t exist already, just place down
             let pos = {
-              x: t.x + (mirrorAxies - t.x) * xModif,
-              y: t.y + (mirrorAxies - t.y) * yModif,
+              x: x,
+              y: y,
             };
             if (t?.rotation) pos.r = t.rotation;
             this.placeSpecial(-(t.id + modif), pos);
@@ -2052,11 +2283,12 @@ const DME = {
       }
     });
     this.mapData.walls.forEach((w) => {
+      let from = w.from.id, to = w.to.id;
       if (
-        collectiveIds.includes(w.from.id) &&
-        collectiveIds.includes(w.to.id)
+        collectiveIds.includes(from) &&
+        collectiveIds.includes(to)
       ) {
-        this.createWall(mirroredIds[w.from.id], mirroredIds[w.to.id]);
+        this.createWall(mirroredIds[from], mirroredIds[to]);
       }
     });
     this.mapData.areas.forEach((a) => {
@@ -2072,7 +2304,8 @@ const DME = {
     });
     //enable log back
     this.logState = ls;
-    this.logAction({ action: "create", type: "chunk", ids: colNewIds });
+    this.handleActionLog({ action: "create", type: "chunk", ids: colNewIds });
+    this.coop.log = coopLog;
   },
 
   changeSelectedTowerColor: function (newColor) {
@@ -2151,6 +2384,7 @@ const DME = {
   },
 
   updateMapSize: function (spec, value) {
+    this.coopCloneAction('updateMapSize',{spec:spec,value:value});
     this.mapData[spec] = value * defly.UNIT_WIDTH;
     let notSpec = spec == "width" ? "height" : "width";
     switch (this.mapData.shape) {
@@ -2186,6 +2420,7 @@ const DME = {
   },
 
   switchMapShape: function (newShape = -1) {
+    this.coopCloneAction('switchMapShape',{newShape:newShape});
     this.mapData.shape =
       newShape >= 0 ? Number(newShape) : ++this.mapData.shape % 3;
     switch (this.mapData.shape) {
@@ -2260,6 +2495,9 @@ const DME = {
   },
 
   loadMap: function (mapData, dataType) {
+    this.coopCloneAction('loadMap',{mapData:mapData,dataType:dataType});
+    let coopLog = this.coop.log;
+    this.coop.log = false;
     console.log(mapData);
     this.logState = 0;
     if (!dataType) {
@@ -2517,12 +2755,14 @@ const DME = {
     }
     //enable action logging
     this.logState = 1;
+    this.coop.log = coopLog;
   },
 
   clearMap: function (confirmed) {
     if (!confirmed)
       confirmed = confirm("Are you sure you want to delete this map?");
     if (confirmed) {
+      this.coopCloneAction('clearMap',{confirmed:true});
       this.mapData.towers = [];
       this.mapData.walls = [];
       this.mapData.areas = [];
@@ -3546,6 +3786,303 @@ const DME = {
     this.updateChunkOptions();
   },
 
+  showCoopSetup: function(show = 1){
+    let property = ['none', 'inline'];
+    document.querySelector('#DME-coop-menu').style.display = property[show];
+    DME.blockInput = !!show;
+    if(show && this.coop.id === undefined){
+      this.coop.isLoading = true;
+      this.openPeer();
+    }
+  },
+  openPeer: function(isHosting){
+    let peer = new Peer(),
+      peerId;
+    peer.on('open', function(id) {
+      DME.coop.id = id;
+      DME.coop.isLoading = false;
+      document.querySelector('#DME-coop-menu .loading').style.display = 'none';
+    });
+    peer.on('connection', function(conn) {
+        console.log('Connected from: ');
+        console.log(conn);
+        DME.coop.isConnected = true;
+        conn.on('open', function() {
+          console.log('Connection openned successful');
+          conn.on('data', function(data) {
+            //receiving data
+            DME.handleCoopData(data);
+          });
+          DME.coop.conn = conn;
+        });
+    });
+    this.coop.peer = peer;
+    return peerId;
+  },
+  hostCoop: function(){
+    if(!this.coop.isHosting && !this.coop.isJoined){
+      this.coop.isHosting = true;
+      document.querySelector('#DME-coop-menu-generated-id').innerText = this.coop.id;
+      document.querySelector('#DME-coop-menu-join-button').setAttribute('disabled', true);
+    }
+  },
+  joinCoop: function(){
+    if(!this.coop.isHosting && !this.coop.isJoined){
+      let id = document.querySelector('#DME-coop-menu-join-id').value;
+      if(id?.length < 8) return;
+      console.log('Trying to connect to: ' + id);
+      this.coop.isLoading = true;
+      document.querySelector('#DME-coop-menu .loading').style.display = 'inline';
+      let conn = this.coop.peer.connect(id);
+      conn.on('open', function() {
+        conn.on('data', function(data) {
+          //receiving data
+          DME.handleCoopData(data);
+        });
+        // Send messages
+        DME.coop.conn = conn;
+        DME.coop.isLoading = false;
+        DME.coop.isConnected = true;
+        DME.coop.isJoined = true;
+        document.querySelector('#DME-coop-menu .loading').style.display = 'none';
+        document.querySelector('#DME-coop-menu-host-button').setAttribute('disabled', true);
+        conn.send('RMD');
+      });
+    }
+  },
+  copySessionId: function(){
+    let id = document.querySelector('#DME-coop-menu-generated-id').innerText;
+    coppyToClipboard(id);
+  },
+  handleCoopData: function(data){
+    let commands = data.split('§');
+    switch(commands[0]){
+      case 'RMD': {
+        //request map data
+        let command = 'LMD',
+        data = structuredClone(this.mapData);
+        this.coopSend(command, data);
+        break;
+      }
+      case 'LMD': {
+        //load map data
+        let mapData = JSON.parse(commands[1]);
+        console.log(mapData);
+        this.mapData = structuredClone(mapData);
+        this.updateAreas();
+        this.updateWalls();
+        this.selectedTowers = [];
+        this.updateChunkSizeDisplay();
+        this.updateKothTowers();
+        document.querySelector('#DME-input-map-width').value = this.mapData.width/defly.UNIT_WIDTH;
+        document.querySelector('#DME-input-map-height').value = this.mapData.height/defly.UNIT_WIDTH;
+        break;
+      }
+      case 'UA':{
+        //action update: other user did smth
+        console.log('Receive user action');
+        let actionData = JSON.parse(commands[1]);
+        console.log(actionData);
+        this.coopHandleUserAction(actionData);
+        break;
+      }
+    }
+  },
+  coopSend: function(command, data){
+    let text = `${command}§${JSON.stringify(data)}`;
+    this.coop.conn.send(text);
+  },
+  coopCloneAction: function(action, actionData) {
+    if(this.coop.isConnected && this.coop.log){
+      let command = 'UA',
+        data = {
+          action: action,
+          data: actionData,
+        };
+      this.coopSend(command, data);
+    }
+  },
+  coopHandleUserAction: function(action){
+    let ls = this.logState,
+      coopLog = this.coop.log;
+    this.logState = 0;
+    this.coop.log = false;
+    let data = action.data;
+    switch(action.action){
+      case 'placeTower':{
+        console.log(`Trying to place tower at ${data.mc.x}, ${data.mc.y}`);
+        this.placeTower(data.mc,data.color,data.selectedTowers,false);
+        break;
+      }
+      case 'createTower':{
+        this.createTower(data.x,data.y,data.color,data.id);
+        break;
+      }
+      case 'createWall':{
+        this.createWall(data.fromId,data.toId);
+        break;
+      }
+      case 'createArea':{
+        this.createArea(data.ids);
+        break;
+      }
+      case 'placeSpecial':{
+        this.placeSpecial(data.id,data.mc);
+        break;
+      }
+      case 'shieldTowers':{
+        this.shieldTowers(data.targetTowers);
+        break;
+      }
+      case 'pasteChunk':{
+        this.pasteChunk(data.mc,data.cC,data.cId);
+        break;
+      }
+      case 'placeChunk':{
+        this.placeChunk(data.data);
+        break;
+      }
+      case 'resizeChunk':{
+        this.resizeChunk(data.xDelta,data.yDelta,data.origin,data.towersToMod);
+        break;
+      }
+      case 'recolorChunk':{
+        this.recolorChunk(data.newColor,data.targetTowers);
+        break;
+      }
+      case 'uncollorTowers':{
+        this.uncollorTowers(data.towers);
+        break;
+      }
+      case 'deleteTowers':{
+        this.deleteTowers(data.towerIdx);
+        break;
+      }
+      case 'deleteTargetWall':{
+        this.deleteTargetWall(data.mc);
+        break;
+      }
+      case 'deleteWalls':{
+        this.deleteWalls(data.ids);
+        break;
+      }
+      case 'deleteArea':{
+        this.deleteArea(data.ids);
+        break;
+      }
+      case 'rotateChunk':{
+        this.rotateChunk(data.properties,data.towers);
+        break;
+      }
+      case 'mirrorChunk':{
+        this.mirrorChunk(data.properties,data.towers);
+        break;
+      }
+      case 'updateMapSize':{
+        this.updateMapSize(data.spec,data.value);
+        break;
+      }
+      case 'switchMapShape':{
+        this.switchMapShape(data.newShape);
+        break;
+      }
+      case 'loadMap':{
+        this.loadMap(data.mapData,data.dataType);
+        break;
+      }
+      case 'clearMap':{
+        this.clearMap(data.confirmed);
+        break;
+      }
+      default:{
+        console.log(`Unrecognised User Action: ${action.action}`);
+        console.log(action);
+      }
+    }
+    /*
+    switch(action.action){
+      case "create": {
+        switch(action.type){
+          case 'tower':{
+            this.createTower(action.data.x,action.data.y,action.data.color,action.data.id)
+            break;
+          }
+          case 'walls':{
+            action.ids.forEach(set => {
+              this.createWall(set.from,set.to);
+            });
+            break;
+          }
+          case 'area':{
+            this.createArea(action.ids);
+            break;
+          }
+          case 'chunk':{
+            this.data.towers.forEach(t => {
+              this.createTower(t.x,t.y,t.color,t.id);
+            });
+            this.data.walls.forEach(w => {
+              this.createWall(w.from,w.to);
+            });
+            this.data.areas.forEach(a => {
+              this.createArea(a);
+            });
+            break;
+          }
+        }
+        break;
+      }
+      case "modify": {
+        switch (action.type) {
+          case "resize": {
+            this.resizeChunk(action.x,action.y,action.origin,action.idxs);
+            break;
+          }
+          case "move": {
+            this.resizeChunk(action.x,action.y,{x:1,x:1,z:1},action.idxs);
+            break;
+          }
+          case "rotate": {
+            this.rotateChunk(action.properties, action.idxs);
+            break;
+          }
+          case "color": {
+            this.recolorChunk(action.color. action.idxs);
+            break;
+          }
+          case "unColor": {
+            let towers = this.mapData.towers;
+            action.towers.forEach(t => {
+              towers[t.ar].color = t.color;
+            })
+            break;
+          }
+        }
+        break;
+      }
+      case "delete": {
+        switch(action.type){
+          case 'towers':{
+            this.deleteTowers(action.idxs);
+            break;
+          }
+          case 'walls':{
+            this.deleteWalls(action.ids);
+            break;
+          }
+          case 'area':{
+            this.deleteArea(action.ids)
+            break;
+          }
+        }
+        break;
+      }
+    }
+    */
+    this.logState = ls;
+    this.coop.log = coopLog;
+  },
+
   //will be called once upon starting chunck resize
   updateChunkOptions: function () {
     //since this is called anytime tower selection is changing, we can call update tower info here as well
@@ -3967,9 +4504,11 @@ const DME = {
           if (false && this.visuals.useDeflyImages) {
             //dont use rn
             let r = (towerWidth + 2 / mz) * q;
-            ctx.fillStyle = defly.colors.standard[3];
-            ctx.fillRect(t.x - r, t.y - r, 2 * r, 2 * r);
+            /*ctx.fillStyle = defly.colors.standard[3];
+            ctx.fillRect(t.x - r, t.y - r, 2 * r, 2 * r);*/
             ctx.globalCompositeOperation = "destination-in";
+            ctx.fillStyle = "red";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(defly.images.shield, t.x - r, t.y - r, 2 * r, 2 * r);
             ctx.globalCompositeOperation = "source-over";
           } else {
@@ -4384,7 +4923,17 @@ const DME = {
   },
 
   handleInput: function (e /*type, input, extra*/) {
-    if (DME.blockInput) return;
+    if (DME.blockInput) {
+      //check for escape inputs
+      if(e.type == 'keydown' && e.key.toLocaleUpperCase() == 'ESCAPE'){
+        if(DME.coop.isLoading){
+          DME.showCoopSetup(0);
+          DME.coop.isLoading = false;
+          document.querySelector('#DME-coop-menu .loading').style.display = 'none';
+        }
+      }
+      return
+    };
     //ignore hotkeys if a menu is open
 
     let type = e.type,
@@ -4593,8 +5142,13 @@ const DME = {
                 break;
               }
               case "ESCAPE": {
-                DME.selectedTowers = [];
-                DME.updateChunkOptions();
+                if(this.coop.isLoading){
+                  this.showCoopSetup(0);
+                  this.coop.isLoading = false;
+                } else {
+                  DME.selectedTowers = [];
+                  DME.updateChunkOptions();
+                }
               }
             }
             break;
@@ -4886,6 +5440,7 @@ const DC = {
     bullets: [],
     activeItems: [],
     idToTeam: { id1: 2 }, //DC.gameData.idToTeam[`id${player.id}`] => returns team id for player id
+    idToIdx: { ['1']: 0 },
   },
   gameMode: "defuse",
   gamePhase: 'casual',
@@ -4903,7 +5458,9 @@ const DC = {
         defuseId: 0,
         charge: 0,
       },
-    ]
+    ],
+    vTeam: 2,
+    vCause: 0,
   },
   allowPlayerMovement: true,
   highestId: 0,
@@ -4941,12 +5498,18 @@ const DC = {
       },
       team: 2,
       id: 1,
+      name: 'Player',
       money: {
         total: 1000,
         spend: 0,
         earned: 0,
       },
       score: 0,
+      kills: 0,
+      totalKills:0,
+      deaths:0,
+      roundsPlayed: 0,
+      roundsWon: 0,
       isShooting: false,
       wantsToBuild: false,
       wantsToUsePower: false,
@@ -4959,11 +5522,31 @@ const DC = {
         reloadTime: 0.75,
         inaccuracy: 0,
         bulletCount: 1,
+        cost: 0,
       },
       tower: {
         buildRange: 0,
         health: 1,
         shield: 0,
+      },
+      items: {
+        emp: {
+          bought: Infinity,
+          left: Infinity,
+        },
+        playerShield: {
+          bought: 0,
+          left: 0,
+        },
+        towerHealth: {
+          bought: 0,
+        },
+        towerShield: {
+          bought: 0,
+        },
+        buildRange: {
+          bought: 0,
+        },
       },
       isAlive: true,
       isBot: false,
@@ -5082,68 +5665,71 @@ const DC = {
   },
   updatePlayerPosition: function () {
     DC.players.forEach((p, imp) => {
-      p.hasMoved = false;
-      if (p.isStuck === false && this.allowPlayerMovement) {
-        //update position
-        if(p.isBot){
-          let normalizer = 1/(p.velocity.x**2+p.velocity.y**2)**.5;
-          normalizer = isNaN(0*normalizer) ? 0 : normalizer;
-          p.position.x += p.velocity.x * normalizer * p.copter.copterSpeed * DC.localDelta;
-          p.position.y += p.velocity.y * normalizer * p.copter.copterSpeed * DC.localDelta;
-          p.hasMoved = !!normalizer;
-        } else {
-          let xVel = p.velocity.xP - p.velocity.xN,
-            yVel = p.velocity.yP - p.velocity.yN,
-            xModif = xVel * (yVel ? 0.71 : 1),
-            yModif = yVel * (xVel ? 0.71 : 1);
-          p.position.x += xModif * p.copter.copterSpeed * DC.localDelta;
-          p.position.y += yModif * p.copter.copterSpeed * DC.localDelta;
-          p.hasMoved = !!(xModif || yModif);
-        }
-  
-        //check if on top of tower: connect
-        let pCluster = DC.getClusterOrigin({x:p.buildPoint.x,y:p.buildPoint.y});
-        for (let yM = -1; yM < 2; yM++) {
-          for (let xM = -1; xM < 2; xM++) {
-            DC.mapData.towerCluster[pCluster[0] + xM]?.[
-              pCluster[1] + yM
-            ]?.forEach((t) => {
-              if (
-                getDistance2d(p.buildPoint.x, p.buildPoint.y, t.x, t.y) <
-                  defly.TOWER_WIDTH + defly.PLAYER_WIDTH &&
-                t.team == p.team
-              ) {
-                if(p.connectedTo.id !== false && !p.isShooting){
-                  //connect towers
-                  let wallHasToBePlaced = true;
-                  t.connectedTo.forEach(c => {if(c.id == p.connectedTo.id)wallHasToBePlaced = false;});
-                  t.connectedFrom.forEach(c => {if(c.id == p.connectedTo.id)wallHasToBePlaced = false;});
-                  if(wallHasToBePlaced){
-                    this.handleWallPlacement(p.connectedTo, t, p.team);
-                  }
-                }
-                p.connectedTo.id = t.id;
-                p.connectedTo.x = t.x;
-                p.connectedTo.y = t.y;
-              }
-            });
+      if(p.isAlive){
+        p.hasMoved = false;
+        if (p.isStuck === false && this.allowPlayerMovement) {
+          //update position
+          if(p.isBot){
+            let normalizer = 1/(p.velocity.x**2+p.velocity.y**2)**.5;
+            normalizer = isNaN(0*normalizer) ? 0 : normalizer;
+            p.position.x += p.velocity.x * normalizer * p.copter.copterSpeed * DC.localDelta;
+            p.position.y += p.velocity.y * normalizer * p.copter.copterSpeed * DC.localDelta;
+            p.hasMoved = !!normalizer;
+          } else {
+            let xVel = p.velocity.xP - p.velocity.xN,
+              yVel = p.velocity.yP - p.velocity.yN,
+              xModif = xVel * (yVel ? 0.71 : 1),
+              yModif = yVel * (xVel ? 0.71 : 1);
+            p.position.x += xModif * p.copter.copterSpeed * DC.localDelta;
+            p.position.y += yModif * p.copter.copterSpeed * DC.localDelta;
+            p.hasMoved = !!(xModif || yModif);
           }
+    
+          //check if on top of tower: connect
+          let pCluster = DC.getClusterOrigin({x:p.buildPoint.x,y:p.buildPoint.y});
+          for (let yM = -1; yM < 2; yM++) {
+            for (let xM = -1; xM < 2; xM++) {
+              DC.mapData.towerCluster[pCluster[0] + xM]?.[
+                pCluster[1] + yM
+              ]?.forEach((t) => {
+                if (
+                  getDistance2d(p.buildPoint.x, p.buildPoint.y, t.x, t.y) <
+                    defly.TOWER_WIDTH + defly.PLAYER_WIDTH &&
+                  t.team == p.team
+                ) {
+                  if(p.connectedTo.id !== false && !p.isShooting){
+                    //connect towers
+                    let wallHasToBePlaced = true;
+                    t.connectedTo.forEach(c => {if(c.id == p.connectedTo.id)wallHasToBePlaced = false;});
+                    t.connectedFrom.forEach(c => {if(c.id == p.connectedTo.id)wallHasToBePlaced = false;});
+                    if(wallHasToBePlaced){
+                      this.handleWallPlacement(p.connectedTo, t, p.team);
+                    }
+                  }
+                  p.connectedTo.id = t.id;
+                  p.connectedTo.x = t.x;
+                  p.connectedTo.y = t.y;
+                }
+              });
+            }
+          }
+          p.isStuck = DC.getPlayerWallCollision(p.position, p.team, p.id);
+        } else if(this.allowPlayerMovement){
+          p.position.x +=
+            p.isStuck.x * p.copter.copterSpeed * DC.localDelta;
+          p.position.y +=
+            p.isStuck.y * p.copter.copterSpeed * DC.localDelta;
+          p.hasMoved = true;
+          p.isStuck = DC.getPlayerWallCollision(p.position, p.team, p.id);
         }
-        p.isStuck = DC.getPlayerWallCollision(p.position, p.team, p.id);
-      } else if(this.allowPlayerMovement){
-        p.position.x +=
-          p.isStuck.x * p.copter.copterSpeed * DC.localDelta;
-        p.position.y +=
-          p.isStuck.y * p.copter.copterSpeed * DC.localDelta;
-        p.hasMoved = true;
-        p.isStuck = DC.getPlayerWallCollision(p.position, p.team, p.id);
-      }
-      //if player is outside map...
-      p.position = this.snapPointIntoMap(p.position);
-      
-      if(!imp){
-        camera.position.x = p.position.x;
-        camera.position.y = p.position.y;
+        //if player is outside map...
+        p.position = this.snapPointIntoMap(p.position);
+        
+        if(!imp){
+          camera.position.x = p.position.x;
+          camera.position.y = p.position.y;
+        }
+        
       }
     });
   },
@@ -5247,7 +5833,7 @@ const DC = {
                   bA.y += normalizer * rightVector[1];
                 } else {
                   //enemy wall, die
-                  this.killPlayer(id);
+                  this.killPlayer(id, 1);
                 }
               }
             }
@@ -5507,48 +6093,52 @@ const DC = {
   },
   checkShoot: function () {
     DC.players.forEach(p => {
-      let aim = {
-        x: p.aimingAt.x  - camera.offset.x,
-        y: p.aimingAt.y  - camera.offset.y,
-      }
-      if(p.isBot) aim = p.aimingAt;
-      if (p.shootingCooldown > 0) p.shootingCooldown -= DC.localDelta;
-      if (p.isShooting && p.shootingCooldown <= 0) {
-        //spawn a bullet
-        DC.createBullets(
-          p.position,
-          aim,
-          p.copter.inaccuracy,
-          p.copter.bulletSpeed,
-          p.copter.bulletLifespan,
-          p.copter.bulletCount,
-          p.id
-        );
-        //gameData.bullets.push({position : {x : player.position.x, y : player.position.y}, velocity : {x : -20, y : 10}, lifespawn : 5})
-        p.shootingCooldown = p.copter.reloadTime;
-      }
-  
-      //also checking for powers here
-      if(p.wantsToUsePower) {
-        p.wantsToUsePower = false;
-        switch(this.gameMode){
-          case 'defuse':{
-            //check whether can throw emp
-            //...
-            let data = {
-              type: 'emp',
-              x: p.position.x,
-              y: p.position.y,
-              maxVelocity: {
-                x: 2*(aim.x)*camera.zoom,
-                y: 2*(aim.y)*camera.zoom,
-              },
-              fuse: 3,
-              radius: 5,
-              team: p.team,
+      if(p.isAlive){
+        let aim = {
+          x: p.aimingAt.x  - camera.offset.x,
+          y: p.aimingAt.y  - camera.offset.y,
+        }
+        if(p.isBot) aim = p.aimingAt;
+        if (p.shootingCooldown > 0) p.shootingCooldown -= DC.localDelta;
+        if (p.isShooting && p.shootingCooldown <= 0) {
+          //spawn a bullet
+          DC.createBullets(
+            p.position,
+            aim,
+            p.copter.inaccuracy,
+            p.copter.bulletSpeed,
+            p.copter.bulletLifespan,
+            p.copter.bulletCount,
+            p.id
+          );
+          //gameData.bullets.push({position : {x : player.position.x, y : player.position.y}, velocity : {x : -20, y : 10}, lifespawn : 5})
+          p.shootingCooldown = p.copter.reloadTime;
+        }
+    
+        //also checking for powers here
+        if(p.wantsToUsePower) {
+          p.wantsToUsePower = false;
+          switch(this.gameMode){
+            case 'defuse':{
+              //check whether can throw emp
+              if(p.items.emp.left){
+                p.items.emp.left--;
+                let data = {
+                  type: 'emp',
+                  x: p.position.x,
+                  y: p.position.y,
+                  maxVelocity: {
+                    x: 2*(aim.x)*camera.zoom,
+                    y: 2*(aim.y)*camera.zoom,
+                  },
+                  fuse: 3,
+                  radius: 5,
+                  team: p.team,
+                }
+                this.gameData.activeItems.push(data);
+              }
+              break;
             }
-            this.gameData.activeItems.push(data);
-            break;
           }
         }
       }
@@ -5602,11 +6192,11 @@ const DC = {
       //players/bots
       let pB = bullet.p;
       this.players.forEach(p => {
-        if(bullet.t != p.team && bAlive){
+        if(p.isAlive && bullet.t != p.team && bAlive){
           let pP=p.position;
           if(getDistance2d(pB.x,pB.y,pP.x,pP.y) < defly.BULLET_WIDTH + defly.PLAYER_WIDTH){
             //player ded (unless active shield)
-            this.killPlayer(p.id);
+            this.killPlayer(p.id, 0, bullet.o);
             bAlive = false;
           }
         }
@@ -5672,7 +6262,12 @@ const DC = {
                       bAlive = false;
                       if (tower.team != 1) {
                         tower.hp -= 1;//why does this work and not crash if -hp doesn't exist?? and why does it crash if I ask for ptional chaining?
-                        if(!tower?.hp) DC.deleteTower(tower.id, { x: tower.x, y: tower.y });
+                        if(!tower?.hp) {
+                          DC.deleteTower(tower.id, { x: tower.x, y: tower.y });
+                          let p = DC.players[DC.gameData.idToIdx[bullet.o]];
+                          p.score += 10;
+                          p.money.earned += 10;
+                        }
                         else {
                           tower.damaged = 1-tower.hp/tower.maxHp;
                         }
@@ -5754,22 +6349,67 @@ const DC = {
     });
   },
 
-  killPlayer: function(playerId) {
-    this.players.forEach(p => {
-      if(p.id == playerId) {
-        this.explodeArea(p.position.x,p.position.y,5,p.team,true);//5 = radius, has to be bound to player experience points later
-        p.isAlive = false;
-        p.score = 0;
-        switch(this.gameMode){
-          case 'defuse':{
-            p.money.total -= p.money.spend;
-            p.money.spend = 0;
-            //select default gear
-            break;
-          }
-        }
+  killPlayer: function(playerId, deathCause, receiver) {
+    let target = DC.gameData.idToIdx[playerId];
+    if(target === undefined) {
+      console.log('Unknown player death...');
+      return;
+    }
+    let p = this.players[target];
+    this.explodeArea(p.position.x,p.position.y,5,p.team,true);//5 = radius, has to be bound to player experience points later
+    p.isAlive = false;
+    p.score = 0;
+    p.kills = 0;
+    p.deaths++;
+    let deathMessage = `${p.name} `,
+      r = receiver !== undefined ? this.players[DC.gameData.idToIdx[receiver]] : undefined;
+    switch(deathCause) {
+      case 0:{
+        //bullet
+        deathMessage += `has been killed by ${r?.name ?? 'unknown'}`;
+        break;
       }
-    })
+      case 1: {
+        //wall
+        deathMessage += `crashed into a wall`;
+        if(r === undefined) {
+          //get wall killer or smin
+          r = this.players[0];//!!NOT FINAL
+        }
+        break;
+      }
+      case 2:{
+        //grenade
+        deathMessage += `has been exploded by ${r?.name ?? 'unkown'}`;
+        break;
+      }
+    }
+    r.kills++;
+    r.totalKills++;
+    switch(this.gameMode){
+      case 'defuse':{
+        if(this.gamePhase == 'casual') break;
+        p.money.total -= p.money.spend;
+        p.money.spend = 0;
+        //select default gear
+        this.clearDefuseItems(target);
+        this.buyDefuseGear(0, 'basic', 0, target);
+        //...
+        r.money.earned += 500;
+        r.score += 1000;
+        //check if round ended
+        let rc = 0, bc = 0;
+        DC.players.forEach(p => {if(p.isAlive){if(p.team == 2){bc++;}else if(p.team == 3){rc++;}}});
+        if((!rc && !(this.gamePhase == 'post-plant')) || !bc){
+          //no player on either team -> end round (unless red ded but bomb planted)
+          this.defuseData.vTeam = bc ? 2 : 3;
+          this.defuseData.vCause = 1;//1 = one team eliminated
+          this.defuseData.timer = 5;
+          this.gamePhase = 'post-round-innitiate';
+        }
+        break;
+      }
+    }
   },
 
   updateOtherStuff: function () {
@@ -5864,6 +6504,9 @@ const DC = {
               this.allowPlayerMovement = true;
               this.gamePhase = 'pre-plant';
               this.defuseData.timer += 180; //3 min
+              let popUpRed = 'Plant the blue spots or kill every blue player to win',
+                popUpBlue = 'Protect the blue bomb spots or kill every red player to win';
+              this.animations.push({type:'pop-up-message',timer:10,text:popUpBlue});
             }
             break;
           }
@@ -5875,11 +6518,11 @@ const DC = {
                   let bomb = this.mapData.bombs[idx];
                   if(!!bomb) {
                     if(Bp.plantId === p.id) {
-                      if(p.hasMoved) {
+                      if(p.hasMoved || !p.isAlive) {
                         Bp.plantId = -1; //disabled for this tick
                         Bp.charge = 0;
                       } else Bp.charge += this.localDelta / defly.PLANTING_TIME;
-                    } else if(!p.hasMoved && Bp.plantId === 0) {
+                    } else if(p.isAlive && !p.hasMoved && Bp.plantId === 0) {
                       let pos = p.position;
                       if(getDistance2d(pos.x,pos.y,bomb.x,bomb.y) < defly.BOMB_RADIUS) {
                         Bp.plantId = p.id;
@@ -5894,6 +6537,9 @@ const DC = {
                       //give player who planted +1k score & $
                       p.score += 1000;
                       p.money.earned += 1000;
+                      let popUpRed = 'The bomb has been planted! Protect it till the timer reaches 0',
+                        popUpBlue = 'The bomb has been planted! Defuse it by staying still inside the bomb spot';
+                      this.animations.push({type:'pop-up-message',timer:10,text:popUpBlue});
                     }
 
                   }
@@ -5902,8 +6548,10 @@ const DC = {
             });
             this.defuseData.planting.forEach(b => {if(b.plantId === -1) b.plantId = 0;});
             if(this.defuseData.timer <= 0) {
-              this.gamePhase = 'post-round';
+              this.gamePhase = 'post-round-innitiate';
               this.defuseData.timer += 5;
+              this.defuseData.vTeam = 2;
+              this.defuseData.vCause = 0;//bomb defended
             }
             break;
           }
@@ -5915,11 +6563,11 @@ const DC = {
                   let bomb = this.mapData.bombs[idx];
                   if(!!bomb && Bp.charge) {
                     if(Bp.defuseId === p.id) {
-                      if(p.hasMoved) {
+                      if(p.hasMoved || !p.isAlive) {
                         Bp.defuseId = -1; //disabled for this tick
                         Bp.charge = 1;
                       } else Bp.charge -= this.localDelta / defly.DEFUSING_TIME;
-                    } else if(!p.hasMoved && Bp.charge === 1) {
+                    } else if(p.isAlive && !p.hasMoved && Bp.charge === 1) {
                       let pos = p.position;
                       if(getDistance2d(pos.x,pos.y,bomb.x,bomb.y) < defly.BOMB_RADIUS) {
                         Bp.defuseId = p.id;
@@ -5929,8 +6577,10 @@ const DC = {
                     if(Bp.charge <= 0) {
                       Bp.charge = 0;
                       this.defuseData.planted = false;
-                      this.gamePhase = 'post-round';
+                      this.gamePhase = 'post-round-innitiate';
                       this.defuseData.timer = 5;
+                      this.defuseData.vTeam = 2;
+                      this.defuseData.vCause = 4;//bomb defused
                       p.score += 4000;
                       p.money.earned += 4000;
                     }
@@ -5942,13 +6592,62 @@ const DC = {
             if(this.defuseData.timer <= 0) {
               //explode bomb
               //this.explodeArea(...)
-              this.gamePhase = 'post-round';
+              this.gamePhase = 'post-round-innitiate';
               this.defuseData.timer += 5;
               let p = this.players[this.getPlayerIndexFromId(this.defuseData.planted.plantId)];
               p.score += 2000;
               p.money.earned += 2000;
+              this.defuseData.vTeam = 3;
+              this.defuseData.vCause = 3;//bomb exploded
             }
             break;
+          }
+          case 'post-round-innitiate':{
+            this.defuseData.timer -= this.localDelta;
+            this.players.forEach(p => {
+              p.roundsPlayed++;
+              if(p.team == this.defuseData.vTeam){
+                p.score += 500;
+                p.roundsWon++;
+              } else {
+                p.money.earned += 1000;
+              }
+            });
+            let endMessageRed = '',
+              endMessageBlue = '';
+            switch(this.defuseData.vCause){
+              case 0:{
+                //blue defended
+                endMessageBlue = 'You won, you defended the bomb!';
+                endMessageRed = 'You failed to plant the bomb!';
+                break;
+              }
+              case 1:{
+                endMessageBlue = this.defuseData.vTeam == 2 ? 'You win! All enemies have been killed' : 'You lose! All your teammates have been killed';
+                endMessageBlue = this.defuseData.vTeam == 3 ? 'You win! All enemies have been killed' : 'You lose! All your teammates have been killed';
+                break;
+              }
+              case 2:{
+                //why is there no 2?
+                endMessageBlue = 'How tf did you trigger this?';
+                endMessageRed = 'How tf did you trigger this?';
+                break;
+              }
+              case 3:{
+                //bomb exploded
+                endMessageRed = 'You won! The bomb exploded';
+                endMessageBlue = 'You  lost! The bomb exploded';
+                break;
+              }
+              case 4:{
+                //bomb defused
+                endMessageBlue = 'You win! You defused the bomb';
+                endMessageRed = 'You lost! The bomb has been defused';
+                break;
+              }
+            }
+            this.animations.push({type:'pop-up-message',timer:5,text:endMessageBlue});
+            this.gamePhase = 'post-round';
           }
           case 'post-round':{
             this.defuseData.timer -= this.localDelta;
@@ -6012,7 +6711,25 @@ const DC = {
     }
   },
 
+  innitiateDefuseRound: function(){
+    DC.gamePhase = 'post-round';
+    DC.defuseData.timer=0;
+    DC.players.forEach((p, i) => {
+      p.money = {
+        total: 1000,
+        spend: 0,
+        earned: 0,
+      };
+      this.clearDefuseItems(i);
+      this.buyDefuseGear(0, 'basic', 0, i);
+    });
+    DC.slideUpgradeBlock(1, 'DC-select-defuse-copter');    
+  },
+
   prepareDefuseRound: function() {
+    let p = this.players[0],
+      shop = document.querySelector('#DC-defuse-shop');
+    shop.querySelector('.money-earned-value').innerText = p.money.earned + p.money.total < 6000 ? p.money.earned : 6000 - p.money.total;//hacky aproach, gonna fix this plus not calculating for max $
     this.reloadMap();
     this.defuseData.planting.forEach(Bp => {
       Bp.charge = 0;
@@ -6047,8 +6764,25 @@ const DC = {
       //update money
       p.money.total = Math.min(p.money.total + p.money.earned, 6000);
       p.money.earned = 0;
+      p.items.emp.left = p.items.emp.bought;
       p.isAlive = true;
     });
+    //show & update defuse shop
+    shop.style.display = 'inline';
+    this.updateShopDisplay();
+    this.animations.push({type:'pop-up-message',timer:9,text:'Round will start shortly'});
+  },
+
+  updateShopDisplay: function(all = true){
+    let shop = document.querySelector('#DC-defuse-shop'),
+      p = this.players[0];
+    shop.querySelector('.money-spend').innerText = p.money.spend;
+    shop.querySelector('.money-left').innerText = p.money.total - p.money.spend;
+    if(all) {
+      shop.querySelector('.kills').innerText = p.totalKills;
+      shop.querySelector('.deaths').innerText = p.deaths;
+      shop.querySelector('.rounds-won').innerText = `${p.roundsWon}/${p.roundsPlayed}`;
+    }
   },
 
   spawnBot: function(position, team){
@@ -6071,12 +6805,18 @@ const DC = {
       },
       team: team,
       id: this.highestPlayerId,
+      name: `Bot ${this.highestPlayerId}`,
       money: {
         total: 1000,
         spend: 0,
         earned: 0,
       },
       score: 0,
+      kills: 0,
+      totalKills:0,
+      deaths:0,
+      roundsPlayed: 0,
+      roundsWon: 0,
       isShooting: false,
       wantsToBuild: false,
       wantsToUsePower: false,
@@ -6089,17 +6829,38 @@ const DC = {
         reloadTime: 0.75,
         inaccuracy: 0,
         bulletCount: 1,
+        cost: 0,
       },
       tower: {
         buildRange: 0,
         health: 1,
         shield: 0,
       },
+      items: {
+        emp: {
+          bought: 0,
+          left: 0,
+        },
+        playerShield: {
+          bought: 0,
+          active: 0,
+        },
+        towerShield: {
+          bought: 0,
+        },
+        towerHealth: {
+          bought: 0,
+        },
+        buildRange: {
+          bought: 0,
+        },
+      },
       isAlive: true,
       isBot: true,
     };
     this.players.push(botData);
     this.gameData.idToTeam[`id${this.highestPlayerId}`] = team;
+    this.gameData.idToIdx[this.highestPlayerId] = this.players.length-1;
   },
 
   slideUpgradeBlock: function(in_view, target='DC-upgrade-block'){
@@ -6260,6 +7021,77 @@ const DC = {
     document
       .querySelector(`#DC-select-defuse-${newCopter}`)
       .classList.add("DC-copter-selected");
+  },
+
+  buyDefuseGear: function(section, gear, sell, idx=0){
+    let p = this.players[idx];
+    switch(section){
+      case 0:{
+        //defuse copter
+        if(p.money.total - p.money.spend + p.copter.cost >= defly.defuseCopter[gear].cost){
+          document
+            .querySelector(`#DC-defuse-shop tr .selected`)
+            .classList.remove("selected");
+          p.money.spend += defly.defuseCopter[gear].cost - p.copter.cost;
+          p.copter = structuredClone(defly.defuseCopter[gear]);
+          document
+            .querySelector(`#DC-buy-defuse-${gear}`)
+            .classList.add("selected");
+        }
+        break;
+      }
+      case 1:
+      case 2:{
+        //items: shield, emp...
+        if(sell) {
+          if(p.items[gear].bought > 0){
+            p.money.spend -= defly.items[gear].cost;
+            p.items[gear].bought--;
+            if(gear == 'playerShield' || gear == 'emp') p.items[gear].left--;
+          }
+        } else {
+          if(p.items[gear].bought < defly.items[gear].maxValue && p.money.total >= p.money.spend + defly.items[gear].cost){
+            p.money.spend += defly.items[gear].cost;
+            p.items[gear].bought++;
+            if(gear == 'playerShield' || gear == 'emp') p.items[gear].left++;
+          }
+        }
+        document.querySelector(`#DC-defuse-shop-items-${gear}`).innerText = p.items[gear].bought;
+        if(section == 1) break;
+        //tower upgrades
+        let upgrade = gear == 'towerHealth' ? 7 : gear == 'towerShield' ? 6 : gear == 'buildRange' ? 5 : 0;
+        this.upgradeCopter(upgrade, 4*p.items[gear].bought);
+      }
+    }
+    this.updateShopDisplay(false);
+  },
+
+  clearDefuseItems: function(idx=0){
+    let p = this.players[idx];
+    p.items = {
+      emp: {
+        bought: 0,
+        left: 0,
+      },
+      playerShield: {
+        bought: 0,
+        active: 0,
+      },
+      towerHealth: {
+        bought: 0,
+      },
+      towerShield: {
+        bought: 0,
+      },
+      buildRange: {
+        bought: 0,
+      },
+    };
+    p.tower = {
+      buildRange: 0,
+      health: 1,
+      shield: 0,
+    };
   },
 
   upgradeCopter: function (upgrade, value) {
@@ -6498,33 +7330,6 @@ const DC = {
 
     let wallWidth = defly.WALL_WIDTH / z;
     let towerWidth = defly.TOWER_WIDTH / z;
-
-    //draw animations - positioning in draw loop may change
-    let expieredAnimations = [];
-    DC.animations.forEach((a,idx) => {
-      switch(a.type){
-        case 'explosion':{
-          a.currentRadius+=a.maxRadius*DC.rawDelta/.5; //'1' = animation time in s
-          if(a.currentRadius > a.maxRadius) {
-            a.currentRadius = a.maxRadius;
-            expieredAnimations.push(idx);
-          }
-          let p = {
-            x: camera.relative.x(a.x),
-            y: camera.relative.y(a.y),
-          };
-          ctx.fillStyle = `rgba(255,90,0,${1-a.currentRadius/a.maxRadius})`;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, a.currentRadius * defly.UNIT_WIDTH * q, 2 * Math.PI, false);
-          ctx.fill();
-          break;
-        }
-      }
-    });
-    expieredAnimations.forEach((a,c) => {
-      DC.animations.splice(a-c,1);
-      console.log('terminated animation...');
-    });
 
     //draw bombs
     DC.mapData.bombs.forEach((bomb, idx) => {
@@ -6835,34 +7640,43 @@ const DC = {
     });
     ctx.lineWidth = 1;
     DC.players.forEach(p => {
-      let pX = camera.relative.x(p.position.x), pY = camera.relative.y(p.position.y);
-      ctx.strokeStyle = defly.colors.standard[p.team];
-      ctx.beginPath();
-      ctx.arc(pX, pY, (defly.PLAYER_WIDTH / z) * q, 2 * Math.PI, false);
-      ctx.moveTo(pX, pY);
-      if(p.isBot){
-        ctx.lineTo(camera.relative.x(p.position.x + p.aimingAt.x), camera.relative.y(p.position.y + p.aimingAt.y));
-      } else {
-        ctx.lineTo(p.aimingAt.x, p.aimingAt.y);
+      if(p.isAlive) {
+        let pX = camera.relative.x(p.position.x), pY = camera.relative.y(p.position.y);
+        ctx.strokeStyle = defly.colors.standard[p.team];
+        ctx.beginPath();
+        ctx.arc(pX, pY, (defly.PLAYER_WIDTH / z) * q, 2 * Math.PI, false);
+        ctx.moveTo(pX, pY);
+        if(p.isBot){
+          ctx.lineTo(camera.relative.x(p.position.x + p.aimingAt.x), camera.relative.y(p.position.y + p.aimingAt.y));
+        } else {
+          ctx.lineTo(p.aimingAt.x, p.aimingAt.y);
+        }
+        ctx.stroke();
+        ctx.fillStyle = "black";
+        ctx.font = `${4 + 7 * q}px Verdana`;
+        ctx.textAlign = 'center';
+        ctx.fillText(
+          p.name,
+          pX,
+          pY - 20 * q
+        );
+        ctx.textAlign = 'left';
+        ctx.fillText(
+          `score: ${p.score}`,
+          pX + 15 * q,
+          pY - 10 * q
+        );
+        ctx.fillText(
+          `money: ${p.money.total}`,
+          pX + 15 * q,
+          pY + 5 * q
+        );
+        ctx.fillText(
+          `earned: ${p.money.earned}`,
+          pX + 15 * q,
+          pY + 20 * q
+        );
       }
-      ctx.stroke();
-      ctx.fillStyle = "black";
-      ctx.font = `${4 + 7 * q}px Verdana`;
-      ctx.fillText(
-        `score: ${p.score}`,
-        pX + 15 * q,
-        pY - 15 * q
-      );
-      ctx.fillText(
-        `money: ${p.money.total}`,
-        pX + 15 * q,
-        pY
-      );
-      ctx.fillText(
-        `earned: ${p.money.earned}`,
-        pX + 15 * q,
-        pY + 15 * q
-      );
     });
     /*ctx.strokeStyle = defly.colors.standard[p.team];;
     ctx.beginPath();
@@ -6888,6 +7702,49 @@ const DC = {
         ctx.fillText(`${decMin}${min}:${decSec}${sec} (${this.gamePhase})`, w/2 - 150 * q, 30 * q);
       }
     }
+
+    //draw animations - positioning in draw loop may change
+    let expieredAnimations = [];
+    DC.animations.forEach((a,idx) => {
+      switch(a.type){
+        case 'explosion':{
+          a.currentRadius+=a.maxRadius*DC.rawDelta/.5; //'1' = animation time in s
+          if(a.currentRadius > a.maxRadius) {
+            a.currentRadius = a.maxRadius;
+            expieredAnimations.push(idx);
+          }
+          let p = {
+            x: camera.relative.x(a.x),
+            y: camera.relative.y(a.y),
+          };
+          ctx.fillStyle = `rgba(255,90,0,${1-a.currentRadius/a.maxRadius})`;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, a.currentRadius * defly.UNIT_WIDTH * q, 2 * Math.PI, false);
+          ctx.fill();
+          break;
+        }
+        case 'pop-up-message':{
+          let gA = ctx.globalAlpha;
+          ctx.globalAlpha = a.timer;
+          ctx.fillStyle = "rgb(33,150,243)";
+          ctx.fillRect(0, 100 * q, canvas.width, 30 * q);
+          ctx.fillStyle = "white";
+          ctx.textAlign = 'center';
+          ctx.font = `${15 * q}px Verdana`;
+          ctx.fillText(a.text, canvas.width/2, 120 * q);
+          a.timer -= DC.rawDelta;
+          if(a.timer <= 0){
+            expieredAnimations.push(idx);
+          }
+          ctx.globalAlpha = gA;
+        }
+      }
+    });
+    expieredAnimations.forEach((a,c) => {
+      DC.animations.splice(a-c,1);
+      console.log('terminated animation...');
+    });
+    ctx.textAlign = 'left';
 
     //draw info
     ctx.fillStyle = "black";
@@ -7294,7 +8151,7 @@ window.addEventListener("resize", (event) => {
   updateFOV();
 });
 window.addEventListener("keydown", (e) => {
-  if (e.ctrlKey) e.preventDefault();
+  if (e.ctrlKey && (e.keyCode == 89 || e.keyCode == 90)) e.preventDefault();
 });
 
 config();
