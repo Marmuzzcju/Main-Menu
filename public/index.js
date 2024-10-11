@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.57";
+const version = "1.57b";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -3860,15 +3860,15 @@ const DME = {
       case 'RMD': {
         //request map data
         let command = 'LMD',
-        data = structuredClone(this.mapData);
+        data = {md:structuredClone(this.mapData),hId:this.highestId};
         this.coopSend(command, data);
         break;
       }
       case 'LMD': {
         //load map data
-        let mapData = JSON.parse(commands[1]);
-        console.log(mapData);
-        this.mapData = structuredClone(mapData);
+        let data = JSON.parse(commands[1]);
+        this.mapData = structuredClone(data.md);
+        this.highestId = data.hId;
         this.updateAreas();
         this.updateWalls();
         this.selectedTowers = [];
