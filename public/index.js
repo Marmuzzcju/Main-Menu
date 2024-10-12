@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.57b";
+const version = "1.57c";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -794,6 +794,12 @@ const DME = {
     id: undefined,
     log: true,
     isLoading: false,
+    user2: {
+      x: 0,
+      y: 0,
+      name: 'User 2',
+      color: 1,
+    },
   },
 
   placeTower: function (mc = this.mouseCoords.snapped, color = this.selectedColor, selectedTowers = this.selectedTowers, isUserInput = true) {
@@ -1352,115 +1358,6 @@ const DME = {
 
   handleActionLog: function(action,specs) {
     this.logAction(action);
-    if(false && this.coop.isConnected && this.logState != 0){
-      let command = 'UA';//user action
-      let data;
-      switch(action.action){
-        case "create": {
-          switch(action.type){
-            case 'tower':{
-              data = {action:'create',type:'tower',data:{id:action.id,x:specs.x,y:specs.y,color:specs.color}};
-              break;
-            }
-            case 'walls':{
-              data = {action:'create',type:'walls',ids:action.ids};
-              break;
-            }
-            case 'area':{
-              data = {action:'create',type:'area',ids:action.ids};
-              break;
-            }
-            case 'chunk':{
-              data = {action:'create',type:'area',data:specs};
-              break;
-            }
-          }
-          break;
-        }
-        case "modify": {
-          switch (action.type) {
-            case "resize": {
-              data = {
-                action: 'modify',
-                type: 'resize',
-                idxs: specs,
-                origin: action.origin,
-                x: action.x,
-                y: action.y
-              }
-              break;
-            }
-            case "move": {
-              data = {
-                action: 'modify',
-                type: 'move',
-                idxs: specs,
-                x: action.x,
-                y: action.y
-              };
-              break;
-            }
-            case "rotate": {
-              data = {
-                action: 'modify',
-                type: 'move',
-                idxs: action.idxs,
-                properties: action.properties,
-              };
-              break;
-            }
-            case "color": {
-              if(specs){
-                data = {
-                  action: 'modify',
-                  type: 'unColor',
-                  towers: action.towers,
-                };
-              } else {
-                data = {
-                  action: 'modify',
-                  type: 'color',
-                  idx: specs.idx,
-                  color: specs.color
-                };
-              }
-              break;
-            }
-          }
-          break;
-        }
-        case "delete": {
-          switch(action.type){
-            case 'towers':{
-              data = {
-                action: 'delete',
-                type: 'towers',
-                idxs: specs
-              };
-              break;
-            }
-            case 'walls':{
-              data = {
-                action: 'delete',
-                type: 'walls',
-                ids: action.ids
-              };
-              break;
-            }
-            case 'area':{
-              data = {
-                action: 'delete',
-                type: 'area',//or "areas"
-                ids: action.ids
-              };
-              break;
-            }
-          }
-          break;
-        }
-      }
-      this.coopSend(command, data);
-    }
   },
   logAction: function (action) {
     //since this function is called anytime selected towers are modified, we can call update tower info here
@@ -2321,6 +2218,7 @@ const DME = {
       .querySelector("#DME-select-color-dropdown")
       .querySelectorAll("option")[c - 1].selected = true;
     this.selectedColor = c;
+    this.coopCloneAction('colorChange',{color:c});
   },
 
   handleKothInput: function (step) {
@@ -3559,6 +3457,7 @@ const DME = {
 
   updateMouse: function (x, y) {
     this.updateMouseCoords(x, y);
+    this.coopCloneAction('mouseMove',{x:this.mouseCoords.snapped.x,y:this.mouseCoords.snapped.y});
     let o = this.chunckOptions;
     if (!o.active || this.editMode == "KOTH") return;
     let mc = this.mouseCoords.relative;
@@ -3846,7 +3745,13 @@ const DME = {
         DME.coop.isJoined = true;
         document.querySelector('#DME-coop-menu .loading').style.display = 'none';
         document.querySelector('#DME-coop-menu-host-button').setAttribute('disabled', true);
-        conn.send('RMD');
+        let u2 = {
+          x: DME.mouseCoords.snapped.x,
+          y: DME.mouseCoords.snapped.y,
+          name: 'User 2',
+          color: DME.selectedColor,
+        };
+        conn.send(`REQUEST-SETUP§${JSON.stringify(u2)}`);
       });
     }
   },
@@ -3857,16 +3762,24 @@ const DME = {
   handleCoopData: function(data){
     let commands = data.split('§');
     switch(commands[0]){
-      case 'RMD': {
-        //request map data
-        let command = 'LMD',
-        data = {md:structuredClone(this.mapData),hId:this.highestId};
+      case 'REQUEST-SETUP': {
+        this.coop.user2 = JSON.parse(commands[1]);
+        //send map data
+        let command = 'LOAD-SETUP',
+          u2 = {
+            x: DME.mouseCoords.snapped.x,
+            y: DME.mouseCoords.snapped.y,
+            name: 'User 1',
+            color: DME.selectedColor,
+          },
+          data = {md:structuredClone(this.mapData),hId:this.highestId,u2:u2};
         this.coopSend(command, data);
         break;
       }
-      case 'LMD': {
-        //load map data
+      case 'LOAD-SETUP': {
         let data = JSON.parse(commands[1]);
+        this.coop.user2 = structuredClone(data.u2);
+        //load map data
         this.mapData = structuredClone(data.md);
         this.highestId = data.hId;
         this.updateAreas();
@@ -3880,9 +3793,7 @@ const DME = {
       }
       case 'UA':{
         //action update: other user did smth
-        console.log('Receive user action');
         let actionData = JSON.parse(commands[1]);
-        console.log(actionData);
         this.coopHandleUserAction(actionData);
         break;
       }
@@ -3994,91 +3905,20 @@ const DME = {
         this.clearMap(data.confirmed);
         break;
       }
+      case 'mouseMove':{
+        this.coop.user2.x = data.x;
+        this.coop.user2.y = data.y;
+        break;
+      }
+      case 'colorChange':{
+        this.coop.user2.color = data.color;
+        break;
+      }
       default:{
         console.log(`Unrecognised User Action: ${action.action}`);
         console.log(action);
       }
     }
-    /*
-    switch(action.action){
-      case "create": {
-        switch(action.type){
-          case 'tower':{
-            this.createTower(action.data.x,action.data.y,action.data.color,action.data.id)
-            break;
-          }
-          case 'walls':{
-            action.ids.forEach(set => {
-              this.createWall(set.from,set.to);
-            });
-            break;
-          }
-          case 'area':{
-            this.createArea(action.ids);
-            break;
-          }
-          case 'chunk':{
-            this.data.towers.forEach(t => {
-              this.createTower(t.x,t.y,t.color,t.id);
-            });
-            this.data.walls.forEach(w => {
-              this.createWall(w.from,w.to);
-            });
-            this.data.areas.forEach(a => {
-              this.createArea(a);
-            });
-            break;
-          }
-        }
-        break;
-      }
-      case "modify": {
-        switch (action.type) {
-          case "resize": {
-            this.resizeChunk(action.x,action.y,action.origin,action.idxs);
-            break;
-          }
-          case "move": {
-            this.resizeChunk(action.x,action.y,{x:1,x:1,z:1},action.idxs);
-            break;
-          }
-          case "rotate": {
-            this.rotateChunk(action.properties, action.idxs);
-            break;
-          }
-          case "color": {
-            this.recolorChunk(action.color. action.idxs);
-            break;
-          }
-          case "unColor": {
-            let towers = this.mapData.towers;
-            action.towers.forEach(t => {
-              towers[t.ar].color = t.color;
-            })
-            break;
-          }
-        }
-        break;
-      }
-      case "delete": {
-        switch(action.type){
-          case 'towers':{
-            this.deleteTowers(action.idxs);
-            break;
-          }
-          case 'walls':{
-            this.deleteWalls(action.ids);
-            break;
-          }
-          case 'area':{
-            this.deleteArea(action.ids)
-            break;
-          }
-        }
-        break;
-      }
-    }
-    */
     this.logState = ls;
     this.coop.log = coopLog;
   },
@@ -4670,6 +4510,25 @@ const DME = {
         }
       }
     });
+    if(this.coop.isConnected) {
+      //draw user 2 preview
+      let u2 = this.coop.user2,
+        x = this.relToFsPt.x(u2.x),
+        y = this.relToFsPt.y(u2.y),
+        gA = ctx.globalAlpha;
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = defly.colors.standard[u2.color];
+      ctx.beginPath();
+      ctx.arc(x, y, towerWidth * q, 2 * Math.PI, false);
+      ctx.fill();
+      ctx.lineWidth = (2 / mz) * q;
+      ctx.strokeStyle = defly.colors.standard[u2.color];
+      ctx.beginPath();
+      ctx.arc(x, y, (towerWidth - 1 / mz) * q, 2 * Math.PI, false);
+      ctx.stroke();
+      ctx.globalAlpha = gA;
+
+    }
     //draw tower preview
     if (!this.selectingChunk.isSelecting) {
       let gA = ctx.globalAlpha;
