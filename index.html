@@ -280,7 +280,11 @@
           </div>
           <div class="segment">
             <div class="title">Join Co-op session</div>
-            Session id: <input type="text" id="DME-coop-menu-join-id"><button id="DME-coop-menu-join-button" onclick="DME.joinCoop();">Join</button></br>
+            <div class="flex">
+              <span>Nickname: </span><input type="text" id="DME-coop-menu-join-nickname"></br>
+              <span>Session id: </span><input type="text" id="DME-coop-menu-join-id"></br>
+              <span></span><button id="DME-coop-menu-join-button" onclick="DME.joinCoop();">Join</button></br>
+            </div>
           </div>
           <button class="close" onclick="DME.showCoopSetup(0);">Close</button>
         </div>

@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.57c";
+const version = "1.58";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -794,6 +794,7 @@ const DME = {
     id: undefined,
     log: true,
     isLoading: false,
+    myName: 'Host',
     user2: {
       x: 0,
       y: 0,
@@ -1840,6 +1841,8 @@ const DME = {
       towers: newLoggedData,
     });
     this.updateTowerInfo();  
+    this.updateWalls();
+    this.updateAreas();
   },
 
   selectTower: function () {
@@ -3727,10 +3730,13 @@ const DME = {
   },
   joinCoop: function(){
     if(!this.coop.isHosting && !this.coop.isJoined){
-      let id = document.querySelector('#DME-coop-menu-join-id').value;
+      let id = document.querySelector('#DME-coop-menu-join-id').value,
+       nickName = document.querySelector('#DME-coop-menu-join-nickname').value;
       if(id?.length < 8) return;
       console.log('Trying to connect to: ' + id);
+      nickName = !nickName ? `User ${new Date().getTime() % 1000}` : nickName;
       this.coop.isLoading = true;
+      this.coop.myName = nickName;
       document.querySelector('#DME-coop-menu .loading').style.display = 'inline';
       let conn = this.coop.peer.connect(id);
       conn.on('open', function() {
@@ -3748,7 +3754,7 @@ const DME = {
         let u2 = {
           x: DME.mouseCoords.snapped.x,
           y: DME.mouseCoords.snapped.y,
-          name: 'User 2',
+          name: DME.coop.myName,
           color: DME.selectedColor,
         };
         conn.send(`REQUEST-SETUP§${JSON.stringify(u2)}`);
@@ -3769,7 +3775,7 @@ const DME = {
           u2 = {
             x: DME.mouseCoords.snapped.x,
             y: DME.mouseCoords.snapped.y,
-            name: 'User 1',
+            name: DME.coop.myName,
             color: DME.selectedColor,
           },
           data = {md:structuredClone(this.mapData),hId:this.highestId,u2:u2};
@@ -4528,6 +4534,16 @@ const DME = {
       ctx.stroke();
       ctx.globalAlpha = gA;
 
+      let ta = ctx.textAlign;
+      ctx.fillStyle = 'black';
+      ctx.font = `${(10 / mz + 3) * q}px Verdana`;
+      ctx.textAlign = 'center';
+      ctx.fillText(
+        u2.name,
+        x,
+        y - (15 / mz) * q
+      );
+      ctx.textAlign = ta;
     }
     //draw tower preview
     if (!this.selectingChunk.isSelecting) {

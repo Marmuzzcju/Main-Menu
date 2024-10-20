@@ -381,6 +381,16 @@ input[type=number]:not(:hover)::-webkit-inner-spin-button {
 #DME-coop-menu .small {
   font-size: 14px !important;
 }
+#DME-coop-menu .flex {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  width: 270px;
+}
+#DME-coop-menu .flex > * {
+  width: 130px;
+  margin: 1px 0px;
+}
 #DME-coop-menu .close {
   float: right;
   margin-top: 8px;
@@ -398,11 +408,21 @@ input[type=number]:not(:hover)::-webkit-inner-spin-button {
   font-size: 40px;
   font-weight: 550;
   color: #FF5722;
-  animation: 2s rotate ease-in-out infinite;
+  animation: 1.7s loading_spin ease-in-out infinite;
 }
-@keyframes rotate {
-  from {
+@keyframes loading_spin {
+  0% {
+    scale: 1;
     rotate: 0deg;
+  }
+
+  40% {
+    scale: 1.5;
+  }
+
+  80% {
+    scale: 1;
+    rotate: 360deg;
   }
 
   to {
