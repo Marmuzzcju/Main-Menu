@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.58";
+const version = "1.59a";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -789,18 +789,13 @@ const DME = {
     isHosting: false,
     isJoined: false,
     isConnected: false,
-    conn: undefined,
     peer: undefined,
+    conns: [],
     id: undefined,
     log: true,
     isLoading: false,
     myName: 'Host',
-    user2: {
-      x: 0,
-      y: 0,
-      name: 'User 2',
-      color: 1,
-    },
+    users: [],
   },
 
   placeTower: function (mc = this.mouseCoords.snapped, color = this.selectedColor, selectedTowers = this.selectedTowers, isUserInput = true) {
@@ -3713,9 +3708,13 @@ const DME = {
           console.log('Connection openned successful');
           conn.on('data', function(data) {
             //receiving data
-            DME.handleCoopData(data);
+            DME.handleCoopData(data, conn);
           });
-          DME.coop.conn = conn;
+          DME.coop.conns.push(conn);
+        });
+        conn.on('close', function(){
+          console.log('Connection closed...');
+          DME.handleCoopUserDisconnect(conn.peer);
         });
     });
     this.coop.peer = peer;
@@ -3742,10 +3741,10 @@ const DME = {
       conn.on('open', function() {
         conn.on('data', function(data) {
           //receiving data
-          DME.handleCoopData(data);
+          DME.handleCoopData(data, conn);
         });
         // Send messages
-        DME.coop.conn = conn;
+        DME.coop.conns.push(conn);
         DME.coop.isLoading = false;
         DME.coop.isConnected = true;
         DME.coop.isJoined = true;
@@ -3756,6 +3755,7 @@ const DME = {
           y: DME.mouseCoords.snapped.y,
           name: DME.coop.myName,
           color: DME.selectedColor,
+          id: DME.coop.id,
         };
         conn.send(`REQUEST-SETUP§${JSON.stringify(u2)}`);
       });
@@ -3765,26 +3765,51 @@ const DME = {
     let id = document.querySelector('#DME-coop-menu-generated-id').innerText;
     coppyToClipboard(id);
   },
-  handleCoopData: function(data){
+  handleCoopUserDisconnect: function(userId){
+    this.coop.users.forEach((u,c) => {
+      if(u.id == userId) {
+        this.coop.users.splice(c, 1);
+      }
+    });
+    this.coop.conns.forEach((con, c) => {
+      if(con.peer == userId){
+        this.coop.conns.splice(c, 1);
+      }
+    });
+    this.coopSend('REMOVE-USER', userId);
+  },
+  handleCoopData: function(data, conn){
     let commands = data.split('§');
+    if(this.coop.isHosting && commands[0] != 'REQUEST-SETUP') {
+      //redistribute message to all other connections
+      this.coop.conns.forEach(c => {
+        if(c.connectionId != conn.connectionId){
+          c.send(data);
+        }
+      });
+    }
     switch(commands[0]){
       case 'REQUEST-SETUP': {
-        this.coop.user2 = JSON.parse(commands[1]);
         //send map data
         let command = 'LOAD-SETUP',
-          u2 = {
+          users = [{
             x: DME.mouseCoords.snapped.x,
             y: DME.mouseCoords.snapped.y,
             name: DME.coop.myName,
             color: DME.selectedColor,
-          },
-          data = {md:structuredClone(this.mapData),hId:this.highestId,u2:u2};
-        this.coopSend(command, data);
+            id: DME.coop.id,
+          },];
+        this.coop.users.forEach(u => {users.push(structuredClone(u));});
+        let newUser = JSON.parse(commands[1]);
+        this.coop.users.push(newUser);
+        let data = {md:structuredClone(this.mapData),hId:this.highestId,users:users};
+        this.coopSend(command, data, newUser.id);
+        this.coopSend('ADD-USER', JSON.parse(commands[1]), newUser.id, true);
         break;
       }
       case 'LOAD-SETUP': {
         let data = JSON.parse(commands[1]);
-        this.coop.user2 = structuredClone(data.u2);
+        this.coop.users = structuredClone(data.users);
         //load map data
         this.mapData = structuredClone(data.md);
         this.highestId = data.hId;
@@ -3797,17 +3822,37 @@ const DME = {
         document.querySelector('#DME-input-map-height').value = this.mapData.height/defly.UNIT_WIDTH;
         break;
       }
+      case 'ADD-USER':{
+        let newUser = JSON.parse(commands[1]);
+        this.coop.users.push(newUser);
+        break;
+      }
+      case 'REMOVE-USER':{
+        let userId = commands[1];
+        this.coop.users.forEach((u, c) => {
+          if(u.id == userId)
+            this.coop.users.splice(c, 1);
+        });
+        break;
+      }
       case 'UA':{
         //action update: other user did smth
-        let actionData = JSON.parse(commands[1]);
-        this.coopHandleUserAction(actionData);
+        let actionData = JSON.parse(commands[1]),
+          originUser = commands[2];
+        this.coopHandleUserAction(actionData, originUser);
         break;
       }
     }
   },
-  coopSend: function(command, data){
-    let text = `${command}§${JSON.stringify(data)}`;
-    this.coop.conn.send(text);
+  coopSend: function(command, data, specifiedId, exclude){
+    let text = `${command}§${JSON.stringify(data)}§${this.coop.id}`;
+    if(specifiedId === undefined){
+      //unspecified id: send to all users
+      this.coop.conns.forEach(c => {c.send(text);});
+    } else {
+      //send only/all but specified user
+      this.coop.conns.forEach((c) => {if((c.peer == specifiedId) == (!exclude)) c.send(text);});
+    }
   },
   coopCloneAction: function(action, actionData) {
     if(this.coop.isConnected && this.coop.log){
@@ -3819,7 +3864,7 @@ const DME = {
       this.coopSend(command, data);
     }
   },
-  coopHandleUserAction: function(action){
+  coopHandleUserAction: function(action, userId){
     let ls = this.logState,
       coopLog = this.coop.log;
     this.logState = 0;
@@ -3897,6 +3942,8 @@ const DME = {
       }
       case 'updateMapSize':{
         this.updateMapSize(data.spec,data.value);
+        document.querySelector('#DME-input-map-width').value = this.mapData.width/defly.UNIT_WIDTH;
+        document.querySelector('#DME-input-map-height').value = this.mapData.height/defly.UNIT_WIDTH;
         break;
       }
       case 'switchMapShape':{
@@ -3912,8 +3959,12 @@ const DME = {
         break;
       }
       case 'mouseMove':{
-        this.coop.user2.x = data.x;
-        this.coop.user2.y = data.y;
+        this.coop.users.forEach(u => {
+          if(u.id == userId){
+            u.x = data.x;
+            u.y = data.y;
+          }
+        });
         break;
       }
       case 'colorChange':{
@@ -4518,32 +4569,33 @@ const DME = {
     });
     if(this.coop.isConnected) {
       //draw user 2 preview
-      let u2 = this.coop.user2,
-        x = this.relToFsPt.x(u2.x),
-        y = this.relToFsPt.y(u2.y),
-        gA = ctx.globalAlpha;
-      ctx.globalAlpha = 0.5;
-      ctx.fillStyle = defly.colors.standard[u2.color];
-      ctx.beginPath();
-      ctx.arc(x, y, towerWidth * q, 2 * Math.PI, false);
-      ctx.fill();
-      ctx.lineWidth = (2 / mz) * q;
-      ctx.strokeStyle = defly.colors.standard[u2.color];
-      ctx.beginPath();
-      ctx.arc(x, y, (towerWidth - 1 / mz) * q, 2 * Math.PI, false);
-      ctx.stroke();
-      ctx.globalAlpha = gA;
-
-      let ta = ctx.textAlign;
-      ctx.fillStyle = 'black';
-      ctx.font = `${(10 / mz + 3) * q}px Verdana`;
-      ctx.textAlign = 'center';
-      ctx.fillText(
-        u2.name,
-        x,
-        y - (15 / mz) * q
-      );
-      ctx.textAlign = ta;
+      this.coop.users.forEach(u => {
+        let x = this.relToFsPt.x(u.x),
+          y = this.relToFsPt.y(u.y),
+          gA = ctx.globalAlpha;
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = defly.colors.standard[u.color];
+        ctx.beginPath();
+        ctx.arc(x, y, towerWidth * q, 2 * Math.PI, false);
+        ctx.fill();
+        ctx.lineWidth = (2 / mz) * q;
+        ctx.strokeStyle = defly.colors.standard[u.color];
+        ctx.beginPath();
+        ctx.arc(x, y, (towerWidth - 1 / mz) * q, 2 * Math.PI, false);
+        ctx.stroke();
+        ctx.globalAlpha = gA;
+  
+        let ta = ctx.textAlign;
+        ctx.fillStyle = 'black';
+        ctx.font = `${(10 / mz + 3) * q}px Verdana`;
+        ctx.textAlign = 'center';
+        ctx.fillText(
+          u.name,
+          x,
+          y - (15 / mz) * q
+        );
+        ctx.textAlign = ta;
+      });
     }
     //draw tower preview
     if (!this.selectingChunk.isSelecting) {
