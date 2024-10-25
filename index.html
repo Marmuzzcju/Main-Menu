@@ -142,7 +142,7 @@
         <button class="fatButton" id="DME-menu-load-background-image" onclick="document.querySelector('#DME-browse-background-image').click();">Load Background Image</button>
         <button class="fatButtonLeft hidden"  id="DME-menu-remove-background-image" onclick="DME.removeBackgroundImage();">Remove Background Image</button> <br />
         <button class="fatButton" onclick="DME.exportMapPreview();">Get Map Preview</button> </br>
-        <button class="fatButton" onclick="DME.showCoopSetup();">Co-op</button> </br>
+        <button class="fatButton" onclick="DME.showCoopSetup(0);">Co-op</button> </br>
         <button class="fatButton" onclick="DME.enterTestMode();">Test Map</button>
         <!-- <button class="fatButton" onclick="document.getElementById('distance-overview-table').style.display = 'inline';mapStuff.classList.add('blurred');openMenu=true;">View Distance Table</button> <br /> -->
 			  <!-- <button class="fatButton" onclick="testMap();">Test Map</button><a href="https://marmuzzcju.github.io/Defuse-Clone/" target="_blank" id="linkToMapTest" style="display: none;"></a> <br /> -->
@@ -275,21 +275,37 @@
       <div id="DME-coop-menu" style="display: none;">
         <div class="content">
           <div class="segment">
-            <div class="title">Host Co-op Session</div>
-            <button id="DME-coop-menu-host-button" onclick="DME.hostCoop();">Host Co-op</button><span class="text"> Session id: <span id="DME-coop-menu-generated-id">-</span> <button class="small" onclick="DME.copySessionId();">Copy id</button></span></br>
+            <div class="title" onclick="DME.showCoopSetup(1);">Host Co-op Session</div>
+            <div class="host-coop-content">
+              <div class="flex setup hidden">
+                <span>Nickname: </span><input type="text" id="DME-coop-menu-host-nickname"></br>
+                <span></span><button id="DME-coop-menu-host-button" onclick="DME.hostCoop();">Host Co-op</button></br>
+              </div>
+              <div class="flex id hidden">
+                <span>Session id: </span><span id="DME-coop-menu-generated-id">-</span></br>
+                <span></span><button class="small" onclick="DME.copySessionId();">Copy id</button>
+              </div>
+            </div>
           </div>
           <div class="segment">
-            <div class="title">Join Co-op session</div>
-            <div class="flex">
+            <div class="title" onclick="DME.showCoopSetup(2);">Join Co-op session</div>
+            <div class="flex join-coop-content hidden">
               <span>Nickname: </span><input type="text" id="DME-coop-menu-join-nickname"></br>
               <span>Session id: </span><input type="text" id="DME-coop-menu-join-id"></br>
               <span></span><button id="DME-coop-menu-join-button" onclick="DME.joinCoop();">Join</button></br>
             </div>
           </div>
-          <button class="close" onclick="DME.showCoopSetup(0);">Close</button>
+          <button class="close" onclick="DME.showCoopSetup(0, 0);">Close</button>
         </div>
         <div class="loading">
           <div class="text">Loading...</div>
+        </div>
+      </div>
+      <div id="DME-coop-request">
+        <div class="text"><span class="name">User 2</span> is requesting to join this co-op session</div>
+        <div class="buttons">
+          <button class="accept" onclick="DME.answerCoopRequest(1)">Accept</button>
+          <button class="deny" onclick="DME.answerCoopRequest(0)">Deny</button>
         </div>
       </div>
       <div id="DME-file-drop" ondrop="DME.handleFileDrop(event);this.removeAttribute('drag_active');event.preventDefault();" ondragleave="this.removeAttribute('drag_active', true);">Drop File</div>

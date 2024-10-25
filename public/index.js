@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.59a";
+const version = "1.60";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -796,6 +796,8 @@ const DME = {
     isLoading: false,
     myName: 'Host',
     users: [],
+    accpetedIds: [],
+    requestedUsers: [],
   },
 
   placeTower: function (mc = this.mouseCoords.snapped, color = this.selectedColor, selectedTowers = this.selectedTowers, isUserInput = true) {
@@ -3683,13 +3685,35 @@ const DME = {
     this.updateChunkOptions();
   },
 
-  showCoopSetup: function(show = 1){
-    let property = ['none', 'inline'];
-    document.querySelector('#DME-coop-menu').style.display = property[show];
-    DME.blockInput = !!show;
-    if(show && this.coop.id === undefined){
-      this.coop.isLoading = true;
-      this.openPeer();
+  showCoopSetup: function(setup = 0, show = 1){
+    switch(setup){
+      case 0:{
+        //main pannel
+        let property = ['none', 'inline'];
+        document.querySelector('#DME-coop-menu').style.display = property[show];
+        DME.blockInput = !!show;
+        if(show && this.coop.id === undefined){
+          this.coop.isLoading = true;
+          this.openPeer();
+        }
+        break;
+      }
+      case 1:{
+        //host setup
+        if(!this.coop.isJoined){
+          document.querySelector('#DME-coop-menu .host-coop-content > div').classList.remove('hidden');
+          document.querySelector('#DME-coop-menu .join-coop-content').classList.add('hidden');
+        }
+        break;
+      }
+      case 2:{
+        //join setup
+        if(!this.coop.isHosting){
+          document.querySelector('#DME-coop-menu .host-coop-content > div').classList.add('hidden');
+          document.querySelector('#DME-coop-menu .join-coop-content').classList.remove('hidden');
+        }
+        break;
+      }
     }
   },
   openPeer: function(isHosting){
@@ -3723,8 +3747,11 @@ const DME = {
   hostCoop: function(){
     if(!this.coop.isHosting && !this.coop.isJoined){
       this.coop.isHosting = true;
+      this.coop.myName = document.querySelector('#DME-coop-menu-host-nickname').value;
       document.querySelector('#DME-coop-menu-generated-id').innerText = this.coop.id;
       document.querySelector('#DME-coop-menu-join-button').setAttribute('disabled', true);
+      document.querySelectorAll('#DME-coop-menu .host-coop-content > div')[1].classList.remove('hidden');
+      document.querySelectorAll('#DME-coop-menu .content > .segment')[1].classList.add('disabled');
     }
   },
   joinCoop: function(){
@@ -3750,6 +3777,7 @@ const DME = {
         DME.coop.isJoined = true;
         document.querySelector('#DME-coop-menu .loading').style.display = 'none';
         document.querySelector('#DME-coop-menu-host-button').setAttribute('disabled', true);
+        document.querySelectorAll('#DME-coop-menu .content > .segment')[0].classList.add('disabled');
         let u2 = {
           x: DME.mouseCoords.snapped.x,
           y: DME.mouseCoords.snapped.y,
@@ -3765,6 +3793,45 @@ const DME = {
     let id = document.querySelector('#DME-coop-menu-generated-id').innerText;
     coppyToClipboard(id);
   },
+  setCoopRequest: function(newUser = false){
+    if(!!newUser) this.coop.requestedUsers.push(newUser);
+    if(this.coop.requestedUsers.length == 1) {
+      let name = newUser.name ?? this.coop.requestedUsers[0].name;
+      document.querySelector('#DME-coop-request').style.right = '30px';
+      document.querySelector('#DME-coop-request .name').innerText = name;
+    }
+  },
+  answerCoopRequest: function (allowUser) {
+    let newUser = this.coop.requestedUsers[0];
+    if(!newUser) {
+      console.log('Error - user does not exist');
+      return;
+    }
+    document.querySelector('#DME-coop-request').style.right = '-250px';
+    if(allowUser) {
+        //send map data
+        let command = 'LOAD-SETUP',
+          users = [{
+            x: DME.mouseCoords.snapped.x,
+            y: DME.mouseCoords.snapped.y,
+            name: DME.coop.myName,
+            color: DME.selectedColor,
+            id: DME.coop.id,
+          },];
+        this.coop.users.forEach(u => {users.push(structuredClone(u));});
+        this.coop.users.push(newUser);
+        this.coop.accpetedIds.push(newUser.id);
+        let data = {md:structuredClone(this.mapData),hId:this.highestId,users:users};
+        this.coopSend(command, data, newUser.id);
+        this.coopSend('ADD-USER', newUser, newUser.id, true);
+    } else {
+      let command = 'DISCONNECT';
+      this.coopSend(command, 'null', newUser.id);
+      this.handleCoopUserDisconnect(newUser.id);
+    }
+    this.coop.requestedUsers.shift();
+    setTimeout(() => this.setCoopRequest(), 500);
+  },
   handleCoopUserDisconnect: function(userId){
     this.coop.users.forEach((u,c) => {
       if(u.id == userId) {
@@ -3776,11 +3843,17 @@ const DME = {
         this.coop.conns.splice(c, 1);
       }
     });
+    this.coop.accpetedIds.forEach((id, c) => {
+      if(id == userId){
+        this.coop.accpetedIds.splice(c, 1);
+      }
+    });
     this.coopSend('REMOVE-USER', userId);
   },
   handleCoopData: function(data, conn){
     let commands = data.split('§');
     if(this.coop.isHosting && commands[0] != 'REQUEST-SETUP') {
+      if(!this.coop.accpetedIds.includes(commands[2])) return; //don't handle non-request commands from unverfied users
       //redistribute message to all other connections
       this.coop.conns.forEach(c => {
         if(c.connectionId != conn.connectionId){
@@ -3790,26 +3863,17 @@ const DME = {
     }
     switch(commands[0]){
       case 'REQUEST-SETUP': {
-        //send map data
-        let command = 'LOAD-SETUP',
-          users = [{
-            x: DME.mouseCoords.snapped.x,
-            y: DME.mouseCoords.snapped.y,
-            name: DME.coop.myName,
-            color: DME.selectedColor,
-            id: DME.coop.id,
-          },];
-        this.coop.users.forEach(u => {users.push(structuredClone(u));});
         let newUser = JSON.parse(commands[1]);
-        this.coop.users.push(newUser);
-        let data = {md:structuredClone(this.mapData),hId:this.highestId,users:users};
-        this.coopSend(command, data, newUser.id);
-        this.coopSend('ADD-USER', JSON.parse(commands[1]), newUser.id, true);
+        //send request message
+        this.setCoopRequest(newUser);
         break;
       }
       case 'LOAD-SETUP': {
         let data = JSON.parse(commands[1]);
         this.coop.users = structuredClone(data.users);
+        data.users.forEach(u => {
+          this.coop.accpetedIds.push(u.id);
+        });
         //load map data
         this.mapData = structuredClone(data.md);
         this.highestId = data.hId;
@@ -3822,9 +3886,19 @@ const DME = {
         document.querySelector('#DME-input-map-height').value = this.mapData.height/defly.UNIT_WIDTH;
         break;
       }
+      case 'DISCONNECT':{
+        if(this.isHosting) return;
+        alert('Your request to join this co-op session has been denied by the host');
+        DME.coop.isConnected = false;
+        DME.coop.isJoined = false;
+        document.querySelector('#DME-coop-menu-host-button').setAttribute('disabled', false);
+        document.querySelectorAll('#DME-coop-menu .content > .segment')[0].classList.remove('disabled');
+        break;
+      }
       case 'ADD-USER':{
         let newUser = JSON.parse(commands[1]);
         this.coop.users.push(newUser);
+        this.coop.accpetedIds.push(newUser.id);
         break;
       }
       case 'REMOVE-USER':{
@@ -4852,7 +4926,7 @@ const DME = {
   handleInput: function (e /*type, input, extra*/) {
     if (DME.blockInput) {
       //check for escape inputs
-      if(e.type == 'keydown' && e.key.toLocaleUpperCase() == 'ESCAPE'){
+      if(e.type == 'keydown' && e.key?.toLocaleUpperCase() == 'ESCAPE'){
         if(DME.coop.isLoading){
           DME.showCoopSetup(0);
           DME.coop.isLoading = false;

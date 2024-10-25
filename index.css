@@ -360,10 +360,17 @@ input[type=number]:not(:hover)::-webkit-inner-spin-button {
   padding: 20px;
   border-radius: 6px;
 }
+#DME-coop-menu .content .disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  background-color: rgba(210, 210, 210);
+}
 #DME-coop-menu .segment {
   border: 1px solid grey;
   border-radius: 5px;
   padding: 10px;
+  overflow: hidden;
+  /*transition: height .5s;*/
 }
 #DME-coop-menu .segment:not(:first-child) {
   margin-top: 14px;
@@ -371,6 +378,9 @@ input[type=number]:not(:hover)::-webkit-inner-spin-button {
 #DME-coop-menu .title {
   font-size: 24px;
   margin: 5px;
+}
+#DME-coop-menu .segment:not(.disabled) {
+  cursor: pointer;
 }
 #DME-coop-menu .segment button {
   font-size: 17px;
@@ -394,6 +404,9 @@ input[type=number]:not(:hover)::-webkit-inner-spin-button {
 #DME-coop-menu .close {
   float: right;
   margin-top: 8px;
+}
+#DME-coop-menu .flex .hidden {
+  display: none;
 }
 #DME-coop-menu .loading {
   background-color: rgba(50,50,50,.93);
@@ -428,6 +441,37 @@ input[type=number]:not(:hover)::-webkit-inner-spin-button {
   to {
     rotate: 360deg;
   }
+}
+
+#DME-coop-request {
+  position: fixed;
+  top: 20%;
+  right: -250px;
+  color: white;
+  background-color: rgba(20, 20, 20, .6);
+  border: 1px solid white;
+  border-radius: 5px;
+  max-width: 220px;
+  transition: right 1.3s;
+}
+#DME-coop-request .text {
+  padding: 4px;
+  text-align: center;
+  font-size: 18px;
+}
+#DME-coop-request .buttons {
+  display: flex;
+  justify-content: space-around;
+  padding: 4px;
+}
+#DME-coop-request .buttons > button {
+  border-radius: 5px;
+}
+#DME-coop-request .accept {
+  background-color: rgba(40, 210, 10, .9);
+}
+#DME-coop-request .deny {
+  background-color: rgba(255, 10, 10, .9);
 }
 
 #DME-file-drop {
