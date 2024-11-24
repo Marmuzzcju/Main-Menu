@@ -3,7 +3,11 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.60";
+const version = "1.61";
+
+
+let test_file_txt = new Text();
+test_file_txt.src = "/skin-files/defly-skin-id1.txt";
 
 let hasLocalStorage = false;
 let currentPage = 1;
@@ -12,6 +16,8 @@ let currentSite = "MM";
 //site = site after main menuDC-menu-player-team
 const canvas = document.querySelector("#main-canvas");
 const ctx = canvas.getContext("2d");
+const buffer_canvas = document.querySelector("#main-buffer-canvas");
+const buffer_ctx = buffer_canvas.getContext("2d");
 
 function fadeOutScreen(fadeIn = true) {
   let el = document.querySelector(".screen-overlay-fade");
@@ -363,6 +369,62 @@ function coppyToClipboard(text) {
   //thanks to alex for this code =)
 }
 
+function imgToAlpha ( img ) {
+  if(!img) {
+    console.log('imgToAlpha: No immage received!');
+    return;
+  }
+  let w = img.width,
+    h = img.height;
+
+  let tcanvas = document.createElement("canvas");
+  tcanvas.width = w;
+  tcanvas.height = h;
+  
+  let tctx = tcanvas.getContext("2d");
+  tctx.drawImage( img, 0, 0 );
+  
+  let pixels = tctx.getImageData( 0, 0, w, h ).data;
+
+  let hasAlpha = ((pixels.length / (w*h)) > 3.5);
+
+  let newPixels = new Uint8ClampedArray(w * h * 4);
+
+  for(let c=0; c<pixels.length; c+=(hasAlpha?4:3)){
+      let pixelAlpha = hasAlpha ? pixels[c+3] : 1;
+      let lowestValue = Math.min(pixels[c],pixels[c+2],pixels[c+2])
+      newPixels[c] = pixels[c] - lowestValue;
+      newPixels[c+1] = pixels[c+1] - lowestValue;
+      newPixels[c+2] = pixels[c+2] - lowestValue;
+      pixelAlpha *= 1 - (lowestValue) / 255;
+      newPixels[c+3] = pixelAlpha;
+  }
+
+  let idata = tctx.createImageData(w, h);
+
+  // set our buffer as source
+  idata.data.set(newPixels);
+
+  // update canvas with new data
+  tctx.putImageData(idata, 0, 0);
+
+  let overlayImgData = tcanvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+
+  return overlayImgData;
+}
+
+function drawRotated(img, x, y, radian, w, h) {
+  w = w ?? img.width;
+  h = h ?? img.height;
+  ctx.translate(x + w / 2, y + h / 2);
+  ctx.rotate(radian);
+  ctx.translate(-w / 2, -h / 2);
+  ctx.drawImage(img, 0, 0, w, h);
+  ctx.translate(w / 2, h / 2);
+  ctx.rotate(-radian);
+  ctx.translate(-(x + w / 2), -(y + h / 2));
+}
+
 /*
 defly related functions & variables/constants
 */
@@ -426,6 +488,7 @@ const defly = {
   PLAYER_WIDTH: 10,
   GRID_WIDTH: 44,
   UNIT_WIDTH: 22, //GRID_WIDTH / 2
+  BASE_SKIN_WIDTH: 60, //~2.8 * UNIT_WIDTH
   BOMB_RADIUS: 144, //GRID_WIDTH * 3
   MAX_WALL_LENGTH: 660, //GRID_WIDTH * 15
   STANDARD_ZOOM: 1, //this will be relative to screen size
@@ -440,6 +503,116 @@ const defly = {
     this.TOWER_WIDTH = (newUnitWidth / 22) * 13;
     this.WALL_WIDTH = (newUnitWidth / 22) * 13;
   },
+  skinIdList: [
+    1,3,5,7,8,12
+  ],
+  totalSkinValue: 0,
+  loadedSkinValue: 0,
+  loadedSkinIdList: [],
+  skins: {},
+  skinsHaveLoaded: false,
+  loadSkins: function(skinId){
+    this.totalSkinValue = 0;
+    this.skinIdList.forEach(v => this.totalSkinValue += v);
+    let skinIds = skinId !== undefined ? [skinId] : this.skinIdList;
+    skinIds.forEach(id => {
+      fetch(`skin-files/defly-skin-id${id}.txt`)
+      .then((res) => res.text())
+      .then((text) => {
+          handleSkinTxt(text, id);
+       })
+      .catch((e) => console.error(e));
+    });
+    function handleSkinTxt(text, id){
+      let data = JSON.parse(text),
+        skinData;
+      console.log(data);
+      skinData = data.spec;
+      skinData.images = data.images;
+      let hasToLoad = 0,
+          hasLoaded = 0;
+      Object.entries(skinData.images).forEach(e => {
+          /*console.log('Skin data: image - entrie: ');
+          console.log(e);*/
+          hasToLoad++;
+          skinData.images[e[0]] = new Image();
+          skinData.images[e[0]].src = e[1];
+          skinData.images[e[0]].onload = () => {
+              hasLoaded++;
+              console.log(`Has loaded (${hasLoaded}/${hasToLoad})`);
+              checkForFinish();
+          }
+      });
+      function checkForFinish(){
+          if(hasLoaded == hasToLoad){
+              if(skinData.base != ""){
+                  if(skinData.notint != ""){
+                      let baseAsRotor = {
+                          img: skinData.notint,
+                          x: 0,
+                          y: 0,
+                          w: defly.BASE_SKIN_WIDTH,
+                          h: defly.BASE_SKIN_WIDTH,
+                          size: 1,
+                          layer: 2,
+                          speed: 0,
+                          visibility: 0,
+                          fixedRot: false,
+                          tinted: false,
+                      };
+                      skinData.rotors.splice(0,0,baseAsRotor);   
+                  }
+                  let baseAsRotor = {
+                      img: skinData.base,
+                      x: 0,
+                      y: 0,
+                      w: defly.BASE_SKIN_WIDTH,
+                      h: defly.BASE_SKIN_WIDTH,
+                      size: 1,
+                      layer: 0,
+                      speed: 0,
+                      visibility: 0,
+                      fixedRot: false,
+                      tinted: true,
+                  };
+                  skinData.rotors.splice(0,0,baseAsRotor);
+              }
+
+              skinData.rotors.forEach(r => {
+                  if(r.tinted) {
+                      //imgToAlpha(skinData.images[r.img]);
+                      r.overlay = `${r.img}-overlay`;
+                      skinData.images[r.overlay] = new Image();
+                      skinData.images[r.overlay].src = imgToAlpha(skinData.images[r.img]);
+                      console.log('Added Overlay to Rotor');
+                  }
+                  let i = skinData.images[r.img],
+                      modif = defly.BASE_SKIN_WIDTH / i.width;
+                  r.w = i.width * modif * r.size;
+                  r.h = i.height * modif * r.size;
+              });
+
+              let layerList = []
+                  modif = skinData.rotors.length;
+              skinData.rotors.forEach((r,c) => {
+                  let p = r.layer;// + modif - c;
+                  if(!layerList[p]) layerList[p] = [];
+                  layerList[p].push(r);
+              });
+              skinData.layerList = layerList;
+
+              delete skinData.rotors;
+              defly.skins[id] = skinData;
+
+              console.log('Skin Loaded Succesfull');
+
+              defly.loadedSkinIdList.push(id);
+              defly.loadedSkinValue += id;
+              if(defly.totalSkinValue == defly.loadedSkinValue) defly.skinsHaveLoaded = true;
+          }
+      }
+    };
+  },
   defuseCopter: {
     basic: {
       copterSpeed: 260,
@@ -449,6 +622,7 @@ const defly = {
       inaccuracy: 0,
       bulletCount: 1,
       cost: 0,
+      skinId: 3,
     },
     drone: {
       copterSpeed: 230,
@@ -458,6 +632,7 @@ const defly = {
       inaccuracy: 0.06,
       bulletCount: 1,
       cost: 1000,
+      skinId: 7,
     },
     shotgun: {
       copterSpeed: 230,
@@ -467,6 +642,7 @@ const defly = {
       inaccuracy: 0.03,
       bulletCount: 5,
       cost: 2000,
+      skinId: 5,
     },
     minisnipe: {
       copterSpeed: 210,
@@ -476,6 +652,7 @@ const defly = {
       inaccuracy: 0.03,
       bulletCount: 1,
       cost: 2000,
+      skinId: 1,
     },
     machinegun: {
       copterSpeed: 175,
@@ -485,6 +662,7 @@ const defly = {
       inaccuracy: 0.08,
       bulletCount: 1,
       cost: 3000,
+      skinId: 12,
     },
     sniper: {
       copterSpeed: 180,
@@ -494,6 +672,7 @@ const defly = {
       inaccuracy: 0.004,
       bulletCount: 1,
       cost: 4000,
+      skinId: 8,
     },
     weapon7: {
       copterSpeed: 180,
@@ -547,7 +726,15 @@ defly.images.emp.src = "/images/defly-emp.png";
 defly.images.buildRange.src = "/images/defly-build-range.png";
 defly.images.playerShield.src = "/images/defly-player-shield.png";
 defly.images.towerShield.src = "/images/defly-tower-shield.png";
-defly.images.towerHealth.src = "/images/defly-tower-health.png";
+defly.images.towerHealth.src = "/skin-files/defly-skin-id1-2.png";
+defly.images.towerHealth.onload = (i) => {
+  console.log('Loaded txt file ig...');
+  console.log(i);
+};
+defly.images.towerShield.onload = (i) => {
+  console.log('Loaded png file ig...');
+  console.log(i);
+};
 
 const camera = {
   position: {
@@ -5524,6 +5711,7 @@ const DC = {
         inaccuracy: 0,
         bulletCount: 1,
         cost: 0,
+        skinId: 3,
       },
       tower: {
         buildRange: 0,
@@ -7644,9 +7832,74 @@ const DC = {
       if(p.isAlive) {
         let pX = camera.relative.x(p.position.x), pY = camera.relative.y(p.position.y);
         ctx.strokeStyle = defly.colors.standard[p.team];
+        /*
         ctx.beginPath();
         ctx.arc(pX, pY, (defly.PLAYER_WIDTH / z) * q, 2 * Math.PI, false);
         ctx.moveTo(pX, pY);
+        */
+
+
+        let skinId = p.copter?.skinId ?? 1;
+        if(!defly.loadedSkinIdList.includes(skinId)){
+          ctx.beginPath();
+          ctx.arc(pX, pY, (defly.PLAYER_WIDTH / z) * q, 2 * Math.PI, false);
+        } else {
+          
+          let rotModif = 0;
+          if(p.isBot){
+            rotModif = -Math.acos((p.aimingAt.x-pX) / ((p.aimingAt.x-pX)**2+(p.aimingAt.y-pY)**2)**.5);
+
+          } else {
+            rotModif = -Math.acos((p.aimingAt.x-pX) / ((p.aimingAt.x-pX)**2+(p.aimingAt.y-pY)**2)**.5);
+            if(p.aimingAt.y-pY > 0) rotModif = -rotModif;
+          }
+
+          let skinData = defly.skins[skinId];
+          skinData.layerList.forEach(lSet => {
+              lSet.forEach(l => {
+                  let img = skinData.images[l.img],
+                      s = skinData.size / z * q,
+                      w = l.w * s,
+                      h = l.h * s,
+                      radian = l.speed * DC.gameTime / 1000 + (l.fixedRot ? 0 : rotModif),
+                      PIf = 0,//0.5 * Math.PI,
+                      rx = l.x * Math.cos(rotModif+PIf) - l.y * Math.sin(rotModif+PIf),
+                      ry = l.y * Math.cos(rotModif+PIf) + l.x * Math.sin(rotModif+PIf),
+                      x = pX - .5 * w - rx * defly.BASE_SKIN_WIDTH * s * .5,
+                      y = pY - .5 * h - ry * defly.BASE_SKIN_WIDTH * s * .5;
+                  if(l.tinted){
+                      let overlay = skinData.images[l.overlay];
+
+                      buffer_canvas.width = w;
+                      buffer_canvas.height = h;
+                          
+                      // fill offscreen buffer with the tint color
+                      buffer_ctx.save();
+                      buffer_ctx.fillStyle = defly.colors.standard[p.team];
+                                  
+                      buffer_ctx.fillRect(0, 0, w, h);
+                      buffer_ctx.globalCompositeOperation = "destination-in";
+                      buffer_ctx.drawImage(img,0,0,w,h);
+                        
+                        
+                      //draw tinted image onto the 'real' canvas
+                      drawRotated(buffer_canvas,x,y,radian);
+                      //ctx.drawImage(buffer_canvas,x,y);
+                      drawRotated(overlay,x,y,radian,w,h);
+                      //ctx.drawImage(overlay,x,y,w,h);
+
+                      buffer_ctx.restore();
+                  } else {
+                      //ctx.drawImage(img,x,y,w,h);
+                      drawRotated(img,x,y,radian,w,h);
+                  }
+              });
+          });
+
+        }
+
+        ctx.moveTo(pX, pY);
+
         if(p.isBot){
           ctx.lineTo(camera.relative.x(p.position.x + p.aimingAt.x), camera.relative.y(p.position.y + p.aimingAt.y));
         } else {
@@ -8096,6 +8349,8 @@ const DC = {
     camera.zoom = defly.STANDARD_ZOOM;
     DC.toggleAllEventListeners(true);
     currentSite = "DC";
+
+    if(!defly.skinsHaveLoaded) defly.loadSkins();
 
     DC.reloadMap();
     DC.rawDelta = new Date().getTime();
