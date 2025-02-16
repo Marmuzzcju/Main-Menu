@@ -488,7 +488,7 @@ const defly = {
   PLAYER_WIDTH: 10,
   GRID_WIDTH: 44,
   UNIT_WIDTH: 22, //GRID_WIDTH / 2
-  BASE_SKIN_WIDTH: 60, //~2.8 * UNIT_WIDTH
+  BASE_SKIN_WIDTH: 66, //~2.8 * UNIT_WIDTH; x3 atm
   BOMB_RADIUS: 144, //GRID_WIDTH * 3
   MAX_WALL_LENGTH: 660, //GRID_WIDTH * 15
   STANDARD_ZOOM: 1, //this will be relative to screen size
@@ -502,6 +502,8 @@ const defly = {
     this.PLAYER_WIDTH = (newUnitWidth / 22) * 10;
     this.TOWER_WIDTH = (newUnitWidth / 22) * 13;
     this.WALL_WIDTH = (newUnitWidth / 22) * 13;
+    this.BASE_SKIN_WIDTH = newUnitWidth * 3;
+    this.BOMB_RADIUS = newUnitWidth * 6;
   },
   skinIdList: [
     1,3,5,7,8,12
