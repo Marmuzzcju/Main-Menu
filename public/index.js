@@ -3,7 +3,7 @@ js for Main Menu
 as well as page transitions
 and page setup
 */
-const version = "1.61b";
+const version = "1.62";
 
 
 let test_file_txt = new Text();
