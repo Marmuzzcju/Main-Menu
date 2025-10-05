@@ -14,10 +14,12 @@ let currentPage = 1;
 //page = page in main menu
 let currentSite = "MM";
 //site = site after main menuDC-menu-player-team
-const canvas = document.querySelector("#main-canvas");
-const ctx = canvas.getContext("2d");
-const buffer_canvas = document.querySelector("#main-buffer-canvas");
-const buffer_ctx = buffer_canvas.getContext("2d");
+const 
+canvas = document.querySelector("#main-canvas"),
+ctx = canvas.getContext("2d"),
+buffer_canvas = document.querySelector("#main-buffer-canvas"),
+buffer_ctx = buffer_canvas.getContext("2d"),
+critical_error_log_style = `background-color: red;padding: 2px;font-weight: bolder;font-size: large;`;
 
 function fadeOutScreen(fadeIn = true) {
   let el = document.querySelector(".screen-overlay-fade");
@@ -6263,6 +6265,12 @@ const DC = {
     }
   },
   placeWall: function (from, to, team) {
+    /*
+      this function takes in two towers (from & to)
+      which each have an id and x/y coordinates
+      it will then check if such a wall already exists
+      and in case it doesn't, will add one there
+    */
     //note: if max wall length would be increased, could place false walls
     //if(from.id == to.id) return;
     let cO = this.getClusterOrigin({ x: from.x, y: from.y }),
@@ -7095,7 +7103,7 @@ const DC = {
             data
           );
         } catch(err) {
-          console.log('!! ERROR PLACING TOWER !!');
+          console.log(`%c!! ERROR PLACING TOWER !!`, critical_error_log_style);
           console.log(data);
         }
         if(DC.highestId < t.id) DC.highestId = t.id;
@@ -7130,11 +7138,11 @@ const DC = {
             ];
           for (let c = 0; c < sections; c++) {
             //!here
-            let dataCopy = structuredClone(data);
-            dataCopy.from.x = data.from.x + wallVector[0] * c;
-            dataCopy.from.y = data.from.y + wallVector[1] * c;
-            dataCopy.to.x = dataCopy.from.x + wallVector[0];
-            dataCopy.to.y = dataCopy.from.y + wallVector[1];
+            let dataCopy = structuredClone(data), temp;
+            dataCopy.from.x = (temp = data.from.x + wallVector[0] * c) < 0 ? 0 : temp;
+            dataCopy.from.y = (temp = data.from.y + wallVector[1] * c) < 0 ? 0 : temp;
+            dataCopy.to.x = (temp = dataCopy.from.x + wallVector[0]) < 0 ? 0 : temp;
+            dataCopy.to.y = (temp = dataCopy.from.y + wallVector[1]) < 0 ? 0 : temp;
             dataCopy.from.id = c ? `0${c}${w.from.id}` : data.from.id;
             dataCopy.to.id =
               c + 1 < sections ? `0${c + 1}${w.from.id}` : data.to.id;
@@ -8306,7 +8314,7 @@ const DC = {
             }
             DC.permanentMapData.walls[t].push(data);
           } catch {
-            console.log(`Error - Color: ${w.color}`);
+            console.log(`%cError - Color: ${w.color}`, critical_error_log_style);
           }
         });
         DME.mapData.areas.forEach((a) => {
