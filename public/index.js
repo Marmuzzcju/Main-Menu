@@ -19,7 +19,8 @@ canvas = document.querySelector("#main-canvas"),
 ctx = canvas.getContext("2d"),
 buffer_canvas = document.querySelector("#main-buffer-canvas"),
 buffer_ctx = buffer_canvas.getContext("2d"),
-critical_error_log_style = `background-color: red;padding: 2px;font-weight: bolder;font-size: large;`;
+critical_error_log_style = `background-color: red;padding: 2px;font-weight: bolder;font-size: large;`,
+non_critical_error_log_style = `background-color: rgba(255,0,0,0.7);padding: 1px;font-weight: bolde;`;
 
 function fadeOutScreen(fadeIn = true) {
   let el = document.querySelector(".screen-overlay-fade");
@@ -5750,6 +5751,8 @@ const DC = {
 
   highestPlayerId: 1,
 
+  show_debug_stuff: 0,
+
   animations: [],
 
   rawDelta: 0,
@@ -7909,13 +7912,37 @@ const DC = {
         }
 
         ctx.moveTo(pX, pY);
+        if(DC.show_debug_stuff){
+          if(p.isBot){
+            ctx.lineTo(camera.relative.x(p.position.x + p.aimingAt.x), camera.relative.y(p.position.y + p.aimingAt.y));
+            ctx.stroke();
+          } else {//!here
+            ctx.lineTo(p.aimingAt.x, p.aimingAt.y);
+            let vec = [p.aimingAt.x - pX, p.aimingAt.y - pY], length = (vec[0]**2+vec[1]**2)**.5;
+            vec[0] /= length; vec[1] /= length;
+            ctx.stroke();
+            //standard indacator function
+            function draw_line_at_distance(distance, length) {
+              let d = distance / z * q;
+              let max_wall_position = [pX + d * vec[0], pY + d * vec[1]];
+              ctx.beginPath();
+              ctx.moveTo(max_wall_position[0] + vec[1] * length, max_wall_position[1] - vec[0] * length);
+              ctx.lineTo(max_wall_position[0] - vec[1] * length, max_wall_position[1] + vec[0] * length);
+              ctx.stroke();
+            }
+            //show max wall length
+            ctx.strokeStyle = "rgb(70, 210, 30)";
+            ctx.lineWidth = 3;
+            draw_line_at_distance(defly.MAX_WALL_LENGTH, 9);
+            //show max bullet range
+            ctx.strokeStyle = "rgb(210, 70, 30)";
+            ctx.lineWidth = 3;
+            draw_line_at_distance(p.copter.bulletLifespan*p.copter.bulletSpeed, 9);
 
-        if(p.isBot){
-          ctx.lineTo(camera.relative.x(p.position.x + p.aimingAt.x), camera.relative.y(p.position.y + p.aimingAt.y));
-        } else {
-          ctx.lineTo(p.aimingAt.x, p.aimingAt.y);
+            ctx.strokeStyle = defly.colors.standard[p.team];
+            ctx.lineWidth = 1;
+          }
         }
-        ctx.stroke();
         ctx.fillStyle = "black";
         ctx.font = `${4 + 7 * q}px Verdana`;
         ctx.textAlign = 'center';
@@ -7925,21 +7952,23 @@ const DC = {
           pY - 20 * q
         );
         ctx.textAlign = 'left';
-        ctx.fillText(
-          `score: ${p.score}`,
-          pX + 15 * q,
-          pY - 10 * q
-        );
-        ctx.fillText(
-          `money: ${p.money.total}`,
-          pX + 15 * q,
-          pY + 5 * q
-        );
-        ctx.fillText(
-          `earned: ${p.money.earned}`,
-          pX + 15 * q,
-          pY + 20 * q
-        );
+        if(DC.show_debug_stuff){
+          ctx.fillText(
+            `score: ${p.score}`,
+            pX + 15 * q,
+            pY - 10 * q
+          );
+          ctx.fillText(
+            `money: ${p.money.total}`,
+            pX + 15 * q,
+            pY + 5 * q
+          );
+          ctx.fillText(
+            `earned: ${p.money.earned}`,
+            pX + 15 * q,
+            pY + 20 * q
+          );
+        }
       }
     });
     /*ctx.strokeStyle = defly.colors.standard[p.team];;
@@ -8354,6 +8383,12 @@ const DC = {
         }
       });
       DC.markDoubledKeybinds();
+      if (localStorage.getItem("DCsettings")) {
+        Object.entries(JSON.parse(localStorage.getItem("DCsettings"))).forEach((setting) => {
+          DC[setting[0]] = setting[1];
+        });
+        if(DC.show_debug_stuff) document.querySelector('#DC-settings-show-debug-checkbox').checked = true;
+      }
     }
 
     camera.zoom = defly.STANDARD_ZOOM;
@@ -8378,6 +8413,7 @@ const DC = {
     camera.zoom = DME.mapZoom;
     
     localStorage.setItem("DChotkeys", JSON.stringify(DC.hotkeys));
+    localStorage.setItem("DCsettings", JSON.stringify({show_debug_stuff: DC.show_debug_stuff}));
   },
 
   updateLoop: function () {

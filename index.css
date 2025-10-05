@@ -82,6 +82,10 @@ button:disabled {
   cursor: not-allowed;
 }
 
+input {
+  cursor: pointer;
+}
+
 #main-canvas {
   position: fixed;
   top: 0;

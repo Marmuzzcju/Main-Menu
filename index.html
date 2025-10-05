@@ -322,6 +322,7 @@
           <button onclick="DC.innitiateDefuseRound();">Start Defuse Round</button><br />
           <button onclick="DC.gamePhase = 'casual';">Exit Defuse Round</button><br />
           <div>Team: <input id="DC-menu-player-team" type="number" min="1" max="14" value="2" onchange="DC.changePlayerTeam(this.value);"></div>
+          <div>Show Debug stuff: <input id="DC-settings-show-debug-checkbox" type="checkbox" onchange="DC.show_debug_stuff = this.checked;"></div>
           <button onclick="DC.enterEditMode();">Exit</button>
         </div>
       </div>
