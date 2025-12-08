@@ -20,7 +20,7 @@ ctx = canvas.getContext("2d"),
 buffer_canvas = document.querySelector("#main-buffer-canvas"),
 buffer_ctx = buffer_canvas.getContext("2d"),
 critical_error_log_style = `background-color: red;padding: 2px;font-weight: bolder;font-size: large;`,
-non_critical_error_log_style = `background-color: rgba(255,0,0,0.7);padding: 1px;font-weight: bolde;`;
+non_critical_error_log_style = `background-color: rgba(255,0,0,0.7);padding: 1px;font-weight: bold;`;
 
 function fadeOutScreen(fadeIn = true) {
   let el = document.querySelector(".screen-overlay-fade");
@@ -5845,6 +5845,27 @@ const DC = {
   updateBotMind: function () {
     this.players.forEach(b => {
       if(b.isBot && b.isAlive){
+        switch(b.targettingData.mode){
+          case 'objective':{
+            //trying to attack/defend bombs
+            if(!DC.mapData.bombs.length) b.targettingData.mode = 'hunt';
+            let closestBomb = {idx:0, delta:Infinity};
+            DC.mapData.bombs.forEach((bomb, idx) => {
+              let delta = ((bomb.x-b.position.x)**2+(bomb.y-b.position.y)**2)**.5;
+              if(delta<=closestBomb.delta) {
+                closestBomb.idx   = idx;
+                closestBomb.delta = delta;
+              }
+            });
+            const targetPosition = DC.mapData.bombs[closestBomb.idx];
+            //pathfind to bomb
+            b.velocity.x = targetPosition.x - b.position.x;
+            b.velocity.y = targetPosition.y - b.position.y;
+            break;
+          }
+        }
+
+        /*
         let p = this.players[0];
         b.velocity.x = p.position.x-b.position.x;
         b.velocity.y = p.position.y-b.position.y;
@@ -5855,6 +5876,7 @@ const DC = {
         } else {
           b.isShooting = false;
         }
+        */
       }
     });
 
@@ -7059,6 +7081,11 @@ const DC = {
       },
       isAlive: true,
       isBot: true,
+      targettingData: {
+        mode: 'objective',
+        checkpoints: [],
+        targetPriority: {},
+      }
     };
     this.players.push(botData);
     this.gameData.idToTeam[`id${this.highestPlayerId}`] = team;
